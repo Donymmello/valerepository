@@ -1,0 +1,84 @@
+<div class="header bg-gradient-success py-7 py-lg-8">
+    <div class="container-fluid">
+      <div class="header-body">
+          <!-- Card stats -->
+      </div>
+    </div>
+  </div>
+  <div class="container mt--9 pb-0">
+      <div class="row justify-content-center">
+          <div class="col-lg-9 col-md-5">
+              <div class="card bg-secondary shadow border-0">
+                  <div class="card-body px-lg-6 py-lg-3">
+                      <div class="text-center text-muted mb-4">
+                          <small><h3> Atualizar Usuario </h3></small>
+                      </div>
+                      <form (ngSubmit)="onSubmit()">
+                          <div class="row">
+                              <div class="col-lg-12">
+                                  <div class="form-group">
+                                      <label class="form-control-label" for="input-nome">Nome completo</label>
+                                      <div class="input-group input-group-alternative mb-3">
+                                          <div class="input-group-prepend">
+                                              <span class="input-group-text"> <i class="ni ni-hat-3"></i></span>
+                                          </div>
+                                          <input type="text" class ="form-control" placeholder="Nome completo" id = "nome" [(ngModel)] = "utilizador.nome" name = "nome">
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-lg-6">
+                                  <div class="form-group">
+                                      <label class="form-control-label" for="input-nome">Nome do utilizador</label>
+                                      <div class="input-group input-group-alternative mb-3">
+                                          <div class="input-group-prepend">
+                                              <span class="input-group-text"> <i class="ni ni-hat-3"></i></span>
+                                          </div>
+                                          <input type="text" class ="form-control" placeholder="Nome do utilizador" id = "nomeutilizador" [(ngModel)] = "utilizador.username" name = "nome">
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-lg-6">
+                                  <div class="form-group">
+                                      <label class="form-control-label" for="input-emai">E-mail</label>
+                                      <div class="input-group input-group-alternative mb-3">
+                                          <div class="input-group-prepend">
+                                              <span class="input-group-text"> <i class="ni ni-hat-3"></i></span>
+                                          </div>
+                                          <input type="email" class ="form-control" placeholder="E-mail" id = "email" [(ngModel)] = "utilizador.email" name = "email">
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-lg-6">
+                                  <div class="form-group">
+                                      <label class="form-control-label" for="input-tipo">Tipo de usuário</label>
+                                      <div class="input-group input-group-alternative mb-3">
+                                          <div class="input-group-prepend">
+                                              <span class="input-group-text"> <i class="ni ni-hat-3"></i></span>
+                                          </div>
+                                          <select class ="form-control" id = "tipo" [(ngModel)] = "utilizador.tipo" name = "tipo">
+                                              <option value="Administrador">Administrador</option>
+                                              <option value="Usuario comum">Usuario comum</option>
+                                              <option value="Usuario comum">Mutuário</option>
+                                          </select>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="col-lg-6">
+                                  <div class="form-group">
+                                      <label class="form-control-label" for="input-password">Password</label>
+                                      <div class="input-group input-group-alternative mb-3">
+                                          <div class="input-group-prepend">
+                                              <span class="input-group-text"> <i class="ni ni-hat-3"></i></span>
+                                          </div>
+                                          <input type="password" class ="form-control" placeholder="Password" id = "password" [(ngModel)] = "utilizador.password" name = "password">
+                                      </div>
+                                  </div>
+                              </div>
+                              <button class = "btn btn-success mt-5" style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;" type ="submit">Criar</button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          </div>
+  </div> 
+      
