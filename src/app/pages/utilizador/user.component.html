@@ -1,0 +1,54 @@
+<div class="header bg-gradient-success pb-8 pt-5 pt-md-8">
+  <div class="container-fluid">
+    <div class="header-body">
+        <!-- Card stats -->
+    </div>
+  </div>
+</div>
+   <!-- Tabela de Utilizadores  -->
+   <div class="container-fluid mt--7">
+    <!-- Table  -->
+    <div class="row">
+      <div class="col">
+        <div class="card shadow">
+          <div class="card-header border-0">
+            <h3 class="mb-0">Lista de Utilizadores</h3>
+            </div>
+          
+          <div class="table-responsive">
+            <table class="table align-items-center table-flush">
+              <thead class="thead-light">
+                <tr>
+                  <!--th scope="col"> Ordem</th -->
+                  <th scope="col"> Fotografia</th>
+                  <th scope="col"> Nome Completo</th>
+                  <th scope="col"> Nome de Utlizador</th>
+                  <th scope="col"> Email</th>
+                  <th scope="col"> Tipo</th>
+                  <th scope="col"> Ação</th>
+                  <th>
+                    <a class="btn btn-outline-success" routerLink="/create-utilizador"><i class="fa fa-plus-square"></i> Criar novo</a>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tbody *ngFor="let appUser of users">
+                  <td (click)="onSelectUser(appUser)">
+                    <img height="40" width="40" src="{{appUser?.profileImageUrl}}" class="rounded-circle img-fluid img-thumbnail" alt=""/>
+                  </td>
+                  <td (click)="onSelectUser(appUser)">{{appUser?.nome}}</td>
+                  <td (click)="onSelectUser(appUser)">{{appUser?.username}}</td>
+                  <td (click)="onSelectUser(appUser)">{{appUser?.email}}</td>
+                  <td (click)="onSelectUser(appUser)">
+                    <span [hidden]="!appUser?.active" class="badge badge-success">Active</span>
+                    <span [hidden]="appUser?.active" class="badge badge-danger">Inactive</span>
+                  </td>
+            </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  

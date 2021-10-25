@@ -1,0 +1,70 @@
+<div class="header bg-gradient-success py-7 py-lg-8">
+  <!-- <div class="container">
+    <div class="header-body text-center mb-7">
+      <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-6">
+          <div class="col-6 collapse-brand">
+            <a  routerLinkActive="active" [routerLink]="['/dashboard']">
+              <img src="./assets/img/brand/logo-principal.png">
+            </a>
+          </div>
+          <h1 class="text-white">Bem-vindo/a!</h1>
+        </div> 
+      </div>
+    </div>
+  </div> -->
+  <div class="separator separator-bottom separator-skew zindex-100">
+    <svg x="0" y="0" viewBox="0 0 2560 100" preserveAspectRatio="none" version="1.1" xmlns="http://www.w3.org/2000/svg">
+      <polygon class="fill-default" points="2560 0 2560 100 0 100"></polygon>
+    </svg>
+  </div>
+</div>
+<!-- Page content -->
+<div class="container mt--9 pb--9" style="box-sizing:inherit;">
+  <div class="row justify-content-center">
+    <div class="col-lg-6 col-md-9">
+      <div class="card bg-secondary shadow border-0">
+        <div class="card-body px-lg-5 py-lg-5">
+          <div class="text-center text-muted mb-4">
+            <small><h2>Bem-vindo/a!</h2> Inicie sessão com as suas credenciais</small>
+          </div>
+          <form #loginForm="ngForm" (ngSubmit)="onLogin(loginForm.value)">
+          <div class="form-group mb-3">
+              <label for="loginUsername"></label>
+              <input type="text"
+                     name="username"
+                     ngModel
+                     required
+                     #username="ngModel"
+                     class="form-control"
+                     id="loginUsername"
+                     placeholder="Digite Nuit">
+          </div>
+          <div class="form-group">
+              <label for="loginPassword"></label>
+              <input type="password"
+                     name="password"
+                     ngModel
+                     required
+                     #password="ngModel"
+                     class="form-control"
+                     id="loginPassword"
+                     placeholder="Senha">
+          </div>
+          <div class="form-group form-check">
+              <a [routerLink]="['/reset-password']">Esqueceu a senha</a>
+          </div>
+          
+          <div class="text-center">
+            <a routerLinkActive="active" [routerLink]="['/home']">
+            <button type="button" class="btn btn-success my-4" style="border-radius: 2rem !important">Iniciar sessão</button> </a>
+          </div>
+      </form>
+      <div class="col-7 text-right">
+            <a routerLinkActive="active" [routerLink]="['/register']" href="javascript:void(0)" class="text-primary"><small>Criar conta</small></a>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+</div>
