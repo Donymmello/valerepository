@@ -19,7 +19,6 @@ import { HttpClientModule } from '@angular/common/http';
     RouterModule.forChild(AuthLayoutRoutes),
     FormsModule,
     HttpClientModule,
-    NotificationModule
     // NgbModule
   ],
   declarations: [

@@ -17,6 +17,7 @@ import { AuthenticationGuard } from './guard/authentication.guard';
 import { AuthenticationService } from './pages/services/authentication.service';
 import { UserService } from './pages/services/user.service';
 import { AuthInterceptor } from './interceptor/auth.interceptor';
+import { NotificationModule } from './notification.module';
 
 
 @NgModule({
@@ -27,6 +28,7 @@ import { AuthInterceptor } from './interceptor/auth.interceptor';
     ComponentsModule,
     NgbModule,
     RouterModule,
+    NotificationModule,
     AppRoutingModule
   ],
   declarations: [

@@ -1,5 +1,4 @@
 import { User } from './../../model/user';
-
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { Router } from '@angular/router';
 import { BehaviorSubject, Subscription } from "rxjs";

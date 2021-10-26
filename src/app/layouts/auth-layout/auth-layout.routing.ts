@@ -6,7 +6,6 @@ import { RegisterComponent } from '../../pages/register/register.component';
 
 export const AuthLayoutRoutes: Routes = [
     { path: 'login',          component: LoginComponent },
-    { path: 'reset-password',       component: ResetPasswordComponent },
     { path: 'register',       component: RegisterComponent },
     { path: '', redirectTo: '/login ', pathMatch: 'full'},
     
