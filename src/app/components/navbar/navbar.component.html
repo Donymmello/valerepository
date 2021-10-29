@@ -7,8 +7,7 @@
           <div class="input-group-prepend">
             <span class="input-group-text"><i class="fas fa-search"></i></span>
           </div>
-          <input class="form-control" placeholder="Pesquisar" type="text" (focus)="focus = true"
-          (blur)="focus = false">
+          <input class="form-control" placeholder="Pesquisar" type="text" (focus)="focus = true" (blur)="focus = false">
         </div>
       </div>
     </form>
@@ -17,9 +16,9 @@
       <li class="nav-item" ngbDropdown placement="bottom-right">
         <a class="nav-link pr-0" role="button" ngbDropdownToggle>
           <div class="media align-items-center">
-              <div class="icon icon-shape text-white rounded-circle shadow">
-                <i class="ni ni-single-02"></i>
-              </div>
+            <div class="icon icon-shape text-white rounded-circle shadow">
+              <i class="ni ni-single-02"></i>
+            </div>
             <div class="media-body ml-1 d-none d-lg-block">
               <span class="mb-0 text-sm  font-weight-bold"> Sidónio Aly</span>
             </div>
@@ -38,7 +37,7 @@
             <span>Suporte</span>
           </a>
           <div class="dropdown-divider"></div>
-          <a href="#!"  routerLinkActive="active" [routerLink]="['/login']" class="dropdown-item">
+          <a href="#!" routerLinkActive="active" [routerLink]="['/login']" class="dropdown-item">
             <i class="ni ni-user-run"></i>
             <span>Sair</span>
           </a>

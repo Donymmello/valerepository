@@ -1,138 +1,120 @@
 <div class="header bg-gradient-success py-7 py-lg-8">
-  <div class="separator separator-bottom separator-skew zindex-100">
-    <svg x="0" y="0" viewBox="0 0 2560 100" preserveAspectRatio="none" version="1.1" xmlns="http://www.w3.org/2000/svg">
-      <polygon class="fill-default" points="2560 0 2560 100 0 100"></polygon>
-    </svg>
-  </div>
+    <div class="separator separator-bottom separator-skew zindex-100">
+        <svg x="0" y="0" viewBox="0 0 2560 100" preserveAspectRatio="none" version="1.1"
+            xmlns="http://www.w3.org/2000/svg">
+            <polygon class="fill-default" points="2560 0 2560 100 0 100"></polygon>
+        </svg>
+    </div>
 </div>
 <!-- Page content -->
 <div class="container mt--9 pb-0">
-  <!-- Table -->
-  <div class="row justify-content-center">
-    <div class="col-lg-12 col-md-5">
-      <div class="card bg-secondary shadow border-0">
-        <div class="card-body px-lg-6 py-lg-0">
-          <div class="text-center text-muted mb-0">
-            <small><h2>Registe-se com</h2></small>
-          </div>
-          <form #registerForm="ngForm" (ngSubmit)="onRegister(registerForm.value)">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-nome">Nome completo</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"></span>
-                            </div>
-                            <input type="text" class ="form-control" placeholder="Nome completo" id = "nome" name = "nome" required ngModel #nomeInput="ngModel">
-                        </div>
+    <!-- Table -->
+    <div class="row justify-content-center">
+        <div class="col-lg-12 col-md-5">
+            <div class="card bg-secondary shadow border-0">
+                <div class="card-body px-lg-6 py-lg-0">
+                    <div class="text-center text-muted mb-0">
+                        <small>
+                            <h2>Registe-se com</h2>
+                        </small>
                     </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-nome">Nome do utilizador</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"> </span>
+                    <form #registerForm="ngForm" (ngSubmit)="onRegister(registerForm.value)">
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
                             </div>
-                            <input type="text" class ="form-control" placeholder="Nome do utilizador" id = "nomeutilizador" name = "nome" required ngModel #nomeInput="ngModel">
+                            <input type="text" class="form-control" name="Nome completo" placeholder="Nome completo"
+                                required ngModel #nomeInput="ngModel">
                         </div>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-nome">Nuit</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"></span>
+                        <span class="help-block" *ngIf="nomeInput.invalid && nomeInput.touched"
+                            style="color:red;">Insira seu nome completo</span>
+
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
                             </div>
-                            <input type="number" class ="form-control" placeholder="Nuit" id = "nuit" name = "nuit" required ngModel #nomeInput="ngModel">
+                            <input type="text" class="form-control" name="username" placeholder="Nome do utilizador"
+                                required ngModel #usernameInput="ngModel">
                         </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                  <div class="form-group">
-                      <label class="form-control-label" for="input-nome">Data de Nascimento</label>
-                      <div class="input-group input-group-alternative mb-3">
-                          <div class="input-group-prepend">
-                              <span class="input-group-text"> </span>
-                          </div>
-                          <input type="date" class ="form-control" placeholder="Data de Nascimento" id = "nascimento" name = "nascimento" required ngModel #nomeInput="ngModel">
-                      </div>
-                  </div>
-                </div>
-                
-                <div class="col-lg-4">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-emai">E-mail</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"></span>
+                        <span class="help-block" *ngIf="usernameInput.invalid && usernameInput.touched"
+                            style="color:red;">Insira seu nome de usuario</span>
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-id-card"></i></span>
                             </div>
-                            <input type="email" class ="form-control" placeholder="E-mail" id = "email" name = "email" required ngModel #nomeInput="ngModel">
+                            <input type="number" class="form-control" name="username" placeholder="Nuit" required
+                                ngModel #nuitInput="ngModel">
                         </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-tipo">Tipo de utilizador</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"> </span>
+                        <span class="help-block" *ngIf="nuitInput.invalid && nuitInput.touched"
+                            style="color:red;">Insira o seu nuit</span>
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-id-card"></i></span>
                             </div>
-                            <select class ="form-control" id = "tipo" name = "tipo" required ngModel #nomeInput="ngModel">
+                            <input type="date" class="form-control" name="nascimento" placeholder="Data de nascimento"
+                                required ngModel #nascimentoInput="ngModel">
+                        </div>
+                        <span class="help-block" *ngIf="nascimentoInput.invalid && nascimentoInput.touched"
+                            style="color:red;">Insira sua data de nascimento</span>
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                            </div>
+                            <input type="text" class="form-control" name="morada" placeholder="Morada" required ngModel
+                                #moradaInput="ngModel">
+                        </div>
+                        <span class="help-block" *ngIf="moradaInput.invalid && moradaInput.touched"
+                            style="color:red;">insira a sua morada</span>
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                            </div>
+                            <select class="form-control" name="tipo" placeholder="Tipo de Usuario" required ngModel
+                                #tipoInput="ngModel">
                                 <option value="Administrador">Administrador</option>
                                 <option value="Usuario comum">Utilizador comum</option>
                                 <option value="Usuario comum">Mutuário</option>
                             </select>
                         </div>
-                    </div>
-                </div>
-                <div class="col-lg-6">
-                  <div class="form-group">
-                      <label class="form-control-label" for="input-nome">Morada</label>
-                      <div class="input-group input-group-alternative mb-3">
-                          <div class="input-group-prepend">
-                              <span class="input-group-text"> </span>
-                          </div>
-                          <input type="text" class ="form-control" placeholder="Morada" id = "morada" name = "morada" required ngModel #nomeInput="ngModel">
-                      </div>
-                  </div>
-              </div>
-                <div class="col-lg-6">
-                    <div class="form-group">
-                        <label class="form-control-label" for="input-password">Senha</label>
-                        <div class="input-group input-group-alternative mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text"> </span>
+                        <span class="help-block" *ngIf="usernameInput.invalid && usernameInput.touched"
+                            style="color:red;">Selecione o tipo</span>
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
                             </div>
-                            <input type="password" class ="form-control" placeholder="Senha" id = "password"  name = "password" required ngModel #nomeInput="ngModel">
+                            <input type="email" class="form-control" name="email" placeholder="Email" required ngModel
+                                #emailInput="ngModel">
                         </div>
+                        <span class="help-block" *ngIf="usernameInput.invalid && usernameInput.touched"
+                            style="color:red;">Please enter a username</span>
+
+
+                        <div class="input-group mb-3">
+                            <div class="input-group-append">
+                                <span class="input-group-text"><i class="fas fa-key"></i></span>
+                            </div>
+
+                            <input type="password" class="form-control" name="password" placeholder="Senha" required
+                                ngModel #passwordInput="ngModel">
+                        </div>
+                        <span class="help-block" *ngIf="passwordInput.invalid && passwordInput.touched"
+                            style="color:red;">insira sua senha.</span>
+                        
+                        <div class="d-flex justify-content-center mt-3 login_container">
+                            <button [disabled]="registerForm.invalid || showLoading" type="submit" name="button"
+                                class="btn login_btn">
+                                <i *ngIf="showLoading" class="fas fa-spinner fa-spin"></i>&nbsp;&nbsp;
+                                <span *ngIf="showLoading">Loading...</span>
+                                <span *ngIf="!showLoading">Registar</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="mt-4">
+                    <div class="d-flex justify-content-center links">
+                        Tem conta? <a routerLink="/login" class="ml-2" style="color: #2C3E50;">Iniciar
+                            sessão</a>
                     </div>
                 </div>
             </div>
-        </form>
-            <div class="col-lg-12">
-              <div class="text-muted font-italic">
-                <small>Força da senha: <span class="text-danger font-weight-700">Adicione números e simbolos</span></small>
-              </div>  
-            </div>
-            <div class="row my-3">
-              <div class="col-12">
-                <div class="custom-control custom-control-alternative custom-checkbox" style="padding-left: 4rem !important">
-                  <input class="custom-control-input" id="customCheckRegister" type="checkbox">
-                  <label class="custom-control-label" for="customCheckRegister">
-                     <span class="text-muted">Eu concordo com os <a href="#!">Termos de privacidade</a></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div class="text-center">
-              <button class = "btn btn-success mt-5" style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;" type ="submit">Registar</button>
-              <!-- <a  routerLinkActive="active" [routerLink]="['/home']"> -->
-              <!-- <button type="button" class="btn btn-success mt-5"  style="bottom: 0rem !important; border-radius: 2rem !important; position: relative;">Criar conta</button></a> -->
-            </div>
-          </div>
         </div>
-
-    

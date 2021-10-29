@@ -25,8 +25,8 @@ export class User {
     this.lastLoginDate = null;
     this.lastLoginDateDisplay = null;
     this.morada = '';
-		this.nuit = '';
-		this.tipo = '';
+    this.nuit = '';
+    this.tipo = '';
     this.joinDate = null;
     this.profileImageUrl = '';
     this.active = false;

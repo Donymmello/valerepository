@@ -7,11 +7,5 @@ import { HomeComponent } from './../../pages/ home/home.component';
 import { Routes } from '@angular/router';
 
 export const AdminLayoutRoutes: Routes = [
-    { path: 'user-profile',   component: UserProfileComponent },
-    { path: 'emprestimo',         component: EmprestimoComponent },
-    { path: 'home',          component: HomeComponent },
-    { path: 'consulta',           component: ConsultaComponent },
-    { path: 'pagamento',           component: PagamentoComponent },
-    
-    
+    { path: 'home', component: HomeComponent },
 ];

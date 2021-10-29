@@ -4,11 +4,11 @@ import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router } from
 import { NotificationType } from '../enum/notification-type.enum';
 import { AuthenticationService } from '../pages/services/authentication.service';
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class AuthenticationGuard implements CanActivate {
 
   constructor(private authenticationService: AuthenticationService, private router: Router,
-              private notificationService: NotificationService) {}
+    private notificationService: NotificationService) { }
 
   canActivate(next: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
     return this.isUserLoggedIn();

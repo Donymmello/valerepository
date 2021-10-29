@@ -1,7 +1,120 @@
 <div class="header bg-gradient-success pb-8 pt-5 pt-md-8">
-    <div class="container-fluid">
-      <div class="header-body">
-        
-      </div>
+  <div class="container-fluid">
+    <div class="header-body">
     </div>
+  </div>
 </div>
+<!-- Page content -->
+<div class="container mt--9 pb-0">
+  <!-- Table -->
+  <div class="row justify-content-center">
+    <div class="col-lg-9 col-md-9">
+      <div class="card bg-secondary shadow border-0">
+        <div class="card-body px-lg-6 py-lg-3">
+          <span class="anchor" id="simuladoresdefinanciamentos"></span>
+          <section class="grey-background">
+            <div class="content-block">
+              <div class="section-heading bg-clip dark-light-vertical-gradient">
+                <h4>Simuladores de Financiamentos</h4>
+              </div>
+              <div class="tab-contents">
+                <div data-content="consumo" class="active">
+                  <div id="simulador-main" class="simulador-wrapper simulador-consumo-wrapper columns-wrapper">
+                    <div class="column-ahalf">
+                      <p>Indique o valor e o prazo do financiamento e obtenha o valor das prestações</p>
+                      <div class="columns-wrapper">
+                        <div class="column-ahalf">
+                          <div class="slider-bar-container valor-pretendido">
+                            <span class="tiny-text block">Valor pretendido</span>
+                            <span class="value-text block"><span class="valuex-set">100,000.00 MT</span></span>
+                            <input data-porc="1.9" data-id="#simulador-main" class="valuex" type="range" min="25000"
+                              max="2000000" step="25000" value="100000"
+                              style="position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0;">
+                            <div class="rangeslider rangeslider--horizontal" id="js-rangeslider-0">
+                              <div class="rangeslider__fill" style="width: 14.2532px;"></div>
+                              <div class="rangeslider__handle" style="left: 7.25316px;"></div>
+                            </div>
+                            <div class="bar-range-text tiny-text">
+                              <span class="range-min">Min. 25.000,00MT</span>
+                              <span class="range-max">Max. 2.000.000,00MT</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="column-ahalf">
+                          <div class="slider-bar-container prazo-meses">
+                            <span class="tiny-text block">Prazo</span>
+                            <span class="value-text block">18 meses</span>
+                            <input data-id="#simulador-main" class="duex" data-porc="1.9" type="range" min="6" max="60"
+                              step="1" value="18"
+                              style="position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0;">
+                            <div class="rangeslider rangeslider--horizontal" id="js-rangeslider-1">
+                              <div class="rangeslider__fill" style="width: 45px;"></div>
+                              <div class="rangeslider__handle" style="left: 38px;"></div>
+                            </div>
+                            <div class="bar-range-text tiny-text">
+                              <span class="range-min">Min. 6 meses</span>
+                              <span class="range-max">Max. 60 meses</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="nota_condicoes_fin">
+                          Notas:<br>
+                          <p>
+                            A validação destas condições carece, todavia, da análise e aprovação do pedido de
+                            financiamento a
+                            apresentar pelo Cliente.
+                          </p>
+                          <p>
+
+                            Calculada com base no <i style="font-style: italic;">Spreads</i> Padronizados de Taxas de
+                            Juro
+                            praticadas pelo BCI, adicionado à <i style="font-style: italic;">Prime Rate </i> do Sistema,
+                            por
+                            categoria de Créditos.
+                          </p>
+
+                          <p>Não inclui Seguro e Comissões.</p>
+
+                        </div>
+                      </div>
+                    </div>
+                    <div class="column-ahalf">
+                      <p>Resumo da Simulação:</p>
+                      <div class="simulador-table-wrapper dark-light-horizontal-gradient">
+                        <table class="simulador-table">
+                          <tbody>
+                            <tr>
+                              <td>
+                                Montante
+                                <span class="value-text montante">100,000.00 MT</span>
+                              </td>
+                              <td>
+                                Taxa de Juro Mensal
+                                <span class="value-text juro-mensal">1.9%</span>
+                                <span style="display: none" class="value-text juro-mensal_9">1.9</span>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                Taxa de Juro Nominal
+                                <span class="value-text juro-nominal">22.8%</span>
+                              </td>
+                              <td>
+                                Prestação mensal
+                                <span class="value-text bold prestacao-mensal">6,611.71 MT</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <a href="" id="askforfinance" class="askforfinancebtn">Pedir Financiamento
+                        <img src="https://www.bci.co.mz/wp-content/themes/omeubanco/img/social/right-arrow.png"
+                          alt="Pedir Financiamento">
+
+                      </a>
+                    </div>
+
+
+                  </div>
+                </div>
+              </div>

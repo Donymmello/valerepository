@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core';
-import { HttpClientModule } from '@angular/common/http';import { RouterModule } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http'; import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
@@ -26,12 +26,8 @@ import { EmprestimoComponent } from 'src/app/pages/emprestimo/emprestimo.compone
     ClipboardModule
   ],
   declarations: [
-    PagamentoComponent,
-    UserProfileComponent,
-    ConsultaComponent,
-    HomeComponent,
-    EmprestimoComponent,
+    HomeComponent
   ]
 })
 
-export class AdminLayoutModule {}
+export class AdminLayoutModule { }
