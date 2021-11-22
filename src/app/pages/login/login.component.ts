@@ -5,8 +5,8 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { HeaderType } from 'src/app/enum/header-type.enum';
 import { User } from 'src/app/model/user';
-import { AuthenticationService } from '../services/authentication.service';
-import { NotificationService } from '../services/notification.service';
+import { AuthenticationService } from '../../services/authentication.service';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-login',
@@ -22,7 +22,8 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (this.authenticationService.isUserLoggedIn()) {
-      this.router.navigateByUrl('/user/management');
+      //this.router.navigateByUrl('/user/management');
+      this.router.navigateByUrl('/home');
     } else {
       this.router.navigateByUrl('/login');
     }
@@ -36,7 +37,8 @@ export class LoginComponent implements OnInit, OnDestroy {
           const token = response.headers.get(HeaderType.JWT_TOKEN);
           this.authenticationService.saveToken(token);
           this.authenticationService.addUserToLocalCache(response.body);
-          this.router.navigateByUrl('/user/management');
+          //this.router.navigateByUrl('/user/management');
+          this.router.navigateByUrl('/home');
           this.showLoading = false;
         },
         (errorResponse: HttpErrorResponse) => {

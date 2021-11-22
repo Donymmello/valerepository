@@ -1,7 +1,14 @@
 export class Pagamento {
-    id: number;
-    nr_conta: string;
-    valor: string;
-    data: string;
-    status: string;
+    public paymentId: string;
+    public username: string;
+    public valor: String;
+    public taxa: String;
+
+constructor() {
+this.paymentId = '';
+this.username = '';
+this.valor = '';
+this.taxa = '';
+
+}
 }

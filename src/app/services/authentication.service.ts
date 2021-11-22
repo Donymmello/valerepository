@@ -1,13 +1,9 @@
 import { JwtHelperService } from '@auth0/angular-jwt';
-
-import { environment } from './../../../environments/environment';
+import { environment } from '../../environments/environment';
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpResponse, HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { User } from 'src/app/model/user';
-
-
-
 
 @Injectable({ providedIn: 'root' })
 export class AuthenticationService {
@@ -15,15 +11,17 @@ export class AuthenticationService {
   private token: string;
   private loggedInUsername: string;
   private jwtHelper = new JwtHelperService();
+  
 
   constructor(private http: HttpClient) { }
 
-  public login(user: User): Observable<HttpResponse<User>> {
-    return this.http.post<User>(`${this.host}user/login`, user, { observe: 'response' });
+  public login(user: User): Observable<HttpResponse<User> | HttpErrorResponse> {
+    return this.http.post<User>(`${this.host}/user/login`, user, { observe: 'response' });
   }
 
-  public register(user: User): Observable<User> {
-    return this.http.post<User>(`${this.host}user/register`, user);
+  public register(user: User): Observable<User | HttpErrorResponse> {
+    return this.http.post<User | HttpErrorResponse>
+    (`${this.host}/user/register`, user);
   }
 
   public logOut(): void {

@@ -1,14 +1,16 @@
 export class User {
   public userId: string;
   public nome: string;
-  public username: string;
+  public apelido: string;
   public nascimento: string;
+  public morada: string;
+  public b_i: string;
+  public nuit: string;
+  public tipo: string;
+  public username: string;
   public email: string;
   public lastLoginDate: Date;
   public lastLoginDateDisplay: Date;
-  public morada: string;
-  public nuit: string;
-  public tipo: string;
   public joinDate: Date;
   public profileImageUrl: string;
   public active: boolean;
@@ -19,14 +21,16 @@ export class User {
   constructor() {
     this.userId = '';
     this.nome = '';
-    this.username = '';
+    this.apelido = '';
     this.nascimento = '';
+    this.morada = '';
+    this.b_i = '';
+    this.nuit = '';
+    this.tipo = '';
+    this.username = '';
     this.email = '';
     this.lastLoginDate = null;
     this.lastLoginDateDisplay = null;
-    this.morada = '';
-    this.nuit = '';
-    this.tipo = '';
     this.joinDate = null;
     this.profileImageUrl = '';
     this.active = false;

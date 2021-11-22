@@ -6,8 +6,7 @@ import {
   HttpInterceptor
 } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AuthenticationService } from '../pages/services/authentication.service';
-
+import { AuthenticationService } from '../services/authentication.service';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -19,6 +18,9 @@ export class AuthInterceptor implements HttpInterceptor {
       return httpHandler.handle(httpRequest);
     }
     if (httpRequest.url.includes(`${this.authenticationService.host}/user/register`)) {
+      return httpHandler.handle(httpRequest);
+    }
+    if (httpRequest.url.includes(`${this.authenticationService.host}/user/resetpassword`)) {
       return httpHandler.handle(httpRequest);
     }
     this.authenticationService.loadToken();

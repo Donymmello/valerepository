@@ -1,10 +1,6 @@
 /* You can add global styles to this file, and also import other style files */
 @import "~bootstrap/dist/css/bootstrap.min.css";
+//@import 'https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css';
+@import 'https://use.fontawesome.com/releases/v5.8.1/css/all.css';
+@import "~angular-notifier/styles";
 
-.ng-valid[required], .ng-valid.required  {
-    border-left: 5px solid #42A948; /* green */
-  }
-  
-  .ng-invalid:not(form)  {
-    border-left: 5px solid #a94442; /* red */
-  }

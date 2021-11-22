@@ -12,10 +12,11 @@
       <div class="card bg-secondary shadow border-0">
         <div class="card-body px-lg-5 py-lg-5">
           <div class="text-center text-muted mb-4">
-            <small>
-              <h2>Bem-vindo/a!</h2> Inicie sessão com as suas credenciais
-            </small>
-          </div>
+          <small>
+            <h2>Bem-vindo/a!</h2> Inicie sessão com as suas credenciais<!-- <h3>User Management Portal</h3> -->
+          </small>
+        </div>
+        <div class="d-flex justify-content-center form_container">
           <form #loginForm="ngForm" (ngSubmit)="onLogin(loginForm.value)">
             <div class="input-group mb-3">
               <div class="input-group-append">
@@ -51,7 +52,6 @@
             Não tem conta? <a routerLink="/register" class="ml-2" style="color: #2C3E50;">Registar</a>
           </div>
         </div>
-        </div>
       </div>
     </div>
-  </div>
+</div>

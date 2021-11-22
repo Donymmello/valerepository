@@ -1,3 +1,7 @@
+import { Subscription } from 'rxjs';
+import { PagamentoService } from './../../services/pagamento.service';
+import { NotificationType } from './../../enum/notification-type.enum';
+import { Pagamento } from './../../model/pagamento';
 import { Component, OnInit } from '@angular/core';
 import Chart from 'chart.js';
 
@@ -8,6 +12,10 @@ import {
   chartExample1,
   chartExample2
 } from "../../variables/charts";
+import { NgForm } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { NotificationService } from 'src/app/services/notification.service';
 
 @Component({
   selector: 'app-pagamento',
@@ -15,46 +23,33 @@ import {
   styleUrls: ['./pagamento.component.scss']
 })
 export class PagamentoComponent implements OnInit {
-
-  public datasets: any;
-  public data: any;
-  public salesChart;
-  public clicked: boolean = true;
-  public clicked1: boolean = false;
-
-  ngOnInit() {
-
-    this.datasets = [
-      [0, 20, 10, 30, 15, 40, 20, 60, 60],
-      [0, 20, 5, 25, 10, 30, 15, 40, 40]
-    ];
-    this.data = this.datasets[0];
-
-
-    var chartOrders = document.getElementById('chart-orders');
-
-    parseOptions(Chart, chartOptions());
-
-
-    var ordersChart = new Chart(chartOrders, {
-      type: 'bar',
-      options: chartExample2.options,
-      data: chartExample2.data
-    });
-
-    var chartSales = document.getElementById('chart-sales');
-
-    this.salesChart = new Chart(chartSales, {
-			type: 'line',
-			options: chartExample1.options,
-			data: chartExample1.data
-		});
+  private subscriptions: Subscription[] = [];
+  
+  constructor(private router: Router, private pagamentoService: PagamentoService, private notificationService: NotificationService) { }
+  
+  ngOnInit(): void {
   }
 
-
-  public updateOptions() {
-    this.salesChart.data.datasets[0].data = this.data;
-    this.salesChart.update();
+  public onAddNewPagamento(pagamentoForm: NgForm): void {
+    const formData = this.pagamentoService.createPagamentoFormDate(null, pagamentoForm.value);
+    this.subscriptions.push(
+      this.pagamentoService.addPagamento(formData).subscribe(
+        (response: Pagamento) => {
+          //this.clickButton('new-user-close');
+          //this.getUsers(false);
+          //this.fileName = null;
+          //this.profileImage = null;
+          //userForm.reset();
+          //this.sendNotification(NotificationType.SUCCESS, `${response.nome} ${response.apelido} added successfully`);
+        },
+        (errorResponse: HttpErrorResponse) => {
+          this.sendNotification(NotificationType.ERROR, errorResponse.error.message);
+        }
+      )
+    );
+  }
+  sendNotification(ERROR: NotificationType, message: any) {
+    throw new Error('Method not implemented.');
   }
 
 }

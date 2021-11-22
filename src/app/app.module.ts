@@ -12,26 +12,25 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 import { AppRoutingModule } from './app.routing';
 import { ComponentsModule } from './components/components.module';
-import { NotificationService } from './pages/services/notification.service';
 import { AuthenticationGuard } from './guard/authentication.guard';
-import { AuthenticationService } from './pages/services/authentication.service';
-import { UserService } from './pages/services/user.service';
+import { AuthenticationService } from './services/authentication.service';
+import { UserService } from './services/user.service';
 import { AuthInterceptor } from './interceptor/auth.interceptor';
 import { NotificationModule } from './notification.module';
 
 import { RegisterComponent } from './pages/register/register.component';
-import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
-import { UserComponent } from './pages/utilizador/user.component';
+import { UserComponent } from './pages/user/user.component';
 import { LoginComponent } from './pages/login/login.component';
 import { PagamentoComponent } from './pages/pagamento/pagamento.component';
 import { UserProfileComponent } from './pages/user-profile/user-profile.component';
-import { HomeComponent } from './pages/ home/home.component';
 import { EmprestimoComponent } from './pages/emprestimo/emprestimo.component';
+import { BrowserModule } from '@angular/platform-browser';
 
 
 @NgModule({
   imports: [
     BrowserAnimationsModule,
+    BrowserModule,
     FormsModule,
     HttpClientModule,
     ComponentsModule,
@@ -39,21 +38,23 @@ import { EmprestimoComponent } from './pages/emprestimo/emprestimo.component';
     RouterModule,
     NotificationModule,
     AppRoutingModule
+    
   ],
   declarations: [
     AppComponent,
     AdminLayoutComponent,
     LoginComponent,
     RegisterComponent,
-    ResetPasswordComponent,
+    UserComponent,
+    //ResetPasswordComponent,
     PagamentoComponent,
     UserProfileComponent,
     ConsultaComponent,
-    EmprestimoComponent,
-    UserComponent
+    EmprestimoComponent
+  
 
   ],
-  providers: [NotificationService, AuthenticationGuard, AuthenticationService, UserService,
+  providers: [AuthenticationGuard, AuthenticationService, UserService,
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }],
   bootstrap: [AppComponent]
 })

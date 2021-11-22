@@ -15,7 +15,7 @@
           <div class="text-center text-muted mb-4">
             <small><h2>Preencha os campos com atenção!</h2></small>
           </div>
-          <div class="row">
+          <form #newPagamentoForm="ngForm" (ngSubmit)="onAddNewPagamento(newPagamentoForm)">          <div class="row">
             <div class="col-lg-6">
               <div class="form-group">
                 <div class="input-group input-group-alternative mb-3">
@@ -114,9 +114,10 @@
             <div class="text-center">
               <a  routerLinkActive="active" [routerLink]="['/home']">
               <button type="button" class="btn btn-success mt-5"  style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;">Pagar</button></a>
+  
             </div>
           </div>
-        </div>
+      </form>
       </div>
     </div>
   </div>
