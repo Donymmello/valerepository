@@ -20,7 +20,7 @@ const routes: Routes = [
 ]}, 
 { path: 'login', component: LoginComponent },
 { path: 'register', component: RegisterComponent },
-{ path: 'user/management', component: UserComponent, canActivate: [AuthenticationGuard] },
+//{ path: 'user/management', component: UserComponent, canActivate: [AuthenticationGuard] },
 { path: '', redirectTo: '/login', pathMatch: 'full' },
 { path: 'user-profile', component: UserProfileComponent },
   { path: 'emprestimo', component: EmprestimoComponent },

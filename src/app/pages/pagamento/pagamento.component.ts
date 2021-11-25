@@ -2,16 +2,7 @@ import { Subscription } from 'rxjs';
 import { PagamentoService } from './../../services/pagamento.service';
 import { NotificationType } from './../../enum/notification-type.enum';
 import { Pagamento } from './../../model/pagamento';
-import { Component, OnInit } from '@angular/core';
-import Chart from 'chart.js';
-
-// core components
-import {
-  chartOptions,
-  parseOptions,
-  chartExample1,
-  chartExample2
-} from "../../variables/charts";
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NgForm } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -22,8 +13,10 @@ import { NotificationService } from 'src/app/services/notification.service';
   templateUrl: './pagamento.component.html',
   styleUrls: ['./pagamento.component.scss']
 })
-export class PagamentoComponent implements OnInit {
+export class PagamentoComponent implements OnInit, OnDestroy {
   private subscriptions: Subscription[] = [];
+  public pagamento: Pagamento;
+  public pagamentos: Pagamento[];
   
   constructor(private router: Router, private pagamentoService: PagamentoService, private notificationService: NotificationService) { }
   
@@ -31,7 +24,7 @@ export class PagamentoComponent implements OnInit {
   }
 
   public onAddNewPagamento(pagamentoForm: NgForm): void {
-    const formData = this.pagamentoService.createPagamentoFormDate(null, pagamentoForm.value);
+    const formData = this.pagamentoService.createPagamentoFormDate( pagamentoForm.value);
     this.subscriptions.push(
       this.pagamentoService.addPagamento(formData).subscribe(
         (response: Pagamento) => {
@@ -51,5 +44,7 @@ export class PagamentoComponent implements OnInit {
   sendNotification(ERROR: NotificationType, message: any) {
     throw new Error('Method not implemented.');
   }
-
+  ngOnDestroy(): void {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
 }
