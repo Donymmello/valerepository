@@ -11,7 +11,6 @@ import { UserProfileComponent } from '../../pages/user-profile/user-profile.comp
 import { ConsultaComponent } from '../../pages/consulta/consulta.component';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { HomeComponent } from 'src/app/pages/ home/home.component';
-import { EmprestimoComponent } from 'src/app/pages/emprestimo/emprestimo.component';
 
 
 // import { ToastrModule } from 'ngx-toastr';

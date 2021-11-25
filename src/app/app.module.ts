@@ -23,7 +23,7 @@ import { UserComponent } from './pages/user/user.component';
 import { LoginComponent } from './pages/login/login.component';
 import { PagamentoComponent } from './pages/pagamento/pagamento.component';
 import { UserProfileComponent } from './pages/user-profile/user-profile.component';
-import { EmprestimoComponent } from './pages/emprestimo/emprestimo.component';
+import { LoanComponent } from './pages/loan/loan.component';
 import { BrowserModule } from '@angular/platform-browser';
 
 
@@ -50,7 +50,7 @@ import { BrowserModule } from '@angular/platform-browser';
     PagamentoComponent,
     UserProfileComponent,
     ConsultaComponent,
-    EmprestimoComponent
+    LoanComponent
   
 
   ],

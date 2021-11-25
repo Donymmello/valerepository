@@ -16,7 +16,7 @@
             <small>
               <h2>Preencha os campos com atenção!</h2>
             </small>
-          </div>
+            <form (ngSubmit)="onSubmit()">
           <div class="row">
             <div class="col-lg-6">
               <div class="form-group">
@@ -24,17 +24,7 @@
                   <div class="input-group-prepend">
                     <span class="input-group-text"><i class="ni ni-hat-3"></i></span>
                   </div>
-                  <input class="form-control" placeholder="id do Mutuário" type="number">
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="form-group">
-                <div class="input-group input-group-alternative mb-3">
-                  <div class="input-group-prepend">
-                    <span class="input-group-text"><i class="ni ni-email-83"></i></span>
-                  </div>
-                  <input class="form-control" placeholder="Nome completo" type="text">
+                  <input class="form-control" placeholder="Montante" type="number" [(ngModel)] = "loan.loanAmount" name = "">
                 </div>
               </div>
             </div>
@@ -44,17 +34,7 @@
                   <div class="input-group-prepend">
                     <span class="input-group-text"><i class="ni ni-badge"></i></span>
                   </div>
-                  <input class="form-control" placeholder="Data de nascimento" type="date">
-                </div>
-              </div>
-            </div>
-            <div class="col-lg-6">
-              <div class="form-group">
-                <div class="input-group input-group-alternative mb-3">
-                  <div class="input-group-prepend">
-                    <span class="input-group-text"><i class="ni ni-badge"></i></span>
-                  </div>
-                  <input class="form-control" placeholder="Bilhete de Identidade/Nuit" type="text">
+                  <input class="form-control" placeholder="Nuit" type="number" [(ngModel)] = "loan.nuit" name = "">
                 </div>
               </div>
             </div>
@@ -64,7 +44,7 @@
                   <div class="input-group-prepend">
                     <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
                   </div>
-                  <input class="form-control" placeholder="Morada" type="text">
+                  <input class="form-control" placeholder="estado do emprestimo" type="text" [(ngModel)] = "loan.loanStatus" name = "">
                 </div>
               </div>
             </div>
@@ -74,7 +54,7 @@
                   <div class="input-group-prepend">
                     <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
                   </div>
-                  <input class="form-control" placeholder="Estado da conta" type="text">
+                  <input class="form-control" placeholder="Data da criacao" type="date" [(ngModel)] = "loan.createdOn" name = "">
                 </div>
               </div>
             </div>
@@ -84,20 +64,19 @@
                   <div class="input-group-prepend">
                     <span class="input-group-text"><i class="ni ni-lock-circle-open"></i></span>
                   </div>
-                  <input class="form-control" placeholder="Valor do crédito" type="number">
+                  <input class="form-control" placeholder="Data de pagamento" type="date" [(ngModel)] = "loan.expiresOn" name = "">
                 </div>
               </div>
             </div>
             <div class="text-center">
-              <a routerLinkActive="active" [routerLink]="['/home']">
-                <button type="button" class="btn btn-success mt-5"
-                  style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;">Submeter
-                  pedido</button></a> 
-                  
-
+              <!-- <a routerLinkActive="active" [routerLink]="['/home']"> -->
+                <!-- <button type="button" class="btn btn-success mt-5" -->
+                  <!-- <style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;">Submeter> -->
+                  <!-- pedido</button> -->
+                  <button class = "btn btn-success mt-5" style="bottom: 3rem !important; border-radius: 2rem !important; position: relative;" type ="submit">Submeter pedido</button>
             </div>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   </div>

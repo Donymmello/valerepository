@@ -1,7 +1,7 @@
 import { Subscription } from 'rxjs';
 import { PagamentoService } from './../../services/pagamento.service';
 import { NotificationType } from './../../enum/notification-type.enum';
-import { Pagamento } from './../../model/pagamento';
+import { Pagamento } from '../../model/payment';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NgForm } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
