@@ -1,0 +1,22 @@
+:root {
+  --primary-color: #2dce89; /* Verde Argon */
+  --secondary-color: #11cdef; /* Azul Argon */
+  --sidebar-bg: #ffffff; /* Sidebar Branco */
+  --navbar-footer-bg: rgba(255, 255, 255, 0.2);
+  --text-color: #000000;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: var(--text-color);
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  display: block;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
