@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
-import { TextField, Button, Container, Typography, Paper } from '@mui/material';
-
+import { Container, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Select, MenuItem, Button } from '@mui/material';
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -45,57 +44,50 @@ function Usuarios() {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Paper
-        elevation={6}
-        sx={{
-          padding: "30px",
-          marginTop: "80px",
-          borderRadius: "10px",
-          textAlign: "center",
-        }}
-      >
-        <div>
-          <Typography variant="h4" fontWeight="bold">
-            Gerenciar Usuários
-          </Typography>
-
-          <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.map((user) => (
-                  <tr key={user._id}>
-                    <td>{user.nome}</td>
-                    <td>{user.email}</td>
-                    <td>
-                      <select
-                        value={user.role}
-                        onChange={(e) => atualizarRole(user._id, e.target.value)}
-                      >
-                        <option value="USER">Usuário</option>
-                        <option value="GESTOR">Gestor</option>
-                        <option value="ADMIN">Admin</option>
-                      </select>
-                    </td>
-                    <td>
-                      <button onClick={() => excluirUsuario(user._id)}>Excluir</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Typography>
-        </div>
+    <Container component="main" maxWidth="md">
+      <Paper elevation={6} sx={{ padding: '30px', marginTop: '80px', borderRadius: '10px', textAlign: 'center' }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          Gerenciar Usuários
+        </Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Nome</strong></TableCell>
+                <TableCell><strong>Email</strong></TableCell>
+                <TableCell><strong>Role</strong></TableCell>
+                <TableCell><strong>Ações</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {usuarios.map((user) => (
+                <TableRow key={user._id}>
+                  <TableCell>{user.nome}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={user.role}
+                      onChange={(e) => atualizarRole(user._id, e.target.value)}
+                      fullWidth
+                    >
+                      <MenuItem value="USER">Usuário</MenuItem>
+                      <MenuItem value="GESTOR">Gestor</MenuItem>
+                      <MenuItem value="ADMIN">Admin</MenuItem>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="contained" color="error" onClick={() => excluirUsuario(user._id)}>
+                      Excluir
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
     </Container>
   );
 }
+
 export default Usuarios;

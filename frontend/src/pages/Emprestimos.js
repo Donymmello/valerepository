@@ -12,26 +12,27 @@ function Emprestimos() {
 
   useEffect(() => {
     const fetchEmprestimos = async () => {
-      try {
-        if (!token) {
-          console.error("Erro: Token não encontrado.");
-          return;
+        try {
+            const token = localStorage.getItem('token');  // Obtendo token
+            if (!token) {
+                console.error("Erro: Token não encontrado. Faça login novamente.");
+                return;
+            }
+
+            const response = await api.get("/emprestimos", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            console.log("Empréstimos recebidos:", response.data); // Debug
+            setEmprestimos(response.data);
+        } catch (error) {
+            console.error("Erro ao buscar empréstimos:", error);
         }
-
-        const response = await api.get(user.role === 'ADMIN' || user.role === 'GESTOR' ? "/emprestimos" : "/meus-emprestimos", {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        console.log("Empréstimos recebidos:", response.data); // Debug
-
-        setEmprestimos(response.data);
-      } catch (error) {
-        console.error("Erro ao buscar empréstimos:", error);
-      }
     };
 
     fetchEmprestimos();
-  }, [token, user]);
+}, []);
+
 
   const atualizarEmprestimo = async (id, acao) => {
     try {
@@ -82,7 +83,7 @@ function Emprestimos() {
                   {emp.aprovado ? <span style={{ color: "green" }}>Aprovado</span> : emp.rejeitado ? <span style={{ color: "red" }}>Rejeitado</span> : "Pendente"}
                 </TableCell>
                 <TableCell>
-                  {user.role !== 'USUARIO' && !emp.aprovado && !emp.rejeitado && (
+                {(user.role === 'ADMIN' || user.role === 'GESTOR') && !emp.aprovado && !emp.rejeitado && (
                     <>
                       <Button
                         onClick={() => atualizarEmprestimo(emp._id, "aprovar")}

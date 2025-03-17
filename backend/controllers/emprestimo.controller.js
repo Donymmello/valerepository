@@ -33,10 +33,13 @@ exports.listarEmprestimos = async (req, res) => {
         console.log("Usuário autenticado:", req.user); // Debug
         
         let emprestimos;
-        if (req.user.role === 'ADMIN') {
-            emprestimos = await Emprestimo.find();
+
+        if (req.user.role === "ADMIN" || req.user.role === "GESTOR") {
+            // Admin e Gestor veem todos os empréstimos
+            emprestimos = await Emprestimo.find().populate("user", "nome email");
         } else {
-            emprestimos = await Emprestimo.find().populate('user', 'nome email').where('user', req.user._id);
+            // Usuário comum vê apenas seus empréstimos
+            emprestimos = await Emprestimo.find({ user: req.user._id }).populate("user", "nome email");
         }
 
         console.log("Empréstimos encontrados:", emprestimos.length); // Debug
