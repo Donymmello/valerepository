@@ -1,6 +1,7 @@
 const Emprestimo = require('../models/Emprestimo');
 const { registrarLog } = require('../controllers/log.controller'); // Verifique se este caminho está correto
 const nodemailer = require("nodemailer");
+const Notificacao = require("../models/Notificacao");
 
 
 exports.criarEmprestimo = async (req, res) => {
@@ -31,7 +32,7 @@ exports.criarEmprestimo = async (req, res) => {
 exports.listarEmprestimos = async (req, res) => {
     try {
         console.log("Usuário autenticado:", req.user); // Debug
-        
+
         let emprestimos;
 
         if (req.user.role === "ADMIN" || req.user.role === "GESTOR") {
@@ -89,6 +90,11 @@ exports.aprovarEmprestimo = async (req, res) => {
 
         await registrarLog(req.user._id, "Aprovação de Empréstimo", `Empréstimo ${emprestimo._id} aprovado.`);
         await enviarNotificacao(emprestimo.usuario.email, "APROVADO");
+        // Criar notificação
+        await Notificacao.create({
+            usuario: emprestimo.user,
+            mensagem: `Seu empréstimo de ${emprestimo.valor} foi aprovado!`
+        });
 
         res.json(emprestimo);
     } catch (error) {
@@ -115,6 +121,11 @@ exports.rejeitarEmprestimo = async (req, res) => {
 
         await registrarLog(req.user._id, 'Rejeição de Empréstimo', `Empréstimo ${emprestimo._id} rejeitado.`);
         await enviarNotificacao(emprestimo.usuario.email, "REJEITADO");
+        // Criar notificação
+        await Notificacao.create({
+            usuario: emprestimo.user,
+            mensagem: `Seu empréstimo de ${emprestimo.valor} foi rejeitado.`
+        });
 
         res.json(emprestimo);
     } catch (error) {

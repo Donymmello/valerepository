@@ -7,6 +7,8 @@ import { AuthProvider } from "./context/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Emprestimos from "./pages/Emprestimos";
 import Usuarios from "./pages/Usuarios";
+import Perfil from "./pages/Perfil";
+import AlterarSenha from "./pages/AlterarSenha";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RecuperarSenha from "./pages/RecuperarSenha";
@@ -37,6 +39,8 @@ const MainLayout = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+          <Route path="/perfil" element={<Perfil />} />
+          <Route path="/alterar-senha" element={<AlterarSenha />} />
           <Route path="/dashboard" element={<Dashboard />} /> 
           <Route path="/emprestimos" element={<Emprestimos />} />
           <Route path="/novo-emprestimo" element={<EmprestimoForm />} />

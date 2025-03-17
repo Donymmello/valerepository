@@ -6,6 +6,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const userRoutes = require('./routes/user.routes');
+const notificacaoRoutes = require("./routes/notificacao.routes");
 
 
 
@@ -20,6 +21,7 @@ connectDB();
 // Rotas
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/emprestimos', require('./routes/emprestimo.routes'));
+app.use("/api/notificacoes", notificacaoRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/usuarios', userRoutes);
 app.use('/api/logs', logRoutes);
