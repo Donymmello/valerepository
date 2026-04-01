@@ -1,17 +1,20 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+const { Sequelize } = require("sequelize");
+require("dotenv").config();
 
-const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true
-        });
-        console.log('✅ Conectado ao MongoDB');
-    } catch (error) {
-        console.error('❌ Erro ao conectar ao MongoDB:', error.message);
-        process.exit(1);
-    }
-};
+/*
+  Aqui configuramos a conexão com a base de dados MySQL.
+  O Sequelize vai usar essas credenciais para se conectar.
+*/
+const sequelize = new Sequelize(
+  process.env.DB_NAME,       // nome da base de dados
+  process.env.DB_USER,       // utilizador do MySQL
+  process.env.DB_PASSWORD,   // senha do MySQL
+  {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    dialect: "mysql",
+    logging: false, // se quiser ver queries SQL no terminal, mude para true
+  }
+);
 
-module.exports = connectDB;
+module.exports = sequelize;

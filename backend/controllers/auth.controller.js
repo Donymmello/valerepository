@@ -1,81 +1,192 @@
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const crypto = require('crypto');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { User } = require("../models");
+const registrarLogAuditoria = require("../utils/logAuditoria");
 
-exports.register = async (req, res) => {
-    try {
-        const { nome, email, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ nome, email, password: hashedPassword });
-        await user.save();
-        res.status(201).json({ message: 'Usuário criado com sucesso' });
-    } catch (error) {
-        res.status(500).json({ error: 'Erro ao registrar usuário' });
+/*
+  ==========================================================
+  GERAR TOKEN JWT
+  ==========================================================
+*/
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1d",
     }
+  );
 };
 
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const user = await User.findOne({ email });
+/*
+  ==========================================================
+  REGISTAR UTILIZADOR
+  ==========================================================
+*/
+const register = async (req, res) => {
+  try {
+    const { nome, email, password, role } = req.body;
 
-        if (!user) {
-            return res.status(401).json({ error: "Usuário não encontrado" });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ error: "Credenciais inválidas" });
-        }
-
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ token, user });
-    } catch (error) {
-        res.status(500).json({ error: "Erro ao fazer login" });
+    if (!nome || !email || !password) {
+      return res.status(400).json({
+        message: "Nome, email e password são obrigatórios.",
+      });
     }
+
+    const existingUser = await User.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Já existe um utilizador com este email.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      nome,
+      email,
+      passwordHash,
+      role: role || "USER",
+    });
+
+    // Log de auditoria do registo
+    await registrarLogAuditoria({
+      userId: user.id,
+      acao: "CRIAR_UTILIZADOR",
+      entidade: "User",
+      entidadeId: user.id,
+      descricao: `Utilizador ${user.email} criado com perfil ${user.role}.`,
+    });
+
+    return res.status(201).json({
+      message: "Utilizador criado com sucesso.",
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        ativo: user.ativo,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao registar utilizador:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao registar utilizador.",
+      error: error.message,
+    });
+  }
 };
 
-// Solicitar recuperação de senha
-exports.recuperarSenha = async (req, res) => {
-    try {
-        const { email } = req.body;
-        const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+/*
+  ==========================================================
+  LOGIN
+  ==========================================================
+*/
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-        const token = crypto.randomBytes(20).toString('hex');
-        user.resetToken = token;
-        user.resetTokenExp = Date.now() + 3600000; // 1 hora de validade
-        await user.save();
-
-        const resetLink = `http://localhost:3000/resetar-senha/${token}`;
-        await transporter.sendMail({
-            to: user.email,
-            subject: 'Recuperação de Senha',
-            html: `<p>Clique no link para redefinir sua senha: <a href="${resetLink}">${resetLink}</a></p>`
-        });
-
-        res.json({ message: 'Email de recuperação enviado' });
-    } catch (error) {
-        res.status(500).json({ error: 'Erro ao enviar email' });
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email e password são obrigatórios.",
+      });
     }
+
+    const user = await User.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Utilizador não encontrado.",
+      });
+    }
+
+    if (!user.ativo) {
+      return res.status(403).json({
+        message: "Utilizador inativo. Contacte o administrador.",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        message: "Password inválida.",
+      });
+    }
+
+    const token = generateToken(user);
+
+    // Log de auditoria do login
+    await registrarLogAuditoria({
+      userId: user.id,
+      acao: "LOGIN",
+      entidade: "User",
+      entidadeId: user.id,
+      descricao: `Login realizado com sucesso pelo utilizador ${user.email}.`,
+    });
+
+    return res.status(200).json({
+      message: "Login realizado com sucesso.",
+      token,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        ativo: user.ativo,
+      },
+    });
+  } catch (error) {
+    console.error("Erro no login:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao fazer login.",
+      error: error.message,
+    });
+  }
 };
 
-// Redefinir senha
-exports.resetarSenha = async (req, res) => {
-    try {
-        const { token, novaSenha } = req.body;
-        const user = await User.findOne({ resetToken: token, resetTokenExp: { $gt: Date.now() } });
-        if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+/*
+  ==========================================================
+  PERFIL DO UTILIZADOR AUTENTICADO
+  ==========================================================
+*/
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: ["id", "nome", "email", "role", "ativo", "created_at", "updated_at"],
+    });
 
-        user.password = await bcrypt.hash(novaSenha, 10);
-        user.resetToken = undefined;
-        user.resetTokenExp = undefined;
-        await user.save();
-
-        res.json({ message: 'Senha redefinida com sucesso' });
-    } catch (error) {
-        res.status(500).json({ error: 'Erro ao redefinir senha' });
+    if (!user) {
+      return res.status(404).json({
+        message: "Utilizador não encontrado.",
+      });
     }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error("Erro ao buscar perfil:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao buscar perfil.",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  getMe,
 };
