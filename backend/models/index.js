@@ -6,6 +6,8 @@ const PedidoCredito = require("./pedidoCredito.model");
 const AprovacaoPedido = require("./aprovacaoPedido.model");
 const Notificacao = require("./notificacao.model");
 const LogAuditoria = require("./logAuditoria.model");
+const Desembolso = require("./desembolso.model");
+const Reembolso = require("./reembolso.model");
 
 /*
   =========================
@@ -104,6 +106,46 @@ LogAuditoria.belongsTo(User, {
   as: "user",
 });
 
+/*
+  Um utilizador pode registar vários desembolsos.
+*/
+User.hasMany(Desembolso, {
+  foreignKey: "createdBy",
+  as: "desembolsosCriados",
+});
+
+Desembolso.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "criador",
+});
+
+/*
+  Um pedido pode ter vários reembolsos.
+*/
+PedidoCredito.hasMany(Reembolso, {
+  foreignKey: "pedidoId",
+  as: "reembolsos",
+});
+
+Reembolso.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
+/*
+  Um utilizador pode registar vários reembolsos.
+*/
+User.hasMany(Reembolso, {
+  foreignKey: "createdBy",
+  as: "reembolsosCriados",
+});
+
+Reembolso.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "criador",
+});
+
+
 module.exports = {
   sequelize,
   User,
@@ -112,4 +154,6 @@ module.exports = {
   AprovacaoPedido,
   Notificacao,
   LogAuditoria,
+  Desembolso,
+  Reembolso,
 };

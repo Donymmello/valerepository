@@ -33,6 +33,8 @@ const mutuarioRoutes = require("./routes/mutuario.routes");
 const aprovacaoPedidoRoutes = require("./routes/aprovacaoPedido.routes");
 const notificacaoRoutes = require("./routes/notificacao.routes");
 const logAuditoriaRoutes = require("./routes/logAuditoria.routes");
+const desembolsoRoutes = require("./routes/desembolso.routes");
+const reembolsoRoutes = require("./routes/reembolso.routes");
 
 /*
   ==========================================================
@@ -46,6 +48,8 @@ app.use("/api/mutuarios", mutuarioRoutes);
 app.use("/api/aprovacoes", aprovacaoPedidoRoutes);
 app.use("/api/notificacoes", notificacaoRoutes);
 app.use("/api/logs-auditoria", logAuditoriaRoutes);
+app.use("/api/desembolsos", desembolsoRoutes);
+app.use("/api/reembolsos", reembolsoRoutes);
 
 /*
   ==========================================================

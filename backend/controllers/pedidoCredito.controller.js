@@ -248,6 +248,15 @@ async function updatePedidoCredito(req, res) {
       etapaAtual: etapaAtual !== undefined ? etapaAtual : pedido.etapaAtual,
     });
 
+    // Log de auditoria do pedido atualizado
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "ATUALIZAR_PEDIDO_CREDITO",
+      entidade: "PedidoCredito",
+      entidadeId: pedido.id,
+      descricao: `Pedido ${pedido.numeroPedido} atualizado para o mutuário ID ${pedido.mutuarioId}.`,
+    });
+
     return res.status(200).json({
       message: "Pedido de crédito atualizado com sucesso.",
       pedido,
@@ -338,6 +347,15 @@ async function deletePedidoCredito(req, res) {
     }
 
     await pedido.destroy();
+
+    // Log de auditoria do pedido removido
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "REMOVER_PEDIDO_CREDITO",
+      entidade: "PedidoCredito",
+      entidadeId: pedido.id,
+      descricao: `Pedido ${pedido.numeroPedido} removido para o mutuário ID ${pedido.mutuarioId}.`,
+    });
 
     return res.status(200).json({
       message: "Pedido de crédito removido com sucesso.",

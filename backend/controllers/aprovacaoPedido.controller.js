@@ -11,11 +11,8 @@ const registrarLogAuditoria = require("../utils/logAuditoria");
   ==========================================================
   FUNÇÃO AUXILIAR PARA CRIAR NOTIFICAÇÃO
   ==========================================================
-  Esta função evita repetir código sempre que quisermos
-  avisar um utilizador sobre uma mudança no processo.
 */
 async function criarNotificacao({ userId, titulo, mensagem, tipo = "SISTEMA" }) {
-  // Se não vier userId, não tenta criar nada
   if (!userId) return;
 
   await Notificacao.create({
@@ -78,14 +75,8 @@ async function getAprovacoesByPedido(req, res) {
 
 /*
   ==========================================================
-  REGISTAR DECISÃO DE APROVAÇÃO COM NOTIFICAÇÕES
+  REGISTAR DECISÃO DE APROVAÇÃO COM NOTIFICAÇÕES E LOGS
   ==========================================================
-  Regras:
-  1. O pedido deve existir
-  2. A decisão deve ser APROVADO ou REJEITADO
-  3. O nível deve coincidir com a etapa atual do pedido
-  4. Não permite repetir decisão no mesmo nível
-  5. Gera notificações automáticas
 */
 async function decidirAprovacao(req, res) {
   try {
@@ -107,7 +98,6 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    // Busca o pedido com dados úteis para mensagens
     const pedido = await PedidoCredito.findByPk(pedidoId, {
       include: [
         {
@@ -130,21 +120,18 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    // Não permite novas decisões em pedidos já fechados
     if (["APROVADO", "REJEITADO", "DESEMBOLSADO", "ENCERRADO"].includes(pedido.status)) {
       return res.status(400).json({
         message: `Não é possível aprovar/rejeitar um pedido com status ${pedido.status}.`,
       });
     }
 
-    // Garante que só se decide na etapa atual
     if (Number(nivel) !== Number(pedido.etapaAtual)) {
       return res.status(400).json({
         message: `Este pedido está na etapa ${pedido.etapaAtual}. Só é possível decidir no nível correspondente.`,
       });
     }
 
-    // Evita duplicação de decisão no mesmo nível
     const aprovacaoExistente = await AprovacaoPedido.findOne({
       where: {
         pedidoId,
@@ -180,23 +167,34 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    /*
-      ======================================================
-      SE REJEITAR
-      ======================================================
-      O pedido fecha como REJEITADO e notifica o criador.
-    */
+    // Log da decisão tomada
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "DECIDIR_APROVACAO_PEDIDO",
+      entidade: "AprovacaoPedido",
+      entidadeId: aprovacao.id,
+      descricao: `Pedido ${pedido.numeroPedido} recebeu decisão ${decisao} no nível ${nivel}.`,
+    });
+
     if (decisao === "REJEITADO") {
       await pedido.update({
         status: "REJEITADO",
       });
 
-      // Notifica o criador do pedido
       await criarNotificacao({
         userId: pedido.createdBy,
         titulo: "Pedido rejeitado",
         mensagem: `O pedido ${pedido.numeroPedido} foi rejeitado no nível ${nivel}.`,
         tipo: "REJEICAO",
+      });
+
+      // Log específico de rejeição
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "REJEITAR_PEDIDO_CREDITO",
+        entidade: "PedidoCredito",
+        entidadeId: pedido.id,
+        descricao: `Pedido ${pedido.numeroPedido} rejeitado no nível ${nivel}.`,
       });
 
       return res.status(200).json({
@@ -206,23 +204,25 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    /*
-      ======================================================
-      SE APROVAR
-      ======================================================
-    */
     if (Number(nivel) === 1) {
       await pedido.update({
         status: "EM_VALIDACAO",
         etapaAtual: 2,
       });
 
-      // Notifica o criador do pedido
       await criarNotificacao({
         userId: pedido.createdBy,
         titulo: "Pedido aprovado no nível 1",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado no nível 1 e segue para o nível 2.`,
         tipo: "APROVACAO",
+      });
+
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "APROVAR_PEDIDO_NIVEL_1",
+        entidade: "PedidoCredito",
+        entidadeId: pedido.id,
+        descricao: `Pedido ${pedido.numeroPedido} aprovado no nível 1.`,
       });
     } else if (Number(nivel) === 2) {
       await pedido.update({
@@ -230,24 +230,38 @@ async function decidirAprovacao(req, res) {
         etapaAtual: 3,
       });
 
-      // Notifica o criador do pedido
       await criarNotificacao({
         userId: pedido.createdBy,
         titulo: "Pedido aprovado no nível 2",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado no nível 2 e segue para o nível 3.`,
         tipo: "APROVACAO",
       });
+
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "APROVAR_PEDIDO_NIVEL_2",
+        entidade: "PedidoCredito",
+        entidadeId: pedido.id,
+        descricao: `Pedido ${pedido.numeroPedido} aprovado no nível 2.`,
+      });
     } else if (Number(nivel) === 3) {
       await pedido.update({
         status: "APROVADO",
       });
 
-      // Notifica o criador do pedido
       await criarNotificacao({
         userId: pedido.createdBy,
         titulo: "Pedido aprovado",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado em definitivo.`,
         tipo: "APROVACAO",
+      });
+
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "APROVAR_PEDIDO_FINAL",
+        entidade: "PedidoCredito",
+        entidadeId: pedido.id,
+        descricao: `Pedido ${pedido.numeroPedido} aprovado em definitivo no nível 3.`,
       });
     }
 

@@ -76,13 +76,13 @@ async function createMutuario(req, res) {
     });
 
     // Criar log de auditoria ao criar um novo mutuário
-await registrarLogAuditoria({
-  userId: req.user.id,
-  acao: "CRIAR_MUTUARIO",
-  entidade: "Mutuario",
-  entidadeId: mutuario.id,
-  descricao: `Mutuário ${mutuario.nomeCompleto} criado no sistema.`,
-});
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "CRIAR_MUTUARIO",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário ${mutuario.nomeCompleto} criado no sistema.`,
+    });
 
     return res.status(201).json({
       message: "Mutuário criado com sucesso.",
@@ -229,6 +229,15 @@ async function updateMutuario(req, res) {
       userId: userId !== undefined ? userId : mutuario.userId,
     });
 
+    // Criar log de auditoria ao atualizar um mutuário
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "ATUALIZAR_MUTUARIO",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário ${mutuario.nomeCompleto} atualizado no sistema.`,
+    });
+
     return res.status(200).json({
       message: "Mutuário atualizado com sucesso.",
       mutuario,
@@ -261,6 +270,15 @@ async function deleteMutuario(req, res) {
     }
 
     await mutuario.destroy();
+
+    // Criar log de auditoria ao remover um mutuário
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "REMOVER_MUTUARIO",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário ${mutuario.nomeCompleto} removido do sistema.`,
+    });
 
     return res.status(200).json({
       message: "Mutuário removido com sucesso.",
