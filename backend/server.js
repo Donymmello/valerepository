@@ -36,6 +36,7 @@ const logAuditoriaRoutes = require("./routes/logAuditoria.routes");
 const desembolsoRoutes = require("./routes/desembolso.routes");
 const reembolsoRoutes = require("./routes/reembolso.routes");
 const extratoRoutes = require("./routes/extrato.routes");
+const relatorioRoutes = require("./routes/relatorio.routes");
 
 /*
   ==========================================================
@@ -52,6 +53,7 @@ app.use("/api/logs-auditoria", logAuditoriaRoutes);
 app.use("/api/desembolsos", desembolsoRoutes);
 app.use("/api/reembolsos", reembolsoRoutes);
 app.use("/api/extrato", extratoRoutes);
+app.use("/api/relatorios", relatorioRoutes);
 
 /*
   ==========================================================
