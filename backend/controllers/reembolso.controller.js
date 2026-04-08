@@ -1,5 +1,53 @@
-const { Reembolso, PedidoCredito, User } = require('../models');
+const { Reembolso, PedidoCredito, User, Desembolso } = require('../models');
 const registrarlogAuditoria = require('../utils/logAuditoria');
+
+/*
+    ==========================================================  
+    FUNCAO AUXILIAR PARA CALCULAR O ESTADO FINANCEIRO DO PEDIDO
+    SE O PEDIDO ESTIVER TOTALMENTE PAGO, FECHA AUTOMATICAMENTE
+    ==========================================================  
+*/
+async function calcularEstadoFinanceiro(pedidoId, userId) {
+    // Buscar todos os desembolsos do pedido
+    const desembolsos = await Desembolso.findAll({
+        where: { pedidoId },
+    });
+
+    // Buscar todos os reembolsos do pedido
+    const reembolsos = await Reembolso.findAll({
+        where: { pedidoId },
+    });
+
+    const totalDesembolsos = desembolsos.reduce((total, item) => {
+        return total + Number(item.valor || 0);
+    }, 0);
+
+    const totalReembolsos = reembolsos.reduce((total, item) => {
+        return total + Number(item.valorReembolsado || 0);
+    }, 0);
+
+    const pedido = await PedidoCredito.findByPk(pedidoId);
+    if (!pedido) return;
+
+    //se pedido tiver sido totalmente reembolsado, fecha o pedido
+    if (
+        totalDesembolsado > 0 &&
+        totalReembolsado >= totalDesembolsado &&
+        pedido.status !== "ENCERRADO"
+    ) {
+        await pedido.update({
+            status: "ENCERRADO", 
+        });
+
+        await registrarlogAuditoria({
+            userId,
+            acao: "ENCERRAR_PEDIDO",
+            entidade: "PedidoCredito",
+            entidadeId: pedidoId,
+            descricao: `Pedido ${pedido.numeroPedido} encerrado automaticamente após reembolso total.`,
+        });
+    }
+}
 
 /*
     ==========================================================  
@@ -53,10 +101,16 @@ async function createReembolso(req, res) {
             entidadeId: reembolso.id,
             descricao: `Reembolso de ${valorReembolsado} criado para pedido ${pedido.numeroPedido}.`,
         });
+
+        //Recalcula e encerra o pedido se tiver sido totalmente reembolsado
+        await calcularEstadoFinanceiro(pedidoId, req.user.id);
+
+        const pedidoAtualizado = await PedidoCredito.findByPk(pedidoId);
          
         return res.status(201).json({
             message: "Reembolso criado com sucesso.",
             reembolso,
+            pedido: pedidoAtualizado,
         });
     }   catch (error) {
         console.error("Erro ao criar reembolso:", error);
