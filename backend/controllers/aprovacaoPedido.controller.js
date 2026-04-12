@@ -4,6 +4,8 @@ const {
   User,
   Mutuario,
   Notificacao,
+  PedidoRequisito,
+  RequisitoCredito,
 } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 
@@ -75,6 +77,33 @@ async function getAprovacoesByPedido(req, res) {
 
 /*
   ==========================================================
+  VERIFICAR SE O PEDIDO TEM REQUISITOS OBRIGATÓRIOS PENDENTES
+  ==========================================================
+*/
+async function verificarRequisitosObrigatoriosPendentes(pedidoId) {
+  const requisitosPendentes = await PedidoRequisito.findAll({
+    where: {
+      pedidoId,
+    },
+    include: [
+      {
+        model: RequisitoCredito,
+        as: "requisito",
+        where: {
+          obrigatorio: true,
+          ativo: true,
+        },
+      },
+    ],
+  });
+
+  return requisitosPendentes.filter((item) =>
+    ["PENDENTE", "REJEITADO"].includes(item.estado)
+  );
+}
+
+/*
+  ==========================================================
   REGISTAR DECISÃO DE APROVAÇÃO COM NOTIFICAÇÕES E LOGS
   ==========================================================
 */
@@ -132,6 +161,29 @@ async function decidirAprovacao(req, res) {
       });
     }
 
+    /*
+      Verifica requisitos obrigatórios só quando a decisão for APROVADO
+    */
+    if (decisao === "APROVADO") {
+      const requisitosBloqueantes = await verificarRequisitosObrigatoriosPendentes(pedidoId);
+
+      if (requisitosBloqueantes.length > 0) {
+        return res.status(400).json({
+          message: "Não é possível aprovar o pedido. Existem requisitos obrigatórios pendentes ou rejeitados.",
+          requisitosBloqueantes: requisitosBloqueantes.map((item) => ({
+            id: item.id,
+            requisitoId: item.requisitoId,
+            nome: item.requisito ? item.requisito.nome : null,
+            estado: item.estado,
+            observacoes: item.observacoes,
+          })),
+        });
+      }
+    }
+
+    /*
+      Verifica se já existe decisão para este pedido neste nível
+    */
     const aprovacaoExistente = await AprovacaoPedido.findOne({
       where: {
         pedidoId,
@@ -167,7 +219,6 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    // Log da decisão tomada
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "DECIDIR_APROVACAO_PEDIDO",
@@ -188,7 +239,6 @@ async function decidirAprovacao(req, res) {
         tipo: "REJEICAO",
       });
 
-      // Log específico de rejeição
       await registrarLogAuditoria({
         userId: req.user.id,
         acao: "REJEITAR_PEDIDO_CREDITO",

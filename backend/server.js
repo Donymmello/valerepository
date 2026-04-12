@@ -37,6 +37,9 @@ const desembolsoRoutes = require("./routes/desembolso.routes");
 const reembolsoRoutes = require("./routes/reembolso.routes");
 const extratoRoutes = require("./routes/extrato.routes");
 const relatorioRoutes = require("./routes/relatorio.routes");
+const alertaPrazoRoutes = require("./routes/alertaPrazo.routes");
+const requisitoCreditoRoutes = require("./routes/requisitoCredito.routes");
+const pedidoRequisitoRoutes = require("./routes/pedidoRequisito.routes");
 
 /*
   ==========================================================
@@ -54,6 +57,9 @@ app.use("/api/desembolsos", desembolsoRoutes);
 app.use("/api/reembolsos", reembolsoRoutes);
 app.use("/api/extrato", extratoRoutes);
 app.use("/api/relatorios", relatorioRoutes);
+app.use("/api/alertas-prazo", alertaPrazoRoutes);
+app.use("/api/requisitos-credito", requisitoCreditoRoutes);
+app.use("/api/pedido-requisitos", pedidoRequisitoRoutes);
 
 /*
   ==========================================================

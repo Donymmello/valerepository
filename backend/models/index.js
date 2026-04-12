@@ -8,6 +8,8 @@ const Notificacao = require("./notificacao.model");
 const LogAuditoria = require("./logAuditoria.model");
 const Desembolso = require("./desembolso.model");
 const Reembolso = require("./reembolso.model");
+const RequisitoCredito = require("./requisitoCredito.model");
+const PedidoRequisito = require("./pedidoRequisito.model");
 
 /*
   =========================
@@ -145,6 +147,45 @@ Reembolso.belongsTo(User, {
   as: "criador",
 });
 
+/*
+  Um pedido pode ter vários requisitos.
+*/
+PedidoCredito.hasMany(PedidoRequisito, {
+  foreignKey: "pedidoId",
+  as: "requisitosPedido",
+});
+
+PedidoRequisito.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
+/*
+  Um requisito pode aparecer em vários pedidos.
+*/
+RequisitoCredito.hasMany(PedidoRequisito, {
+  foreignKey: "requisitoId",
+  as: "itensPedido",
+});
+
+PedidoRequisito.belongsTo(RequisitoCredito, {
+  foreignKey: "requisitoId",
+  as: "requisito",
+});
+
+/*
+  Um utilizador pode validar vários requisitos de pedido.
+*/
+User.hasMany(PedidoRequisito, {
+  foreignKey: "validadoPor",
+  as: "requisitosValidados",
+});
+
+PedidoRequisito.belongsTo(User, {
+  foreignKey: "validadoPor",
+  as: "validador",
+});
+
 
 module.exports = {
   sequelize,
@@ -156,4 +197,6 @@ module.exports = {
   LogAuditoria,
   Desembolso,
   Reembolso,
+  RequisitoCredito,
+  PedidoRequisito,
 };
