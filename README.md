@@ -1,35 +1,87 @@
-# 💳 Sistema de Gestão de Crédito – Vale do Zambeze
+# 💳 Sistema de Gestão de Créditos – Vale do Zambeze
 
-Sistema web para gerenciamento de empréstimos, desenvolvido para digitalizar o processo de solicitação, análise e aprovação de crédito, com controle por níveis de usuário e registro de atividades.
+Sistema web para gestão de créditos, desenvolvido para digitalizar o processo de submissão, análise, validação, aprovação, desembolso e reembolso de crédito, com controlo por níveis hierárquicos, auditoria de ações, notificações internas e relatórios operacionais.
 
 ---
 
 ## 📋 Índice
 
-- [📌 Funcionalidades](#-funcionalidades)
-- [🛠️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)
-- [🧱 Estrutura do Projeto](#-estrutura-do-projeto)
-- [🚀 Como Executar Localmente](#-como-executar-localmente)
-- [🔐 Controle de Acesso](#-controle-de-acesso)
-- [🌐 Deploy](#-deploy)
-- [📈 Melhorias Futuras](#-melhorias-futuras)
-- [👨‍💻 Autor](#-autor)
-- [✅ Licença](#-licença)
+- [Visão Geral](#-visão-geral)
+- [Funcionalidades](#-funcionalidades)
+- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
+- [Arquitetura do Sistema](#-arquitetura-do-sistema)
+- [Estrutura do Projeto](#-estrutura-do-projeto)
+- [Como Executar Localmente](#-como-executar-localmente)
+- [Controlo de Acesso](#-controlo-de-acesso)
+- [Regras de Negócio Adotadas](#-regras-de-negócio-adotadas)
+- [Estado Atual do Projeto](#-estado-atual-do-projeto)
+- [Próximos Passos](#-próximos-passos)
+- [Autor](#-autor)
 
 ---
 
-## 📌 Funcionalidades
+## 📌 Visão Geral
 
-- ✅ Registro e autenticação de usuários
-- ✅ Diferenciação de permissões por cargo (admin, analista, cliente)
-- ✅ Cadastro de pedidos de empréstimos
-- ✅ Fluxo de aprovação e rejeição por analistas
-- ✅ Histórico de atividades com logs automáticos
-- ✅ Dashboard com estatísticas resumidas
-- ✅ Interface responsiva e intuitiva (React)
-- ✅ API segura com autenticação JWT
-- ✅ Integração com banco de dados MongoDB
-- ✅ Separação entre frontend e backend
+O **Sistema de Gestão de Créditos – Vale do Zambeze** foi concebido para apoiar a gestão do ciclo completo de crédito, desde o cadastro do mutuário até ao encerramento do pedido após liquidação.
+
+O objetivo principal é substituir processos manuais por uma solução digital segura, auditável e escalável, alinhada com necessidades como:
+
+- cadastro estruturado de mutuários
+- submissão e acompanhamento de pedidos de crédito
+- aprovação por níveis hierárquicos
+- controlo de requisitos obrigatórios
+- registo de desembolsos e reembolsos
+- alertas de prazo
+- relatórios operacionais e financeiros
+- exportação e importação futura de dados em Excel
+
+---
+
+## ✅ Funcionalidades
+
+### Autenticação e Segurança
+- Registo e autenticação de utilizadores
+- Proteção de rotas com JWT
+- Controlo de permissões por perfil
+- Registo de ações em logs de auditoria
+
+### Gestão de Mutuários
+- Cadastro de mutuários
+- Atualização de dados pessoais e documentais
+- Associação de pedidos ao mutuário
+- Identificação por código único
+
+### Gestão de Pedidos de Crédito
+- Criação de pedidos de crédito
+- Geração automática do número do pedido
+- Consulta e atualização de pedidos
+- Controlo de estado e etapa atual do processo
+
+### Aprovação por Níveis
+- Aprovação e rejeição por níveis
+- Bloqueio de aprovação fora da etapa correta
+- Aprovação final no último nível
+- Histórico completo de decisões
+
+### Requisitos do Pedido
+- Cadastro de requisitos de crédito
+- Associação de requisitos a pedidos
+- Validação de requisitos
+- Bloqueio de aprovação quando houver requisitos obrigatórios pendentes ou rejeitados
+
+### Financeiro
+- Registo de desembolsos
+- Registo de reembolsos
+- Cálculo de saldo por pedido
+- Encerramento automático do pedido após liquidação total
+- Extrato processual e financeiro por pedido
+
+### Monitoria e Operação
+- Notificações internas
+- Alertas de prazo de avaliação e validação
+- Relatórios gerais
+- Relatórios financeiros por pedido
+- Relatórios de desembolsos e reembolsos
 
 ---
 
@@ -39,119 +91,235 @@ Sistema web para gerenciamento de empréstimos, desenvolvido para digitalizar o 
 - React.js
 - React Router
 - Axios
-- Tailwind CSS ou CSS puro
-- Vercel (Deploy)
 
 ### Backend
 - Node.js
 - Express.js
-- MongoDB + Mongoose
+- MySQL
+- Sequelize
 - JSON Web Token (JWT)
-- Middleware para autenticação e logging
-- Render ou Railway (Deploy)
+- Bcryptjs
+- Dotenv
+- CORS
 
-### Outros
-- MongoDB Atlas (DB na nuvem)
-- Dotenv para variáveis de ambiente
-- ESLint (opcional)
+### Ferramentas de Apoio
+- Postman
+- Nodemon
+- MySQL Workbench
+- Git e GitHub
 
 ---
 
-## 🧱 Estrutura do Projeto
+## 🧱 Arquitetura do Sistema
+
+O sistema está dividido em duas camadas principais:
+
+### Frontend
+Responsável pela interface com o utilizador, consumo da API e exibição dos módulos do sistema.
+
+### Backend
+Responsável pela lógica de negócio, autenticação, validações, regras de aprovação, gestão financeira e persistência dos dados em base relacional.
+
+---
+
+## 📁 Estrutura do Projeto
 
 ### Backend (`/backend`)
+
+```txt
 backend/
-├── controllers/
-│ ├── auth.controller.js
-│ ├── emprestimo.controller.js
-│ ├── user.controller.js
-│ ├── log.controller.js
-├── models/
-│ ├── User.js
-│ ├── Emprestimo.js
-│ ├── Log.js
-├── routes/
-│ ├── auth.routes.js
-│ ├── user.routes.js
-│ ├── emprestimo.routes.js
-│ ├── log.routes.js
-├── middleware/
-│ ├── authMiddleware.js
-│ ├── logger.js
 ├── config/
-│ └── db.js
+│   └── db.js
+├── controllers/
+│   ├── auth.controller.js
+│   ├── mutuario.controller.js
+│   ├── pedidoCredito.controller.js
+│   ├── aprovacaoPedido.controller.js
+│   ├── notificacao.controller.js
+│   ├── desembolso.controller.js
+│   ├── reembolso.controller.js
+│   ├── excell.controller.js
+│   ├── extrato.controller.js
+│   ├── relatorio.controller.js
+│   ├── alertaPrazo.controller.js
+│   ├── requisitoCredito.controller.js
+│   └── pedidoRequisito.controller.js
+├── middlewares/
+│   ├── auth.middleware.js
+│   └── role.middleware.js
+├── models/
+│   ├── index.js
+│   ├── user.model.js
+│   ├── mutuario.model.js
+│   ├── pedidoCredito.model.js
+│   ├── aprovacaoPedido.model.js
+│   ├── notificacao.model.js
+│   ├── logAuditoria.model.js
+│   ├── desembolso.model.js
+│   ├── reembolso.model.js
+│   ├── requisitoCredito.model.js
+│   └── pedidoRequisito.model.js
+├── routes/
+│   ├── auth.routes.js
+│   ├── mutuario.routes.js
+│   ├── pedidoCredito.routes.js
+│   ├── aprovacaoPedido.routes.js
+│   ├── notificacao.routes.js
+│   ├── desembolso.routes.js
+│   ├── reembolso.routes.js
+│   ├── extrato.routes.js
+│   ├── excell.routes.js
+│   ├── relatorio.routes.js
+│   ├── alertaPrazo.routes.js
+│   ├── requisitoCredito.routes.js
+│   └── pedidoRequisito.routes.js
+├── utils/
+│   └── logAuditoria.js
+├── services/
+│   └── excell.service.js
 └── server.js
+```
 
 ### Frontend (`/frontend`)
+
+```txt
 frontend/
 ├── src/
-│ ├── components/
-│ ├── pages/
-│ ├── services/
-│ ├── App.js
-│ └── index.js
+│   ├── components/
+│   ├── pages/
+│   ├── services/
+│   ├── routes/
+│   ├── App.jsx
+│   └── main.jsx
+```
+
 ---
 
 ## 🚀 Como Executar Localmente
 
-### 1. Clone o projeto
-```bash
-git clone https://github.com/seuusuario/gestao-credito.git
-cd gestao-credito
+### 1. Clonar o projeto
 
-2. Configure o backend
-'''bash
+```bash
+git clone https://github.com/seuusuario/gestao-creditos.git
+cd gestao-creditos
+```
+
+### 2. Configurar o backend
+
+```bash
 cd backend
 npm install
-Crie um arquivo .env e adicione:
+```
 
-ini
+Crie um ficheiro `.env` na raiz do backend:
+
+```env
 PORT=5000
-MONGO_URI=sua_string_mongodb_atlas
+DB_NAME=nome_da_base
+DB_USER=root
+DB_PASS=
+DB_HOST=localhost
 JWT_SECRET=sua_chave_secreta
-Inicie o servidor:
+```
 
-bash
+Inicie o backend:
+
+```bash
 npm run dev
+```
 
-3. Configure o frontend
-bash
+### 3. Configurar o frontend
+
+```bash
 cd ../frontend
 npm install
-Crie um arquivo .env.local com:
+npm run dev
+```
 
-ini
-REACT_APP_API_URL=http://localhost:5000
+---
 
-Inicie a aplicação:
-bash
-npm start
+## 🔐 Controlo de Acesso
 
-🔐 Controle de Acesso
-O sistema utiliza autenticação baseada em JWT com controle de roles. Cada tipo de usuário tem permissões específicas:
+O sistema usa autenticação baseada em JWT e autorização por perfil.
 
-Tipo de Usuário	Permissões
-Admin	Gerencia usuários e acessa todos os dados
-Analista	Aprova/rejeita empréstimos
-Cliente	Cria e consulta seus próprios empréstimos
+### Perfis considerados
 
-📈 Melhorias Futuras
-📊 Geração de relatórios financeiros em PDF
+- **ADMIN**  
+  Acesso total ao sistema, incluindo gestão de utilizadores, requisitos e operações administrativas.
 
-🔔 Notificações por email sobre status dos empréstimos
+- **GESTOR**  
+  Gestão operacional, acompanhamento do processo e acesso a funções de supervisão.
 
-📅 Histórico de crédito por cliente
+- **ANALISTA**  
+  Análise, validação e apoio ao fluxo de aprovação.
 
-📬 Integração com SMS ou WhatsApp para avisos
+- **DIRETOR**  
+  Aprovação final dos pedidos de crédito.
 
-📱 Versão mobile com React Native
+- **USER**  
+  Perfil base reservado para cenários específicos ou evoluções futuras.
 
-👨‍💻 Autor
-Desenvolvido por [Sidonio Aly Antonio]
-🎓 Engenheiro em Tecnologias de Informação e Comunicação
-📧 sidonioaly@gamil.com
-🔗 (https://www.linkedin.com/in/sidonio-aly-antonio-3ab720196)
-🌍 Moçambique
+---
 
-✅ Licença
-Este projeto está sob a licença MIT. Sinta-se livre para usar, estudar e contribuir.
+## 📌 Regras de Negócio Adotadas
+
+- O **mutuário** é o beneficiário do crédito e não precisa, obrigatoriamente, de autenticação no sistema.
+- O pedido de crédito é registado por um **utilizador interno autenticado**.
+- Cada pedido pertence a um mutuário e guarda quem o criou.
+- A aprovação segue por níveis, respeitando a etapa atual do pedido.
+- Um pedido **não pode ser aprovado** se houver requisitos obrigatórios pendentes ou rejeitados.
+- Apenas pedidos aprovados podem ser desembolsados.
+- Apenas pedidos desembolsados podem receber reembolsos.
+- Quando o total reembolsado atingir ou ultrapassar o total desembolsado, o pedido é encerrado automaticamente.
+- O sistema regista auditoria das ações críticas.
+- O sistema pode gerar notificações internas e alertas de prazo.
+
+---
+
+## 📊 Estado Atual do Projeto
+
+Atualmente, o backend já cobre os seguintes módulos:
+
+- autenticação
+- mutuários
+- pedidos de crédito
+- aprovações por níveis
+- requisitos do pedido
+- notificações
+- logs de auditoria
+- desembolsos
+- reembolsos
+- extrato por pedido
+- relatórios gerais e financeiros
+- alertas de prazo
+- Exportação de dados para Excel
+
+---
+
+## 🚧 Próximos Passos
+
+Os próximos passos previstos para evolução do projeto são:
+
+- Importação de dados via Excel
+- Prevenção de alertas duplicados
+- Regras mais finas por etapa e perfil
+- Melhorias no frontend
+- Dashboard operacional
+- Relatórios exportáveis
+- Integração futura com email e/ou SMS
+
+---
+
+## 👨‍💻 Autor
+
+**Sidónio Aly António**  
+Engenheiro em Tecnologias de Informação e Comunicação  
+Moçambique
+
+- LinkedIn: [Sidónio Aly António](https://www.linkedin.com/in/sidonio-aly-antonio)
+
+---
+
+## 📄 Licença
+
+Este projeto pode ser adaptado, estudado e evoluído conforme os objetivos académicos, profissionais ou institucionais do seu desenvolvimento.

@@ -44,13 +44,12 @@ Sistema web para gerenciamento de empréstimos, desenvolvido para digitalizar o 
 ### **Backend**
 - Node.js
 - Express.js
-- MongoDB + Mongoose
+- MySQL
 - JSON Web Token (JWT)
 - Middleware para autenticação e logging
 - Render ou Railway (Deploy)
 
 ### **Outros**
-- MongoDB Atlas (DB na nuvem)
 - Dotenv para variáveis de ambiente
 - ESLint (opcional)
 
