@@ -186,6 +186,16 @@ PedidoRequisito.belongsTo(User, {
   as: "validador",
 });
 
+PedidoCredito.hasMany(Desembolso, {
+  foreignKey: "pedidoId",
+  as: "desembolsos",
+});
+
+Desembolso.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
 
 module.exports = {
   sequelize,
