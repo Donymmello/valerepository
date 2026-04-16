@@ -96,6 +96,19 @@ Notificacao.belongsTo(User, {
 });
 
 /*
+  Um pedido pode ter várias notificações.
+*/
+PedidoCredito.hasMany(Notificacao, {
+  foreignKey: "pedidoId",
+  as: "notificacoesPedido",
+});
+
+Notificacao.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
+/*
   Um utilizador pode ter vários logs.
 */
 User.hasMany(LogAuditoria, {

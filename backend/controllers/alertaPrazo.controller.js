@@ -1,21 +1,40 @@
-const {Op} = require('sequelize');
-const { PedidoCredito,Notificacao, User, Mutuario } = require("../models");
-const registrarLogAuditoria = require("../utils/logAuditoria"); 
+const { Op } = require('sequelize');
+const { PedidoCredito, Notificacao, User, Mutuario } = require("../models");
+const registrarLogAuditoria = require("../utils/logAuditoria");
 
 /*
   ==========================================================
-  FUNCAO AUXLIAR PARA CRIAR NOTIFICACAO SEM DUPLICAR MUITO
+  FUNÇÃO AUXILIAR PARA CRIAR NOTIFICAÇÃO SEM DUPLICAR
   ==========================================================
+  Regra forte:
+  - verifica por userId + pedidoId + tipo + titulo + lida=false
 */
-async function criarNotificacao({ userId, titulo, mensagem, tipo = "ALERTA_PRAZO" }) {
-    if (!userId) return;
+async function criarNotificacao({ userId, pedidoId = null, titulo, mensagem, tipo = "ALERTA_PRAZO" }) {
+    if (!userId) return null;
 
-    await Notificacao.create({
+    const notificacaoExistente = await Notificacao.findOne({
+        where: {
+            userId,
+            pedidoId,
+            titulo,
+            tipo,
+            lida: false,
+        },
+    });
+
+    if (notificacaoExistente) {
+        return null;
+    }
+
+    const novaNotificacao = await Notificacao.create({
         userId,
+        pedidoId,
         titulo,
         mensagem,
         tipo,
     });
+
+    return novaNotificacao;
 }
 
 /*
@@ -33,10 +52,10 @@ async function verificarAlertasPrazo(req, res) {
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
 
-/*
- pedidos em analise com prazo de avaliacao vencido ou proximo
-*/
-        const pedidosAvaliacao = await PedidoCredito.findAll({ 
+        /*
+         pedidos em analise com prazo de avaliacao vencido ou proximo
+        */
+        const pedidosAvaliacao = await PedidoCredito.findAll({
             where: {
                 status: {
                     [Op.in]: ["SUBMETIDO", "EM_ANALISE"],
@@ -96,27 +115,30 @@ async function verificarAlertasPrazo(req, res) {
             const prazo = new Date(pedido.prazoAvaliacao);
             const vencido = prazo < hoje;
 
-            const titulo = vencido 
-            ? "Prazo de Avaliação Vencido" 
-            : "Prazo de Avaliação Próximo";
+            const titulo = vencido
+                ? "Prazo de Avaliação Vencido"
+                : "Prazo de Avaliação Próximo";
 
             const mensagem = vencido
-            ? `o pedido ${pedido.numeroPedido} utrapassou o prazo de avaliação.`
-            : `o pedido ${pedido.numeroPedido} tem o prazo de avaliação a vencer em breve.`;
+                ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de avaliação.`
+                : `O pedido ${pedido.numeroPedido} tem o prazo de avaliação a vencer em breve.`;
 
-            await criarNotificacao({
+            const notificacaoCriada = await criarNotificacao({
                 userId: pedido.createdBy,
+                pedidoId: pedido.id,
                 titulo,
                 mensagem,
                 tipo: "ALERTA_PRAZO"
             });
 
-            alertasCriados.push({
-                pedidoId: pedido.id,
-                numeroPedido: pedido.numeroPedido,
-                tipo: "AVALIACAO",
-                vencido,
-            });
+            if (notificacaoCriada) {
+                alertasCriados.push({
+                    pedidoId: pedido.id,
+                    numeroPedido: pedido.numeroPedido,
+                    tipo: "AVALIACAO",
+                    vencido,
+                });
+            }
         }
 
         // Criar notificações para pedidos em validação
@@ -126,26 +148,29 @@ async function verificarAlertasPrazo(req, res) {
             const vencido = prazo < hoje;
 
             const titulo = vencido
-            ? "Prazo de Validação Vencido"
-            : "Prazo de Validação Próximo";
+                ? "Prazo de Validação Vencido"
+                : "Prazo de Validação Próximo";
 
             const mensagem = vencido
-            ? `o pedido ${pedido.numeroPedido} utrapassou o prazo de validação.`
-            : `o pedido ${pedido.numeroPedido} tem o prazo de validação a vencer em breve.`;
+                ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de validação.`
+                : `O pedido ${pedido.numeroPedido} tem o prazo de validação a vencer em breve.`;
 
-            await criarNotificacao({
+            const notificacaoCriada = await criarNotificacao({
                 userId: pedido.createdBy,
+                pedidoId: pedido.id,
                 titulo,
                 mensagem,
                 tipo: "ALERTA_PRAZO"
             });
-            
-            alertasCriados.push({
-                pedidoId: pedido.id,
-                numeroPedido: pedido.numeroPedido,
-                tipo: "VALIDACAO",
-                vencido,
-            });
+
+            if (notificacaoCriada) {
+                alertasCriados.push({
+                    pedidoId: pedido.id,
+                    numeroPedido: pedido.numeroPedido,
+                    tipo: "VALIDACAO",
+                    vencido,
+                });
+            }
         }
 
         await registrarLogAuditoria({
@@ -162,7 +187,7 @@ async function verificarAlertasPrazo(req, res) {
             alertasCriados,
         });
     } catch (error) {
-        console.error("Erro ao verificar alertas de prazo:", error);    
+        console.error("Erro ao verificar alertas de prazo:", error);
 
         return res.status(500).json({
             message: "Erro interno ao verificar alertas de prazo.",

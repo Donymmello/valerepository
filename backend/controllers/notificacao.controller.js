@@ -14,7 +14,7 @@ const { Notificacao } = require("../models");
 */
 async function createNotificacao(req, res) {
   try {
-    const { userId, titulo, mensagem, tipo } = req.body;
+    const { userId, pedidoId, titulo, mensagem, tipo } = req.body;
 
     if (!userId || !titulo || !mensagem) {
       return res.status(400).json({
@@ -31,8 +31,26 @@ async function createNotificacao(req, res) {
       });
     }
 
+    const notificacaoExistente = await Notificacao.findOne({
+      where: {
+        userId,
+        pedidoId: pedidoId || null,
+        titulo,
+        tipo: tipo || "SISTEMA",
+        lida: false,
+      },
+    });
+
+    if (notificacaoExistente) {
+      return res.status(200).json({
+        message: "Já existe uma notificação igual pendente para este contexto.",
+        notificacao: notificacaoExistente,
+      });
+    }
+
     const notificacao = await Notificacao.create({
       userId,
+      pedidoId: pedidoId || null,
       titulo,
       mensagem,
       tipo: tipo || "SISTEMA",

@@ -5,13 +5,6 @@ const { Mutuario, PedidoCredito, Desembolso, Reembolso } = require("../models");
   ===========================================================
   * Service responsável por gerar ficheiro Excel de mutuários
   ===========================================================
-  *
-  * O papel deste service é:
-  * 1. Buscar os mutuários na base de dados
-  * 2. Formatar os dados para a planilha
-  * 3. Criar workbook e worksheet
-  * 4. Gerar o buffer do ficheiro Excel
-  * 5. Devolver buffer + nome do ficheiro
 */
 async function gerarExcellMutuarios() {
   /*
@@ -130,13 +123,6 @@ async function gerarExcellMutuarios() {
   ===========================================================
   * Service responsável por gerar ficheiro Excel de pedidos
   ===========================================================
-  *
-  * O papel deste service é:
-  * 1. Buscar os pedidos com os relacionamentos necessários
-  * 2. Formatar os dados para a planilha
-  * 3. Criar workbook e worksheet
-  * 4. Gerar o buffer do ficheiro Excel
-  * 5. Devolver buffer + nome do ficheiro
 */
 async function gerarExcellPedidos() {
   /*
@@ -483,14 +469,6 @@ async function gerarExcellReembolsos() {
   * Service responsável por gerar ficheiro Excel de relatório
   * financeiro dos pedidos
   ===========================================================
-  *
-  * O papel deste service é:
-  * 1. Buscar os pedidos com mutuário, desembolsos e reembolsos
-  * 2. Calcular totais financeiros por pedido
-  * 3. Formatar os dados para a planilha
-  * 4. Criar workbook e worksheet
-  * 5. Gerar o buffer do ficheiro Excel
-  * 6. Devolver buffer + nome do ficheiro
 */
 async function gerarExcellRelatorioFinanceiro() {
   /*
@@ -679,14 +657,6 @@ async function gerarExcellRelatorioFinanceiro() {
   ===========================================================
   * Service responsável por importar mutuários via Excel
   ===========================================================
-  *
-  * O papel deste service é:
-  * 1. Ler o ficheiro Excel recebido em buffer
-  * 2. Converter a primeira folha em JSON
-  * 3. Validar linha por linha
-  * 4. Evitar duplicados
-  * 5. Criar os mutuários válidos
-  * 6. Devolver um resumo da importação
 */
 async function importarExcellMutuarios({ fileBuffer, userId }) {
   /*
@@ -927,6 +897,288 @@ async function importarExcellMutuarios({ fileBuffer, userId }) {
   };
 }
 
+/*
+  ===========================================================
+  * Service responsável por importar pedidos via Excel
+  ===========================================================
+*/
+async function importarExcellPedidos({ fileBuffer, userId }) {
+  /*
+    Lê o ficheiro Excel em memória
+  */
+  const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+
+  /*
+    Obtém a primeira folha
+  */
+  const primeiraFolha = workbook.SheetNames[0];
+
+  if (!primeiraFolha) {
+    throw new Error("O ficheiro Excel não possui folhas válidas.");
+  }
+
+  /*
+    Obtém a worksheet
+  */
+  const worksheet = workbook.Sheets[primeiraFolha];
+
+  /*
+    Converte a worksheet para JSON
+  */
+  const linhas = XLSX.utils.sheet_to_json(worksheet, {
+    defval: "",
+  });
+
+  if (!linhas.length) {
+    return {
+      totalLidos: 0,
+      totalImportados: 0,
+      totalErros: 0,
+      erros: [],
+      importados: [],
+    };
+  }
+
+  const erros = [];
+  const importados = [];
+
+  /*
+    Processa linha por linha
+  */
+  for (let index = 0; index < linhas.length; index++) {
+    const linha = linhas[index];
+    const numeroLinha = index + 2;
+
+    /*
+      Aceita nomes de colunas em formatos parecidos
+    */
+    const numeroPedido = String(
+      linha.NumeroPedido ||
+      linha.numeroPedido ||
+      linha.numero_pedido ||
+      ""
+    ).trim();
+
+    const codigoMutuario = String(
+      linha.CodigoMutuario ||
+      linha.codigoMutuario ||
+      linha.codigo_mutuario ||
+      ""
+    ).trim();
+
+    const valorSolicitadoBruto =
+      linha.ValorSolicitado ??
+      linha.valorSolicitado ??
+      linha.valor_solicitado ??
+      "";
+
+    const finalidade = String(
+      linha.Finalidade ||
+      linha.finalidade ||
+      ""
+    ).trim();
+
+    const pacoteFinanciamento = String(
+      linha.PacoteFinanciamento ||
+      linha.pacoteFinanciamento ||
+      linha.pacote_financiamento ||
+      ""
+    ).trim();
+
+    const status = String(
+      linha.Status ||
+      linha.status ||
+      "SUBMETIDO"
+    ).trim().toUpperCase();
+
+    const etapaAtualBruta =
+      linha.EtapaAtual ??
+      linha.etapaAtual ??
+      linha.etapa_atual ??
+      1;
+
+    const dataSubmissao = String(
+      linha.DataSubmissao ||
+      linha.dataSubmissao ||
+      linha.data_submissao ||
+      ""
+    ).trim();
+
+    const prazoAvaliacao = String(
+      linha.PrazoAvaliacao ||
+      linha.prazoAvaliacao ||
+      linha.prazo_avaliacao ||
+      ""
+    ).trim();
+
+    const prazoValidacao = String(
+      linha.PrazoValidacao ||
+      linha.prazoValidacao ||
+      linha.prazo_validacao ||
+      ""
+    ).trim();
+
+    const observacoes = String(
+      linha.Observacoes ||
+      linha.observacoes ||
+      ""
+    ).trim();
+
+    /*
+      Validações obrigatórias
+    */
+    if (!numeroPedido) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "NumeroPedido é obrigatório."
+      });
+      continue;
+    }
+
+    if (!codigoMutuario) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "CodigoMutuario é obrigatório."
+      });
+      continue;
+    }
+
+    if (valorSolicitadoBruto === "" || valorSolicitadoBruto === null) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "ValorSolicitado é obrigatório."
+      });
+      continue;
+    }
+
+    if (!finalidade) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "Finalidade é obrigatória."
+      });
+      continue;
+    }
+
+    /*
+      Converte valor solicitado
+    */
+    const valorSolicitado = Number(
+      String(valorSolicitadoBruto).replace(",", ".")
+    );
+
+    if (Number.isNaN(valorSolicitado) || valorSolicitado <= 0) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "ValorSolicitado inválido."
+      });
+      continue;
+    }
+
+    /*
+      Converte etapa atual
+    */
+    const etapaAtual = Number(etapaAtualBruta || 1);
+
+    if (Number.isNaN(etapaAtual) || etapaAtual <= 0) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "EtapaAtual inválida."
+      });
+      continue;
+    }
+
+    /*
+      Valida status permitido conforme model
+    */
+    const statusPermitidos = [
+      "RASCUNHO",
+      "SUBMETIDO",
+      "EM_ANALISE",
+      "EM_VALIDACAO",
+      "APROVADO",
+      "REJEITADO",
+      "DESEMBOLSADO",
+      "ENCERRADO",
+    ];
+
+    if (!statusPermitidos.includes(status)) {
+      erros.push({
+        linha: numeroLinha,
+        erro: `Status '${status}' inválido.`
+      });
+      continue;
+    }
+
+    /*
+      Verifica duplicado por número do pedido
+    */
+    const pedidoExistente = await PedidoCredito.findOne({
+      where: { numeroPedido }
+    });
+
+    if (pedidoExistente) {
+      erros.push({
+        linha: numeroLinha,
+        erro: `NumeroPedido '${numeroPedido}' já existe.`
+      });
+      continue;
+    }
+
+    /*
+      Localiza o mutuário pelo código
+    */
+    const mutuario = await Mutuario.findOne({
+      where: { codigoMutuario }
+    });
+
+    if (!mutuario) {
+      erros.push({
+        linha: numeroLinha,
+        erro: `Mutuário com código '${codigoMutuario}' não encontrado.`
+      });
+      continue;
+    }
+
+    /*
+      Monta os dados do pedido
+    */
+    const dadosPedido = {
+      numeroPedido,
+      mutuarioId: mutuario.id,
+      valorSolicitado,
+      finalidade,
+      pacoteFinanciamento: pacoteFinanciamento || null,
+      status: status || "SUBMETIDO",
+      etapaAtual: etapaAtual || 1,
+      dataSubmissao: dataSubmissao || null,
+      prazoAvaliacao: prazoAvaliacao || null,
+      prazoValidacao: prazoValidacao || null,
+      observacoes: observacoes || null,
+      createdBy: userId,
+    };
+
+    /*
+      Cria o pedido
+    */
+    const novoPedido = await PedidoCredito.create(dadosPedido);
+
+    importados.push({
+      id: novoPedido.id,
+      numeroPedido: novoPedido.numeroPedido,
+      codigoMutuario: mutuario.codigoMutuario,
+      nomeMutuario: mutuario.nomeCompleto,
+    });
+  }
+
+  return {
+    totalLidos: linhas.length,
+    totalImportados: importados.length,
+    totalErros: erros.length,
+    erros,
+    importados,
+  };
+}
+
 module.exports = {
   gerarExcellMutuarios,
   gerarExcellPedidos,
@@ -934,4 +1186,5 @@ module.exports = {
   gerarExcellReembolsos,
   gerarExcellRelatorioFinanceiro,
   importarExcellMutuarios,
+  importarExcellPedidos,
 };

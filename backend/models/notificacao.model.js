@@ -20,6 +20,15 @@ const Notificacao = sequelize.define(
       field: "user_id",
     },
 
+    /*
+      Liga a notificação ao pedido, quando aplicável
+    */
+    pedidoId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "pedido_id",
+    },
+
     titulo: {
       type: DataTypes.STRING(150),
       allowNull: false,

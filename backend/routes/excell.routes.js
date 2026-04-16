@@ -16,10 +16,11 @@ const upload = multer({
 const {
     exportarMutuarios,
     exportarPedidos,
-    importarMutuarios,
     exportarDesembolsos,
     exportarReembolsos,
     exportarRelatorioFinanceiro,
+    importarMutuarios,
+    importarPedidos,
 
 } = require("../controllers/excell.controller");
 
@@ -74,6 +75,14 @@ router.post(
   authorizeRoles("ADMIN", "GESTOR"),
   upload.single("file"),
   importarMutuarios
+);
+
+router.post(
+  "/import/pedidos",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR"),
+  upload.single("file"),
+  importarPedidos
 );
 
 module.exports = router;

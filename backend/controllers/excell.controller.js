@@ -96,59 +96,6 @@ async function exportarPedidos(req, res) {
   }
 }
 
-/**
- * Controller placeholder para importação de mutuários.
- * Também implementamos depois.
- */
-async function importarMutuarios(req, res) {
-  try {
-    /*
-      Verifica se foi enviado um ficheiro
-      O multer vai colocar o ficheiro em req.file
-    */
-    if (!req.file) {
-      return res.status(400).json({
-        message: "Nenhum ficheiro Excel foi enviado."
-      });
-    }
-
-    /*
-      Chama o service e passa o buffer do ficheiro
-      Também passamos o utilizador autenticado para eventual uso futuro
-    */
-    const resultado = await excellService.importarExcellMutuarios({
-      fileBuffer: req.file.buffer,
-      userId: req.user?.id || null,
-    });
-
-    /*
-      Registo de auditoria
-    */
-    await registrarLogAuditoria({
-      userId: req.user?.id || null,
-      acao: "IMPORTAR_MUTUARIOS",
-      entidade: "Mutuario",
-      entidadeId: null,
-      descricao: `Importação Excel de mutuários concluída. Importados: ${resultado.totalImportados}, erros: ${resultado.totalErros}.`
-    });
-
-    /*
-      Devolve o resumo da importação
-    */
-    return res.status(200).json({
-      message: "Importação de mutuários concluída com sucesso.",
-      resultado,
-    });
-  } catch (error) {
-    console.error("Erro ao importar mutuários:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao importar mutuários via Excel.",
-      error: error.message
-    });
-  }
-}
-
 /*
   ===========================================================
   * Controller responsável por exportar desembolsos para Excel
@@ -267,11 +214,114 @@ async function exportarRelatorioFinanceiro(req, res) {
   }
 }
 
+/**
+ * Controller placeholder para importação de mutuários.
+ * Também implementamos depois.
+ */
+async function importarMutuarios(req, res) {
+  try {
+    /*
+      Verifica se foi enviado um ficheiro
+      O multer vai colocar o ficheiro em req.file
+    */
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Nenhum ficheiro Excel foi enviado."
+      });
+    }
+
+    /*
+      Chama o service e passa o buffer do ficheiro
+      Também passamos o utilizador autenticado para eventual uso futuro
+    */
+    const resultado = await excellService.importarExcellMutuarios({
+      fileBuffer: req.file.buffer,
+      userId: req.user?.id || null,
+    });
+
+    /*
+      Registo de auditoria
+    */
+    await registrarLogAuditoria({
+      userId: req.user?.id || null,
+      acao: "IMPORTAR_MUTUARIOS",
+      entidade: "Mutuario",
+      entidadeId: null,
+      descricao: `Importação Excel de mutuários concluída. Importados: ${resultado.totalImportados}, erros: ${resultado.totalErros}.`
+    });
+
+    /*
+      Devolve o resumo da importação
+    */
+    return res.status(200).json({
+      message: "Importação de mutuários concluída com sucesso.",
+      resultado,
+    });
+  } catch (error) {
+    console.error("Erro ao importar mutuários:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao importar mutuários via Excel.",
+      error: error.message
+    });
+  }
+}
+
+/*
+  ===========================================================
+  * Controller responsável por importar pedidos via Excel
+  ===========================================================
+*/
+async function importarPedidos(req, res) {
+  try {
+    /*
+      Verifica se foi enviado um ficheiro
+    */
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Nenhum ficheiro Excel foi enviado."
+      });
+    }
+
+    /*
+      Chama o service para processar a importação
+    */
+    const resultado = await excellService.importarExcellPedidos({
+      fileBuffer: req.file.buffer,
+      userId: req.user?.id || null,
+    });
+
+    /*
+      Registo de auditoria
+    */
+    await registrarLogAuditoria({
+      userId: req.user?.id || null,
+      acao: "IMPORTAR_PEDIDOS",
+      entidade: "PedidoCredito",
+      entidadeId: null,
+      descricao: `Importação Excel de pedidos concluída. Importados: ${resultado.totalImportados}, erros: ${resultado.totalErros}.`
+    });
+
+    return res.status(200).json({
+      message: "Importação de pedidos concluída.",
+      resultado,
+    });
+  } catch (error) {
+    console.error("Erro ao importar pedidos:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao importar pedidos via Excel.",
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
     exportarMutuarios,
     exportarPedidos,
-    importarMutuarios,
     exportarDesembolsos,
     exportarReembolsos,
     exportarRelatorioFinanceiro,
+    importarMutuarios,
+    importarPedidos,
 }
