@@ -8,21 +8,52 @@ const {
   RequisitoCredito,
 } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const {
+  podeAprovarPedido,
+  podeRejeitarPedido,
+  podeTransitarStatus,
+  STATUS_PEDIDO,
+} = require("../utils/regrasPedido");
 
 /*
   ==========================================================
-  FUNÇÃO AUXILIAR PARA CRIAR NOTIFICAÇÃO
+  FUNÇÃO AUXILIAR PARA CRIAR NOTIFICAÇÃO SEM DUPLICAR
   ==========================================================
+  Regra forte:
+  - verifica por userId + pedidoId + titulo + tipo + lida=false
 */
-async function criarNotificacao({ userId, titulo, mensagem, tipo = "SISTEMA" }) {
-  if (!userId) return;
+async function criarNotificacao({
+  userId,
+  pedidoId = null,
+  titulo,
+  mensagem,
+  tipo = "SISTEMA",
+}) {
+  if (!userId) return null;
 
-  await Notificacao.create({
+  const notificacaoExistente = await Notificacao.findOne({
+    where: {
+      userId,
+      pedidoId,
+      titulo,
+      tipo,
+      lida: false,
+    },
+  });
+
+  if (notificacaoExistente) {
+    return null;
+  }
+
+  const notificacao = await Notificacao.create({
     userId,
+    pedidoId,
     titulo,
     mensagem,
     tipo,
   });
+
+  return notificacao;
 }
 
 /*
@@ -104,7 +135,49 @@ async function verificarRequisitosObrigatoriosPendentes(pedidoId) {
 
 /*
   ==========================================================
-  REGISTAR DECISÃO DE APROVAÇÃO COM NOTIFICAÇÕES E LOGS
+  DECIDIR PRÓXIMO STATUS E ETAPA DO PEDIDO
+  ==========================================================
+*/
+function calcularProximoFluxoAprovacao(pedido) {
+  let novoStatus = pedido.status;
+  let novaEtapa = pedido.etapaAtual;
+
+  /*
+    Etapa 1:
+    SUBMETIDO -> EM_ANALISE / etapa 2
+  */
+  if (Number(pedido.etapaAtual) === 1) {
+    novoStatus = STATUS_PEDIDO.EM_ANALISE;
+    novaEtapa = 2;
+  }
+
+  /*
+    Etapa 2:
+    EM_ANALISE -> EM_VALIDACAO / etapa 3
+  */
+  else if (Number(pedido.etapaAtual) === 2) {
+    novoStatus = STATUS_PEDIDO.EM_VALIDACAO;
+    novaEtapa = 3;
+  }
+
+  /*
+    Etapa 3:
+    EM_VALIDACAO -> APROVADO
+  */
+  else if (Number(pedido.etapaAtual) === 3) {
+    novoStatus = STATUS_PEDIDO.APROVADO;
+    novaEtapa = 3;
+  }
+
+  return {
+    novoStatus,
+    novaEtapa,
+  };
+}
+
+/*
+  ==========================================================
+  REGISTAR DECISÃO DE APROVAÇÃO COM REGRAS FORTES
   ==========================================================
 */
 async function decidirAprovacao(req, res) {
@@ -149,12 +222,9 @@ async function decidirAprovacao(req, res) {
       });
     }
 
-    if (["APROVADO", "REJEITADO", "DESEMBOLSADO", "ENCERRADO"].includes(pedido.status)) {
-      return res.status(400).json({
-        message: `Não é possível aprovar/rejeitar um pedido com status ${pedido.status}.`,
-      });
-    }
-
+    /*
+      Só permite decisão na etapa correspondente
+    */
     if (Number(nivel) !== Number(pedido.etapaAtual)) {
       return res.status(400).json({
         message: `Este pedido está na etapa ${pedido.etapaAtual}. Só é possível decidir no nível correspondente.`,
@@ -162,14 +232,47 @@ async function decidirAprovacao(req, res) {
     }
 
     /*
+      Bloqueia decisão em estados finais
+    */
+    if (
+      [
+        STATUS_PEDIDO.APROVADO,
+        STATUS_PEDIDO.REJEITADO,
+        STATUS_PEDIDO.DESEMBOLSADO,
+        STATUS_PEDIDO.ENCERRADO,
+      ].includes(pedido.status)
+    ) {
+      return res.status(400).json({
+        message: `Não é possível aprovar/rejeitar um pedido com status ${pedido.status}.`,
+      });
+    }
+
+    /*
+      Regras por perfil e etapa
+    */
+    if (decisao === "APROVADO" && !podeAprovarPedido(req.user, pedido)) {
+      return res.status(403).json({
+        message: "Não tens permissão para aprovar este pedido nesta etapa.",
+      });
+    }
+
+    if (decisao === "REJEITADO" && !podeRejeitarPedido(req.user, pedido)) {
+      return res.status(403).json({
+        message: "Não tens permissão para rejeitar este pedido nesta etapa.",
+      });
+    }
+
+    /*
       Verifica requisitos obrigatórios só quando a decisão for APROVADO
     */
     if (decisao === "APROVADO") {
-      const requisitosBloqueantes = await verificarRequisitosObrigatoriosPendentes(pedidoId);
+      const requisitosBloqueantes =
+        await verificarRequisitosObrigatoriosPendentes(pedidoId);
 
       if (requisitosBloqueantes.length > 0) {
         return res.status(400).json({
-          message: "Não é possível aprovar o pedido. Existem requisitos obrigatórios pendentes ou rejeitados.",
+          message:
+            "Não é possível aprovar o pedido. Existem requisitos obrigatórios pendentes ou rejeitados.",
           requisitosBloqueantes: requisitosBloqueantes.map((item) => ({
             id: item.id,
             requisitoId: item.requisitoId,
@@ -227,13 +330,23 @@ async function decidirAprovacao(req, res) {
       descricao: `Pedido ${pedido.numeroPedido} recebeu decisão ${decisao} no nível ${nivel}.`,
     });
 
+    /*
+      Fluxo de rejeição
+    */
     if (decisao === "REJEITADO") {
+      if (!podeTransitarStatus(pedido.status, STATUS_PEDIDO.REJEITADO)) {
+        return res.status(400).json({
+          message: `Transição inválida de status: ${pedido.status} -> ${STATUS_PEDIDO.REJEITADO}.`,
+        });
+      }
+
       await pedido.update({
-        status: "REJEITADO",
+        status: STATUS_PEDIDO.REJEITADO,
       });
 
       await criarNotificacao({
         userId: pedido.createdBy,
+        pedidoId: pedido.id,
         titulo: "Pedido rejeitado",
         mensagem: `O pedido ${pedido.numeroPedido} foi rejeitado no nível ${nivel}.`,
         tipo: "REJEICAO",
@@ -247,21 +360,52 @@ async function decidirAprovacao(req, res) {
         descricao: `Pedido ${pedido.numeroPedido} rejeitado no nível ${nivel}.`,
       });
 
+      const pedidoAtualizado = await PedidoCredito.findByPk(pedido.id, {
+        include: [
+          {
+            model: Mutuario,
+            as: "mutuario",
+            required: false,
+          },
+          {
+            model: User,
+            as: "criador",
+            attributes: ["id", "nome", "email", "role", "ativo"],
+            required: false,
+          },
+        ],
+      });
+
       return res.status(200).json({
         message: "Pedido rejeitado com sucesso.",
         aprovacao,
-        pedido,
+        pedido: pedidoAtualizado,
       });
     }
 
-    if (Number(nivel) === 1) {
-      await pedido.update({
-        status: "EM_VALIDACAO",
-        etapaAtual: 2,
-      });
+    /*
+      Fluxo de aprovação
+    */
+    const { novoStatus, novaEtapa } = calcularProximoFluxoAprovacao(pedido);
 
+    if (
+      novoStatus !== pedido.status &&
+      !podeTransitarStatus(pedido.status, novoStatus)
+    ) {
+      return res.status(400).json({
+        message: `Transição inválida de status: ${pedido.status} -> ${novoStatus}.`,
+      });
+    }
+
+    await pedido.update({
+      status: novoStatus,
+      etapaAtual: novaEtapa,
+    });
+
+    if (Number(nivel) === 1) {
       await criarNotificacao({
         userId: pedido.createdBy,
+        pedidoId: pedido.id,
         titulo: "Pedido aprovado no nível 1",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado no nível 1 e segue para o nível 2.`,
         tipo: "APROVACAO",
@@ -275,13 +419,9 @@ async function decidirAprovacao(req, res) {
         descricao: `Pedido ${pedido.numeroPedido} aprovado no nível 1.`,
       });
     } else if (Number(nivel) === 2) {
-      await pedido.update({
-        status: "EM_VALIDACAO",
-        etapaAtual: 3,
-      });
-
       await criarNotificacao({
         userId: pedido.createdBy,
+        pedidoId: pedido.id,
         titulo: "Pedido aprovado no nível 2",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado no nível 2 e segue para o nível 3.`,
         tipo: "APROVACAO",
@@ -295,12 +435,9 @@ async function decidirAprovacao(req, res) {
         descricao: `Pedido ${pedido.numeroPedido} aprovado no nível 2.`,
       });
     } else if (Number(nivel) === 3) {
-      await pedido.update({
-        status: "APROVADO",
-      });
-
       await criarNotificacao({
         userId: pedido.createdBy,
+        pedidoId: pedido.id,
         titulo: "Pedido aprovado",
         mensagem: `O pedido ${pedido.numeroPedido} foi aprovado em definitivo.`,
         tipo: "APROVACAO",
@@ -315,10 +452,26 @@ async function decidirAprovacao(req, res) {
       });
     }
 
+    const pedidoAtualizado = await PedidoCredito.findByPk(pedido.id, {
+      include: [
+        {
+          model: Mutuario,
+          as: "mutuario",
+          required: false,
+        },
+        {
+          model: User,
+          as: "criador",
+          attributes: ["id", "nome", "email", "role", "ativo"],
+          required: false,
+        },
+      ],
+    });
+
     return res.status(200).json({
       message: "Decisão registada com sucesso.",
       aprovacao,
-      pedido,
+      pedido: pedidoAtualizado,
     });
   } catch (error) {
     console.error("Erro ao decidir aprovação:", error);

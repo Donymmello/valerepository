@@ -1,5 +1,11 @@
 const { PedidoCredito, Mutuario, User, AprovacaoPedido } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const {
+  podeCriarPedido,
+  podeEditarPedido,
+  podeTransitarStatus,
+  STATUS_PEDIDO,
+} = require("../utils/regrasPedido");
 
 /*
   ==========================================================
@@ -35,9 +41,24 @@ async function createPedidoCredito(req, res) {
       observacoes,
     } = req.body;
 
+    /*
+      Regra de perfil
+    */
+    if (!podeCriarPedido(req.user)) {
+      return res.status(403).json({
+        message: "Não tens permissão para criar pedido de crédito.",
+      });
+    }
+
     if (!mutuarioId || !valorSolicitado || !finalidade) {
       return res.status(400).json({
         message: "mutuarioId, valorSolicitado e finalidade são obrigatórios.",
+      });
+    }
+
+    if (Number(valorSolicitado) <= 0) {
+      return res.status(400).json({
+        message: "valorSolicitado deve ser maior que zero.",
       });
     }
 
@@ -55,7 +76,7 @@ async function createPedidoCredito(req, res) {
       valorSolicitado,
       finalidade,
       pacoteFinanciamento: pacoteFinanciamento || null,
-      status: "SUBMETIDO",
+      status: STATUS_PEDIDO.SUBMETIDO,
       etapaAtual: 1,
       dataSubmissao: new Date(),
       prazoAvaliacao: prazoAvaliacao || null,
@@ -64,7 +85,6 @@ async function createPedidoCredito(req, res) {
       createdBy: req.user.id,
     });
 
-    // Log de auditoria do pedido criado
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "CRIAR_PEDIDO_CREDITO",
@@ -222,6 +242,17 @@ async function updatePedidoCredito(req, res) {
       });
     }
 
+    /*
+      Regra forte:
+      só pode editar se o perfil permitir
+      e se o status atual do pedido permitir
+    */
+    if (!podeEditarPedido(req.user, pedido)) {
+      return res.status(403).json({
+        message: `Não tens permissão para editar este pedido ou o status ${pedido.status} não permite edição.`,
+      });
+    }
+
     const {
       valorSolicitado,
       finalidade,
@@ -231,6 +262,12 @@ async function updatePedidoCredito(req, res) {
       observacoes,
       etapaAtual,
     } = req.body;
+
+    if (valorSolicitado !== undefined && Number(valorSolicitado) <= 0) {
+      return res.status(400).json({
+        message: "valorSolicitado deve ser maior que zero.",
+      });
+    }
 
     await pedido.update({
       valorSolicitado:
@@ -245,10 +282,14 @@ async function updatePedidoCredito(req, res) {
       prazoValidacao:
         prazoValidacao !== undefined ? prazoValidacao : pedido.prazoValidacao,
       observacoes: observacoes !== undefined ? observacoes : pedido.observacoes,
+
+      /*
+        Mantemos etapaAtual editável só por enquanto,
+        mas idealmente isso devia ser controlado apenas pelo fluxo de aprovação.
+      */
       etapaAtual: etapaAtual !== undefined ? etapaAtual : pedido.etapaAtual,
     });
 
-    // Log de auditoria do pedido atualizado
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "ATUALIZAR_PEDIDO_CREDITO",
@@ -275,6 +316,10 @@ async function updatePedidoCredito(req, res) {
   ==========================================================
   ATUALIZAR STATUS DO PEDIDO
   ==========================================================
+  Regra forte:
+  - mudança manual de status é sensível
+  - só ADMIN e GESTOR devem fazer isso
+  - a transição deve ser válida
 */
 async function updateStatusPedidoCredito(req, res) {
   try {
@@ -282,14 +327,14 @@ async function updateStatusPedidoCredito(req, res) {
     const { status } = req.body;
 
     const allowedStatus = [
-      "RASCUNHO",
-      "SUBMETIDO",
-      "EM_ANALISE",
-      "EM_VALIDACAO",
-      "APROVADO",
-      "REJEITADO",
-      "DESEMBOLSADO",
-      "ENCERRADO",
+      STATUS_PEDIDO.RASCUNHO,
+      STATUS_PEDIDO.SUBMETIDO,
+      STATUS_PEDIDO.EM_ANALISE,
+      STATUS_PEDIDO.EM_VALIDACAO,
+      STATUS_PEDIDO.APROVADO,
+      STATUS_PEDIDO.REJEITADO,
+      STATUS_PEDIDO.DESEMBOLSADO,
+      STATUS_PEDIDO.ENCERRADO,
     ];
 
     if (!status) {
@@ -305,6 +350,12 @@ async function updateStatusPedidoCredito(req, res) {
       });
     }
 
+    if (!["ADMIN", "GESTOR"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Não tens permissão para alterar manualmente o status do pedido.",
+      });
+    }
+
     const pedido = await PedidoCredito.findByPk(id);
 
     if (!pedido) {
@@ -313,7 +364,21 @@ async function updateStatusPedidoCredito(req, res) {
       });
     }
 
+    if (!podeTransitarStatus(pedido.status, status)) {
+      return res.status(400).json({
+        message: `Transição inválida de status: ${pedido.status} -> ${status}.`,
+      });
+    }
+
     await pedido.update({ status });
+
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "ATUALIZAR_STATUS_PEDIDO_CREDITO",
+      entidade: "PedidoCredito",
+      entidadeId: pedido.id,
+      descricao: `Status do pedido ${pedido.numeroPedido} alterado de ${pedido.status} para ${status}.`,
+    });
 
     return res.status(200).json({
       message: "Status do pedido atualizado com sucesso.",
@@ -333,10 +398,19 @@ async function updateStatusPedidoCredito(req, res) {
   ==========================================================
   REMOVER PEDIDO DE CRÉDITO
   ==========================================================
+  Regra:
+  - só ADMIN ou GESTOR
+  - idealmente apenas em estados iniciais
 */
 async function deletePedidoCredito(req, res) {
   try {
     const { id } = req.params;
+
+    if (!["ADMIN", "GESTOR"].includes(req.user.role)) {
+      return res.status(403).json({
+        message: "Não tens permissão para remover pedido de crédito.",
+      });
+    }
 
     const pedido = await PedidoCredito.findByPk(id);
 
@@ -346,9 +420,14 @@ async function deletePedidoCredito(req, res) {
       });
     }
 
+    if (![STATUS_PEDIDO.RASCUNHO, STATUS_PEDIDO.SUBMETIDO].includes(pedido.status)) {
+      return res.status(400).json({
+        message: `Só é permitido remover pedidos em status ${STATUS_PEDIDO.RASCUNHO} ou ${STATUS_PEDIDO.SUBMETIDO}.`,
+      });
+    }
+
     await pedido.destroy();
 
-    // Log de auditoria do pedido removido
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "REMOVER_PEDIDO_CREDITO",
