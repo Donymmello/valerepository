@@ -1,32 +1,17 @@
 const { Mutuario, User, PedidoCredito } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-
-/*
-  Função auxiliar para gerar código do mutuário.
-  Exemplo:
-  MUT-20260331-123456
-*/
-function generateCodigoMutuario() {
-  const now = new Date();
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  const random = Math.floor(100000 + Math.random() * 900000);
-
-  return `MUT-${year}${month}${day}-${random}`;
-}
+const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
 
 /*
   ==========================================================
   CRIAR MUTUÁRIO
   ==========================================================
-  Esta função:
+  Esta função é administrativa:
   1. recebe os dados do body
   2. valida o campo obrigatório principal
   3. gera automaticamente o código do mutuário
-  4. cria o registo na base de dados
+  4. valida documento e userId, se vierem
+  5. cria o registo na base de dados
 */
 async function createMutuario(req, res) {
   try {
@@ -43,14 +28,36 @@ async function createMutuario(req, res) {
       userId,
     } = req.body;
 
-    // Validação mínima
+    /*
+      Validação mínima
+    */
     if (!nomeCompleto) {
       return res.status(400).json({
         message: "O campo nomeCompleto é obrigatório.",
       });
     }
 
-    // Se vier userId, confirma se o utilizador existe
+    /*
+      Se vier documentoNumero, garante que não está duplicado
+    */
+    if (documentoNumero) {
+      const mutuarioExistentePorDocumento = await Mutuario.findOne({
+        where: { documentoNumero },
+      });
+
+      if (mutuarioExistentePorDocumento) {
+        return res.status(409).json({
+          message: "Já existe um mutuário com este número de documento.",
+        });
+      }
+    }
+
+    /*
+      Se vier userId, valida:
+      - user existe
+      - user tem role USER
+      - user ainda não está associado a outro mutuário
+    */
     if (userId) {
       const user = await User.findByPk(userId);
 
@@ -59,10 +66,28 @@ async function createMutuario(req, res) {
           message: "Utilizador associado não encontrado.",
         });
       }
+
+      if (user.role !== "USER") {
+        return res.status(400).json({
+          message: "Apenas utilizadores com role USER podem ser associados a mutuário.",
+        });
+      }
+
+      const mutuarioJaAssociadoAoUser = await Mutuario.findOne({
+        where: { userId },
+      });
+
+      if (mutuarioJaAssociadoAoUser) {
+        return res.status(409).json({
+          message: "Este utilizador já está associado a outro mutuário.",
+        });
+      }
     }
 
+    const codigoMutuario = await generateCodigoMutuario();
+
     const mutuario = await Mutuario.create({
-      codigoMutuario: generateCodigoMutuario(),
+      codigoMutuario,
       nomeCompleto,
       documentoTipo: documentoTipo || null,
       documentoNumero: documentoNumero || null,
@@ -75,7 +100,6 @@ async function createMutuario(req, res) {
       userId: userId || null,
     });
 
-    // Criar log de auditoria ao criar um novo mutuário
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "CRIAR_MUTUARIO",
@@ -97,8 +121,6 @@ async function createMutuario(req, res) {
     });
   }
 }
-
-
 
 /*
   ==========================================================
@@ -202,13 +224,55 @@ async function updateMutuario(req, res) {
       userId,
     } = req.body;
 
-    // Se vier userId, valida
+    /*
+      Se vier documentoNumero, valida duplicação em outro mutuário
+    */
+    if (documentoNumero) {
+      const mutuarioExistentePorDocumento = await Mutuario.findOne({
+        where: { documentoNumero },
+      });
+
+      if (
+        mutuarioExistentePorDocumento &&
+        Number(mutuarioExistentePorDocumento.id) !== Number(mutuario.id)
+      ) {
+        return res.status(409).json({
+          message: "Já existe outro mutuário com este número de documento.",
+        });
+      }
+    }
+
+    /*
+      Se vier userId, valida:
+      - user existe
+      - user tem role USER
+      - user não está ligado a outro mutuário
+    */
     if (userId) {
       const user = await User.findByPk(userId);
 
       if (!user) {
         return res.status(404).json({
           message: "Utilizador associado não encontrado.",
+        });
+      }
+
+      if (user.role !== "USER") {
+        return res.status(400).json({
+          message: "Apenas utilizadores com role USER podem ser associados a mutuário.",
+        });
+      }
+
+      const mutuarioJaAssociadoAoUser = await Mutuario.findOne({
+        where: { userId },
+      });
+
+      if (
+        mutuarioJaAssociadoAoUser &&
+        Number(mutuarioJaAssociadoAoUser.id) !== Number(mutuario.id)
+      ) {
+        return res.status(409).json({
+          message: "Este utilizador já está associado a outro mutuário.",
         });
       }
     }
@@ -229,7 +293,6 @@ async function updateMutuario(req, res) {
       userId: userId !== undefined ? userId : mutuario.userId,
     });
 
-    // Criar log de auditoria ao atualizar um mutuário
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "ATUALIZAR_MUTUARIO",
@@ -271,7 +334,6 @@ async function deleteMutuario(req, res) {
 
     await mutuario.destroy();
 
-    // Criar log de auditoria ao remover um mutuário
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "REMOVER_MUTUARIO",

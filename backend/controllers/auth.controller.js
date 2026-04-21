@@ -1,7 +1,84 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { User } = require("../models");
+const { User, Mutuario } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
+
+/*
+  ==========================================================
+  BOOTSTRAP DO PRIMEIRO ADMIN
+  ==========================================================
+  Regras:
+  - só funciona se ainda não existir nenhum ADMIN
+  - cria o primeiro administrador do sistema
+*/
+const bootstrapAdmin = async (req, res) => {
+  try {
+    const { nome, email, password } = req.body;
+
+    if (!nome || !email || !password) {
+      return res.status(400).json({
+        message: "nome, email e password são obrigatórios.",
+      });
+    }
+
+    const adminExistente = await User.findOne({
+      where: { role: "ADMIN" },
+    });
+
+    if (adminExistente) {
+      return res.status(403).json({
+        message: "Já existe pelo menos um ADMIN no sistema. Bootstrap não permitido.",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Já existe um utilizador com este email.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      nome,
+      email,
+      passwordHash,
+      role: "ADMIN",
+      ativo: true,
+    });
+
+    await registrarLogAuditoria({
+      userId: user.id,
+      acao: "BOOTSTRAP_ADMIN",
+      entidade: "User",
+      entidadeId: user.id,
+      descricao: `Primeiro administrador do sistema criado com email ${user.email}.`,
+    });
+
+    return res.status(201).json({
+      message: "Administrador inicial criado com sucesso.",
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        ativo: user.ativo,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao criar administrador inicial:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao criar administrador inicial.",
+      error: error.message,
+    });
+  }
+};
 
 /*
   ==========================================================
@@ -25,16 +102,35 @@ const generateToken = (user) => {
 
 /*
   ==========================================================
-  REGISTAR UTILIZADOR
+  REGISTO INTERNO DE UTILIZADORES
   ==========================================================
+  Regras:
+  - só ADMIN pode criar
+  - só cria perfis internos
+  - não cria Mutuario
 */
-const register = async (req, res) => {
+const registerInterno = async (req, res) => {
   try {
     const { nome, email, password, role } = req.body;
 
-    if (!nome || !email || !password) {
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        message: "Apenas ADMIN pode registar utilizadores internos.",
+      });
+    }
+
+    if (!nome || !email || !password || !role) {
       return res.status(400).json({
-        message: "Nome, email e password são obrigatórios.",
+        message: "Nome, email, password e role são obrigatórios.",
+      });
+    }
+
+    const rolesPermitidos = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
+
+    if (!rolesPermitidos.includes(role)) {
+      return res.status(400).json({
+        message: "Role inválido para registo interno.",
+        rolesPermitidos,
       });
     }
 
@@ -54,20 +150,20 @@ const register = async (req, res) => {
       nome,
       email,
       passwordHash,
-      role: role || "USER",
+      role,
+      ativo: true,
     });
 
-    // Log de auditoria do registo
     await registrarLogAuditoria({
-      userId: user.id,
-      acao: "CRIAR_UTILIZADOR",
+      userId: req.user.id,
+      acao: "CRIAR_UTILIZADOR_INTERNO",
       entidade: "User",
       entidadeId: user.id,
-      descricao: `Utilizador ${user.email} criado com perfil ${user.role}.`,
+      descricao: `Utilizador interno ${user.email} criado com perfil ${user.role}.`,
     });
 
     return res.status(201).json({
-      message: "Utilizador criado com sucesso.",
+      message: "Utilizador interno criado com sucesso.",
       user: {
         id: user.id,
         nome: user.nome,
@@ -77,10 +173,125 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Erro ao registar utilizador:", error);
+    console.error("Erro ao registar utilizador interno:", error);
 
     return res.status(500).json({
-      message: "Erro interno ao registar utilizador.",
+      message: "Erro interno ao registar utilizador interno.",
+      error: error.message,
+    });
+  }
+};
+
+/*
+  ==========================================================
+  REGISTO AUTÓNOMO DE MUTUÁRIO
+  ==========================================================
+  Regras:
+  - cria sempre User com role USER
+  - cria automaticamente o Mutuario associado
+*/
+const registerMutuario = async (req, res) => {
+  try {
+    const {
+      nome,
+      email,
+      password,
+      nomeCompleto,
+      documentoTipo,
+      documentoNumero,
+      dataNascimento,
+      provincia,
+      distrito,
+      localResidencia,
+      telefone,
+    } = req.body;
+
+    if (!nome || !email || !password || !nomeCompleto) {
+      return res.status(400).json({
+        message: "nome, email, password e nomeCompleto são obrigatórios.",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Já existe um utilizador com este email.",
+      });
+    }
+
+    if (documentoNumero) {
+      const mutuarioExistentePorDocumento = await Mutuario.findOne({
+        where: { documentoNumero },
+      });
+
+      if (mutuarioExistentePorDocumento) {
+        return res.status(409).json({
+          message: "Já existe um mutuário com este número de documento.",
+        });
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      nome,
+      email,
+      passwordHash,
+      role: "USER",
+      ativo: true,
+    });
+
+    const codigoMutuario = await generateCodigoMutuario();
+
+    const mutuario = await Mutuario.create({
+      codigoMutuario,
+      nomeCompleto,
+      documentoTipo: documentoTipo || null,
+      documentoNumero: documentoNumero || null,
+      dataNascimento: dataNascimento || null,
+      provincia: provincia || null,
+      distrito: distrito || null,
+      localResidencia: localResidencia || null,
+      telefone: telefone || null,
+      email: email || null,
+      userId: user.id,
+    });
+
+    const token = generateToken(user);
+
+    await registrarLogAuditoria({
+      userId: user.id,
+      acao: "REGISTAR_MUTUARIO_AUTONOMO",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}.`,
+    });
+
+    return res.status(201).json({
+      message: "Mutuário registado com sucesso.",
+      token,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        ativo: user.ativo,
+      },
+      mutuario: {
+        id: mutuario.id,
+        codigoMutuario: mutuario.codigoMutuario,
+        nomeCompleto: mutuario.nomeCompleto,
+        userId: mutuario.userId,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao registar mutuário autónomo:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao registar mutuário autónomo.",
       error: error.message,
     });
   }
@@ -127,7 +338,6 @@ const login = async (req, res) => {
 
     const token = generateToken(user);
 
-    // Log de auditoria do login
     await registrarLogAuditoria({
       userId: user.id,
       acao: "LOGIN",
@@ -186,7 +396,9 @@ const getMe = async (req, res) => {
 };
 
 module.exports = {
-  register,
+  bootstrapAdmin,
+  registerInterno,
+  registerMutuario,
   login,
   getMe,
 };

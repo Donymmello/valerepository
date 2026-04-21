@@ -3,7 +3,9 @@ const router = express.Router();
 
 // Importa as funções do controller de autenticação
 const {
-  register,
+  bootstrapAdmin,
+  registerInterno,
+  registerMutuario,
   login,
   getMe,
 } = require("../controllers/auth.controller");
@@ -11,19 +13,24 @@ const {
 // Importa o middleware de autenticação
 const authMiddleware = require("../middleware/auth.middleware");
 
-
-
 /*
   ==========================================================
   ROTAS DE AUTENTICAÇÃO
   ==========================================================
-  POST /api/auth/register -> cria utilizador
-  POST /api/auth/login    -> faz login
-  GET  /api/auth/me       -> retorna utilizador autenticado
+  POST /api/auth/register-mutuario -> registo público do mutuário
+  POST /api/auth/register-interno  -> registo interno (apenas admin)
+  POST /api/auth/login             -> faz login
+  GET  /api/auth/me                -> retorna utilizador autenticado
 */
 
-// Registar novo utilizador
-router.post("/register", register);
+// Rota para criar um admin inicial (apenas para desenvolvimento)
+router.post("/bootstrap-admin", bootstrapAdmin);
+
+// Registo público do mutuário autónomo
+router.post("/register-mutuario", registerMutuario);
+
+// Registo interno de utilizadores administrativos
+router.post("/register-interno", authMiddleware, registerInterno);
 
 // Fazer login
 router.post("/login", login);
