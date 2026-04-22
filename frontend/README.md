@@ -1,60 +1,16 @@
-# 💳 Sistema de Gestão de Crédito – Vale do Zambeze
+# React + Vite
 
-Sistema web para gerenciamento de empréstimos, desenvolvido para digitalizar o processo de solicitação, análise e aprovação de crédito, com controle por níveis de usuário e registro de atividades.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
----
+Currently, two official plugins are available:
 
-## 📋 Índice
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-- [📌 Funcionalidades](#-funcionalidades)
-- [🛠️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)
-- [🧱 Estrutura do Projeto](#-estrutura-do-projeto)
-- [🚀 Como Executar Localmente](#-como-executar-localmente)
-- [🔐 Controle de Acesso](#-controle-de-acesso)
-- [🌐 Deploy](#-deploy)
-- [📈 Melhorias Futuras](#-melhorias-futuras)
-- [👨‍💻 Autor](#-autor)
+## React Compiler
 
----
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## 📌 Funcionalidades
+## Expanding the ESLint configuration
 
-- ✅ Registro e autenticação de usuários
-- ✅ Diferenciação de permissões por cargo (admin, analista, cliente)
-- ✅ Cadastro de pedidos de empréstimos
-- ✅ Fluxo de aprovação e rejeição por analistas
-- ✅ Histórico de atividades com logs automáticos
-- ✅ Dashboard com estatísticas resumidas
-- ✅ Interface responsiva e intuitiva (React)
-- ✅ API segura com autenticação JWT
-- ✅ Integração com banco de dados MongoDB
-- ✅ Separação entre frontend e backend
-
----
-
-## 🛠️ Tecnologias Utilizadas
-
-### **Frontend**
-- React.js
-- React Router
-- Axios
-- Tailwind CSS ou CSS puro
-- Vercel (Deploy)
-
-### **Backend**
-- Node.js
-- Express.js
-- MySQL
-- JSON Web Token (JWT)
-- Middleware para autenticação e logging
-- Render ou Railway (Deploy)
-
-### **Outros**
-- Dotenv para variáveis de ambiente
-- ESLint (opcional)
-
----
-
-## 🧱 Estrutura do Projeto
-
-### 🔹 Backend (`/backend`)
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
