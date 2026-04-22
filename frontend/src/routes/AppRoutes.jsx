@@ -9,6 +9,7 @@ import CriarPedido from "../pages/portal/CriarPedido";
 import DetalhePedido from "../pages/portal/DetalhePedido";
 import ExtratoPedido from "../pages/portal/ExtratoPedido";
 import DashboardInterno from "../pages/admin/DashboardInterno";
+import PortalLayout from "../components/layout/PortalLayout";
 
 export default function AppRoutes() {
   return (
@@ -23,7 +24,9 @@ export default function AppRoutes() {
           path="/portal"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
+              <PortalLayout>
               <DashboardMutuario />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -32,7 +35,9 @@ export default function AppRoutes() {
           path="/portal/meu-mutuario"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
-              <MeuMutuario />
+              <PortalLayout>
+                <MeuMutuario />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -41,7 +46,9 @@ export default function AppRoutes() {
           path="/portal/meus-pedidos"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
-              <MeusPedidos />
+              <PortalLayout>
+                <MeusPedidos />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -50,7 +57,9 @@ export default function AppRoutes() {
           path="/portal/criar-pedido"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
-              <CriarPedido />
+              <PortalLayout>
+                <CriarPedido />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -59,7 +68,9 @@ export default function AppRoutes() {
           path="/portal/meus-pedidos/:id"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
-              <DetalhePedido />
+              <PortalLayout>
+                <DetalhePedido />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -68,7 +79,9 @@ export default function AppRoutes() {
           path="/portal/meus-pedidos/:id/extrato"
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
-              <ExtratoPedido />
+              <PortalLayout>
+                <ExtratoPedido />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />

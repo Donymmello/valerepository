@@ -4,9 +4,10 @@ import {
   Alert,
   Box,
   Button,
-  Container,
   Grid,
+  MenuItem,
   Paper,
+  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
@@ -25,6 +26,7 @@ export default function CriarPedido() {
   });
 
   const [error, setError] = useState("");
+  const [successOpen, setSuccessOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (event) => {
@@ -37,11 +39,30 @@ export default function CriarPedido() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+
+    if (!form.valorSolicitado || Number(form.valorSolicitado) <= 0) {
+      setError("Informe um valor solicitado válido.");
+      return;
+    }
+
+    if (!form.finalidade.trim()) {
+      setError("A finalidade do pedido é obrigatória.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await createMeuPedidoRequest(form);
-      navigate("/portal/meus-pedidos");
+      await createMeuPedidoRequest({
+        ...form,
+        valorSolicitado: Number(form.valorSolicitado),
+      });
+
+      setSuccessOpen(true);
+
+      setTimeout(() => {
+        navigate("/portal/meus-pedidos");
+      }, 1200);
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao criar pedido.");
@@ -51,98 +72,121 @@ export default function CriarPedido() {
   };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ py: 4 }}>
-        <Paper sx={{ p: 4 }}>
-          <Typography variant="h4" mb={3}>
-            Criar Pedido
-          </Typography>
+    <Box>
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h4" mb={1}>
+          Criar Pedido
+        </Typography>
 
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          Preencha os dados abaixo para submeter um novo pedido de crédito.
+        </Typography>
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Valor Solicitado"
-                  name="valorSolicitado"
-                  type="number"
-                  value={form.valorSolicitado}
-                  onChange={handleChange}
-                />
-              </Grid>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Pacote de Financiamento"
-                  name="pacoteFinanciamento"
-                  value={form.pacoteFinanciamento}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Finalidade"
-                  name="finalidade"
-                  multiline
-                  minRows={3}
-                  value={form.finalidade}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Prazo de Avaliação"
-                  name="prazoAvaliacao"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                  value={form.prazoAvaliacao}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Prazo de Validação"
-                  name="prazoValidacao"
-                  type="date"
-                  InputLabelProps={{ shrink: true }}
-                  value={form.prazoValidacao}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Observações"
-                  name="observacoes"
-                  multiline
-                  minRows={3}
-                  value={form.observacoes}
-                  onChange={handleChange}
-                />
-              </Grid>
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Valor Solicitado"
+                name="valorSolicitado"
+                type="number"
+                value={form.valorSolicitado}
+                onChange={handleChange}
+                inputProps={{ min: 0 }}
+              />
             </Grid>
 
+            <Grid item xs={12} md={6}>
+              <TextField
+                select
+                fullWidth
+                label="Pacote de Financiamento"
+                name="pacoteFinanciamento"
+                value={form.pacoteFinanciamento}
+                onChange={handleChange}
+              >
+                <MenuItem value="">Selecionar</MenuItem>
+                <MenuItem value="Agricultura">Agricultura</MenuItem>
+                <MenuItem value="Comércio">Comércio</MenuItem>
+                <MenuItem value="Serviços">Serviços</MenuItem>
+                <MenuItem value="Habitação">Habitação</MenuItem>
+                <MenuItem value="Educação">Educação</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Finalidade"
+                name="finalidade"
+                multiline
+                minRows={4}
+                value={form.finalidade}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Prazo de Avaliação"
+                name="prazoAvaliacao"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={form.prazoAvaliacao}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Prazo de Validação"
+                name="prazoValidacao"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={form.prazoValidacao}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Observações"
+                name="observacoes"
+                multiline
+                minRows={3}
+                value={form.observacoes}
+                onChange={handleChange}
+              />
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 3 }}>
             <Button
               type="submit"
               variant="contained"
-              sx={{ mt: 3 }}
               disabled={submitting}
             >
-              {submitting ? "A guardar..." : "Submeter Pedido"}
+              {submitting ? "A submeter..." : "Submeter Pedido"}
             </Button>
           </Box>
-        </Paper>
-      </Box>
-    </Container>
+        </Box>
+      </Paper>
+
+      <Snackbar
+        open={successOpen}
+        autoHideDuration={1200}
+        onClose={() => setSuccessOpen(false)}
+        message="Pedido submetido com sucesso."
+      />
+    </Box>
   );
 }

@@ -3,9 +3,8 @@ import {
   Alert,
   Box,
   CircularProgress,
-  Container,
-  Grid,
   Paper,
+  Stack,
   Typography,
 } from "@mui/material";
 import { getMeuMutuarioRequest } from "../../api/portal.api";
@@ -33,67 +32,44 @@ export default function MeuMutuario() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 4 }}>
-        <Typography variant="h4" mb={3}>
-          Meu Perfil de Mutuário
-        </Typography>
+    <Box>
+      <Typography variant="h4" mb={1}>
+        Meu Perfil de Mutuário
+      </Typography>
 
-        {error && <Alert severity="error">{error}</Alert>}
+      <Typography variant="body2" color="text.secondary" mb={3}>
+        Consulte os seus dados pessoais e de registo no sistema.
+      </Typography>
 
-        {mutuario && (
-          <Paper sx={{ p: 3 }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Código:</strong> {mutuario.codigoMutuario || "-"}</Typography>
-              </Grid>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Nome Completo:</strong> {mutuario.nomeCompleto || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Documento Tipo:</strong> {mutuario.documentoTipo || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Documento Número:</strong> {mutuario.documentoNumero || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Data de Nascimento:</strong> {mutuario.dataNascimento || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography><strong>Telefone:</strong> {mutuario.telefone || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Typography><strong>Província:</strong> {mutuario.provincia || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Typography><strong>Distrito:</strong> {mutuario.distrito || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Typography><strong>Residência:</strong> {mutuario.localResidencia || "-"}</Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography><strong>Email:</strong> {mutuario.email || "-"}</Typography>
-              </Grid>
-            </Grid>
-          </Paper>
-        )}
-      </Box>
-    </Container>
+      {mutuario && (
+        <Paper sx={{ p: 3 }}>
+          <Stack spacing={1.5}>
+            <Typography><strong>Código:</strong> {mutuario.codigoMutuario || "-"}</Typography>
+            <Typography><strong>Nome Completo:</strong> {mutuario.nomeCompleto || "-"}</Typography>
+            <Typography><strong>Documento Tipo:</strong> {mutuario.documentoTipo || "-"}</Typography>
+            <Typography><strong>Documento Número:</strong> {mutuario.documentoNumero || "-"}</Typography>
+            <Typography><strong>Data de Nascimento:</strong> {mutuario.dataNascimento || "-"}</Typography>
+            <Typography><strong>Telefone:</strong> {mutuario.telefone || "-"}</Typography>
+            <Typography><strong>Província:</strong> {mutuario.provincia || "-"}</Typography>
+            <Typography><strong>Distrito:</strong> {mutuario.distrito || "-"}</Typography>
+            <Typography><strong>Residência:</strong> {mutuario.localResidencia || "-"}</Typography>
+            <Typography><strong>Email:</strong> {mutuario.email || "-"}</Typography>
+          </Stack>
+        </Paper>
+      )}
+    </Box>
   );
 }
