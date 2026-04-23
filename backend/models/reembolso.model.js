@@ -39,6 +39,12 @@ const Reembolso = sequelize.define(
         allowNull: true,
         field: 'numero_transacao',
     },
+    referencia: {
+        type: DataTypes.STRING(50),
+        unique: true,
+        allowNull: true,
+        field: "referencia",
+    },
     observacoes: {
         type: DataTypes.TEXT,
         allowNull: true,

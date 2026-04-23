@@ -8,6 +8,7 @@ const {
   getAprovacoesByPedido,
   decidirAprovacao,
   getMinhasAprovacoes,
+  getAllAprovacoes,
 } = require("../controllers/aprovacaoPedido.controller");
 
 /*
@@ -37,6 +38,14 @@ router.get(
   authMiddleware,
   authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   getMinhasAprovacoes
+);
+
+// Rota para obter todas as aprovações (para fins administrativos)
+router.get(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN"),
+  getAllAprovacoes
 );
 
 module.exports = router;

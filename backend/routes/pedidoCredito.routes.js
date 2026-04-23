@@ -7,6 +7,8 @@ const authorizeRoles = require("../middleware/role.middleware");
 const {
   createPedidoCredito,
   getAllPedidosCredito,
+  getPedidosElegiveisDesembolso,
+  getPedidosElegiveisReembolso,
   getPedidoCreditoById,
   getPedidosByMutuario,
   updatePedidoCredito,
@@ -25,6 +27,22 @@ router.post("/", authMiddleware, createPedidoCredito);
 
 // Listar todos os pedidos
 router.get("/", authMiddleware, getAllPedidosCredito);
+
+// Listar pedidos elegíveis para desembolso
+router.get(
+  "/elegiveis-desembolso",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "DIRETOR"),
+  getPedidosElegiveisDesembolso
+);
+
+// Listar pedidos elegíveis para reembolso
+router.get(
+  "/elegiveis-reembolso",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "DIRETOR"),
+  getPedidosElegiveisReembolso
+);
 
 // Listar pedidos de um mutuário
 router.get("/mutuario/:mutuarioId", authMiddleware, getPedidosByMutuario);

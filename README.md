@@ -1,19 +1,23 @@
 # 💳 Sistema de Gestão de Créditos – Vale do Zambeze
 
-Sistema web para gestão de créditos, desenvolvido para digitalizar o processo de submissão, análise, validação, aprovação, desembolso e reembolso de crédito, com controlo por níveis hierárquicos, auditoria de ações, notificações internas e relatórios operacionais.
+Sistema web para gestão de crédito, desenvolvido para digitalizar o processo de submissão, análise, validação, aprovação, desembolso e reembolso, com separação entre **portal do mutuário** e **backoffice administrativo**.
 
 ---
 
 ## 📋 Índice
 
 - [Visão Geral](#-visão-geral)
-- [Funcionalidades](#-funcionalidades)
+- [Objetivo do Projeto](#-objetivo-do-projeto)
+- [Arquitetura Funcional](#-arquitetura-funcional)
+- [Funcionalidades Implementadas](#-funcionalidades-implementadas)
 - [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [Arquitetura do Sistema](#-arquitetura-do-sistema)
 - [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Como Executar Localmente](#-como-executar-localmente)
-- [Controlo de Acesso](#-controlo-de-acesso)
+- [Autenticação e Perfis](#-autenticação-e-perfis)
+- [Fluxo do Mutuário](#-fluxo-do-mutuario)
+- [Fluxo de Aprovação](#-fluxo-de-aprovação)
 - [Regras de Negócio Adotadas](#-regras-de-negócio-adotadas)
+- [API Principal](#-api-principal)
+- [Como Executar Localmente](#-como-executar-localmente)
 - [Estado Atual do Projeto](#-estado-atual-do-projeto)
 - [Próximos Passos](#-próximos-passos)
 - [Autor](#-autor)
@@ -22,49 +26,104 @@ Sistema web para gestão de créditos, desenvolvido para digitalizar o processo 
 
 ## 📌 Visão Geral
 
-O **Sistema de Gestão de Créditos – Vale do Zambeze** foi concebido para apoiar a gestão do ciclo completo de crédito, desde o cadastro do mutuário até ao encerramento do pedido após liquidação.
+O **Sistema de Gestão de Créditos – Vale do Zambeze** foi concebido para apoiar o ciclo completo de crédito, desde o registo do mutuário até ao encerramento do pedido após liquidação.
 
-O objetivo principal é substituir processos manuais por uma solução digital segura, auditável e escalável, alinhada com necessidades como:
+O sistema foi evoluído para suportar dois ambientes distintos:
 
-- cadastro estruturado de mutuários
-- submissão e acompanhamento de pedidos de crédito
-- aprovação por níveis hierárquicos
-- controlo de requisitos obrigatórios
-- registo de desembolsos e reembolsos
-- alertas de prazo
-- relatórios operacionais e financeiros
-- exportação e importação futura de dados em Excel
+1. **Portal do Mutuário**
+   - registo autónomo
+   - login
+   - consulta do próprio perfil
+   - criação e acompanhamento dos próprios pedidos
+   - consulta de detalhe e extrato
+
+2. **Backoffice Administrativo**
+   - gestão interna de pedidos
+   - gestão de mutuários
+   - aprovação por níveis
+   - controlo de requisitos
+   - desembolsos e reembolsos
+   - relatórios e monitoria operacional
 
 ---
 
-## ✅ Funcionalidades
+## 🎯 Objetivo do Projeto
+
+Substituir processos manuais por uma solução digital:
+
+- segura
+- auditável
+- organizada por perfis
+- escalável
+- orientada a regras reais de negócio
+
+O projeto foi estruturado para refletir um processo de crédito real, com controlo de etapa, validações fortes e histórico de ações.
+
+---
+
+## 🧭 Arquitetura Funcional
+
+### 1. Portal do Mutuário
+Área voltada ao utilizador final autenticado com role `USER`.
+
+Permite:
+- registo autónomo
+- autenticação
+- consulta do próprio perfil de mutuário
+- criação de pedidos
+- consulta dos próprios pedidos
+- consulta de extrato por pedido
+
+### 2. Backoffice
+Área interna reservada a perfis administrativos.
+
+Permite:
+- consultar e gerir pedidos
+- consultar e gerir mutuários
+- registar decisões de aprovação
+- acompanhar o estado do fluxo
+- operar desembolsos e reembolsos
+- gerar relatórios e monitoria
+
+---
+
+## ✅ Funcionalidades Implementadas
 
 ### Autenticação e Segurança
-- Registo e autenticação de utilizadores
-- Proteção de rotas com JWT
-- Controlo de permissões por perfil
+- Login com JWT
+- Proteção de rotas
+- Controlo de acessos por perfil
 - Registo de ações em logs de auditoria
+- Registo público separado do registo interno
+
+### Registo Autónomo do Mutuário
+- Criação automática de `User` com role `USER`
+- Criação automática do respetivo `Mutuario`
+- Ligação entre `User` e `Mutuario` por `userId`
+- Geração automática do `codigoMutuario`
 
 ### Gestão de Mutuários
-- Cadastro de mutuários
+- Cadastro administrativo de mutuários
 - Atualização de dados pessoais e documentais
-- Associação de pedidos ao mutuário
+- Associação opcional a utilizador `USER`
 - Identificação por código único
 
 ### Gestão de Pedidos de Crédito
-- Criação de pedidos de crédito
+- Criação de pedidos
 - Geração automática do número do pedido
 - Consulta e atualização de pedidos
-- Controlo de estado e etapa atual do processo
+- Controlo de estado e etapa atual
+- Distinção entre pedidos do portal e do backoffice
 
 ### Aprovação por Níveis
-- Aprovação e rejeição por níveis
-- Bloqueio de aprovação fora da etapa correta
+- Histórico de aprovações por pedido
+- Decisão por nível (`APROVADO` / `REJEITADO`)
+- Bloqueio de decisão fora da etapa correta
+- Transição de status conforme a etapa
 - Aprovação final no último nível
-- Histórico completo de decisões
+- Rejeição com atualização imediata do estado
 
 ### Requisitos do Pedido
-- Cadastro de requisitos de crédito
 - Associação de requisitos a pedidos
 - Validação de requisitos
 - Bloqueio de aprovação quando houver requisitos obrigatórios pendentes ou rejeitados
@@ -73,24 +132,38 @@ O objetivo principal é substituir processos manuais por uma solução digital s
 - Registo de desembolsos
 - Registo de reembolsos
 - Cálculo de saldo por pedido
-- Encerramento automático do pedido após liquidação total
+- Encerramento automático após liquidação total
 - Extrato processual e financeiro por pedido
 
 ### Monitoria e Operação
 - Notificações internas
-- Alertas de prazo de avaliação e validação
-- Relatórios gerais
-- Relatórios financeiros por pedido
-- Relatórios de desembolsos e reembolsos
+- Alertas de prazo
+- Relatórios operacionais
+- Relatórios financeiros
+- Exportação de dados para Excel
+
+### Frontend
+- Login funcional
+- Registo do mutuário
+- Rotas protegidas por perfil
+- Portal do mutuário com layout próprio
+- Backoffice com layout próprio
+- Dashboard do mutuário
+- Dashboard interno
+- Listagem e detalhe base de pedidos internos
+- Páginas do portal para perfil, pedidos, criação e extrato
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
 ### Frontend
-- React.js
-- React Router
+- React
+- Vite
+- React Router DOM
 - Axios
+- Material UI
+- Context API
 
 ### Backend
 - Node.js
@@ -101,6 +174,8 @@ O objetivo principal é substituir processos manuais por uma solução digital s
 - Bcryptjs
 - Dotenv
 - CORS
+- Multer
+- XLSX
 
 ### Ferramentas de Apoio
 - Postman
@@ -110,19 +185,7 @@ O objetivo principal é substituir processos manuais por uma solução digital s
 
 ---
 
-## 🧱 Arquitetura do Sistema
-
-O sistema está dividido em duas camadas principais:
-
-### Frontend
-Responsável pela interface com o utilizador, consumo da API e exibição dos módulos do sistema.
-
-### Backend
-Responsável pela lógica de negócio, autenticação, validações, regras de aprovação, gestão financeira e persistência dos dados em base relacional.
-
----
-
-## 📁 Estrutura do Projeto
+## 🧱 Estrutura do Projeto
 
 ### Backend (`/backend`)
 
@@ -173,10 +236,12 @@ backend/
 │   ├── alertaPrazo.routes.js
 │   ├── requisitoCredito.routes.js
 │   └── pedidoRequisito.routes.js
-├── utils/
-│   └── logAuditoria.js
 ├── services/
 │   └── excell.service.js
+├── utils/
+│   ├── logAuditoria.js
+│   ├── generateCodigoMutuario.js
+│   └── regrasPedido.js
 └── server.js
 ```
 
@@ -185,13 +250,147 @@ backend/
 ```txt
 frontend/
 ├── src/
+│   ├── api/
+│   │   ├── axios.js
+│   │   ├── auth.api.js
+│   │   ├── portal.api.js
+│   │   └── admin.api.js
 │   ├── components/
+│   │   ├── ProtectedRoute.jsx
+│   │   └── layout/
+│   │       ├── PortalLayout.jsx
+│   │       └── BackofficeLayout.jsx
+│   ├── context/
+│   │   └── AuthContext.jsx
 │   ├── pages/
-│   ├── services/
+│   │   ├── auth/
+│   │   │   ├── Login.jsx
+│   │   │   └── RegisterMutuario.jsx
+│   │   ├── portal/
+│   │   │   ├── DashboardMutuario.jsx
+│   │   │   ├── MeuMutuario.jsx
+│   │   │   ├── MeusPedidos.jsx
+│   │   │   ├── CriarPedido.jsx
+│   │   │   ├── DetalhePedido.jsx
+│   │   │   └── ExtratoPedido.jsx
+│   │   └── admin/
+│   │       ├── DashboardInterno.jsx
+│   │       ├── pedidos/
+│   │       ├── mutuarios/
+│   │       ├── aprovacoes/
+│   │       ├── desembolsos/
+│   │       └── reembolsos/
 │   ├── routes/
+│   │   └── AppRoutes.jsx
+│   ├── utils/
+│   │   └── formatters.js
 │   ├── App.jsx
 │   └── main.jsx
 ```
+
+---
+
+## 🔐 Autenticação e Perfis
+
+O sistema usa autenticação com JWT e autorização por perfil.
+
+### Perfis existentes
+- **ADMIN**
+- **GESTOR**
+- **ANALISTA**
+- **DIRETOR**
+- **USER**
+
+### Regras adotadas
+- `register-mutuario` cria apenas `USER`
+- `register-interno` cria apenas perfis internos
+- perfis internos não devem ser criados por rota pública
+- o portal do mutuário é separado do backoffice
+
+---
+
+## 👤 Fluxo do Mutuario
+
+### Registo
+O mutuário pode registar-se autonomamente no portal.
+
+Ao registar:
+- cria-se o `User`
+- cria-se o `Mutuario`
+- é gerado `codigoMutuario` automaticamente
+- a conta já nasce pronta para login
+
+### Operações do mutuário
+Depois do login, o mutuário pode:
+- ver o próprio perfil
+- listar os próprios pedidos
+- criar um novo pedido
+- ver detalhe do pedido
+- consultar extrato
+
+---
+
+## 🏢 Fluxo de Aprovação
+
+A aprovação de pedidos segue por níveis e respeita a etapa atual do pedido.
+
+### Regras principais
+- só é possível decidir no nível correspondente à etapa atual
+- `nivel` e `decisao` são obrigatórios na decisão
+- `decisao` só pode ser `APROVADO` ou `REJEITADO`
+- requisitos obrigatórios pendentes ou rejeitados bloqueiam aprovação
+- estados finais não podem ser reaprovados/rejeitados
+- toda decisão gera histórico e auditoria
+- o fluxo pode gerar notificações internas ao criador do pedido
+
+### Fluxo definido
+- **Etapa 1**: `SUBMETIDO` → `EM_ANALISE`
+- **Etapa 2**: `EM_ANALISE` → `EM_VALIDACAO`
+- **Etapa 3**: `EM_VALIDACAO` → `APROVADO`
+- **Rejeição**: muda o pedido para `REJEITADO`
+
+---
+
+## 📌 Regras de Negócio Adotadas
+
+- O sistema separa claramente **portal do mutuário** e **backoffice interno**
+- O registo do mutuário é autónomo e não depende de associação manual
+- O cadastro administrativo de mutuário continua disponível no backoffice
+- O `codigoMutuario` é gerado automaticamente
+- O pedido pertence a um mutuário e guarda quem o criou
+- A aprovação respeita a etapa atual do pedido
+- Um pedido não pode ser aprovado com requisitos obrigatórios pendentes ou rejeitados
+- Apenas pedidos aprovados podem ser desembolsados
+- Apenas pedidos desembolsados podem receber reembolsos
+- Quando o total reembolsado atinge ou ultrapassa o total desembolsado, o pedido é encerrado
+- O sistema regista logs de auditoria das ações críticas
+- O sistema pode emitir notificações internas sem duplicação desnecessária
+
+---
+
+## 🔌 API Principal
+
+### Auth
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/register-mutuario`
+- `POST /api/auth/register-interno`
+
+### Portal do Mutuário
+- `GET /api/portal/meu-mutuario`
+- `GET /api/portal/meus-pedidos`
+- `POST /api/portal/meus-pedidos`
+- `GET /api/portal/meus-pedidos/:id`
+- `GET /api/portal/meus-pedidos/:id/extrato`
+
+### Aprovações
+- `GET /api/aprovacoes/pedido/:pedidoId`
+- `POST /api/aprovacoes/pedido/:pedidoId/decidir`
+- `GET /api/aprovacoes/minhas`
+
+### Excel
+- exportação de dados do sistema
+- estrutura preparada para importação
 
 ---
 
@@ -200,7 +399,7 @@ frontend/
 ### 1. Clonar o projeto
 
 ```bash
-git clone https://github.com/seuusuario/gestao-creditos.git
+git clone <url-do-repositorio>
 cd gestao-creditos
 ```
 
@@ -211,7 +410,7 @@ cd backend
 npm install
 ```
 
-Crie um ficheiro `.env` na raiz do backend:
+Crie um ficheiro `.env`:
 
 ```env
 PORT=5000
@@ -222,7 +421,7 @@ DB_HOST=localhost
 JWT_SECRET=sua_chave_secreta
 ```
 
-Inicie o backend:
+Executar:
 
 ```bash
 npm run dev
@@ -233,54 +432,28 @@ npm run dev
 ```bash
 cd ../frontend
 npm install
+```
+
+Crie um ficheiro `.env` no frontend:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+Executar:
+
+```bash
 npm run dev
 ```
 
 ---
 
-## 🔐 Controlo de Acesso
-
-O sistema usa autenticação baseada em JWT e autorização por perfil.
-
-### Perfis considerados
-
-- **ADMIN**  
-  Acesso total ao sistema, incluindo gestão de utilizadores, requisitos e operações administrativas.
-
-- **GESTOR**  
-  Gestão operacional, acompanhamento do processo e acesso a funções de supervisão.
-
-- **ANALISTA**  
-  Análise, validação e apoio ao fluxo de aprovação.
-
-- **DIRETOR**  
-  Aprovação final dos pedidos de crédito.
-
-- **USER**  
-  Perfil base reservado para cenários específicos ou evoluções futuras.
-
----
-
-## 📌 Regras de Negócio Adotadas
-
-- O **mutuário** é o beneficiário do crédito e não precisa, obrigatoriamente, de autenticação no sistema.
-- O pedido de crédito é registado por um **utilizador interno autenticado**.
-- Cada pedido pertence a um mutuário e guarda quem o criou.
-- A aprovação segue por níveis, respeitando a etapa atual do pedido.
-- Um pedido **não pode ser aprovado** se houver requisitos obrigatórios pendentes ou rejeitados.
-- Apenas pedidos aprovados podem ser desembolsados.
-- Apenas pedidos desembolsados podem receber reembolsos.
-- Quando o total reembolsado atingir ou ultrapassar o total desembolsado, o pedido é encerrado automaticamente.
-- O sistema regista auditoria das ações críticas.
-- O sistema pode gerar notificações internas e alertas de prazo.
-
----
-
 ## 📊 Estado Atual do Projeto
 
-Atualmente, o backend já cobre os seguintes módulos:
-
+### Backend
+Já cobre:
 - autenticação
+- registo autónomo do mutuário
 - mutuários
 - pedidos de crédito
 - aprovações por níveis
@@ -290,23 +463,36 @@ Atualmente, o backend já cobre os seguintes módulos:
 - desembolsos
 - reembolsos
 - extrato por pedido
-- relatórios gerais e financeiros
+- relatórios
 - alertas de prazo
-- Exportação de dados para Excel
+- exportação de dados para Excel
+
+### Frontend
+Já possui:
+- login
+- registo do mutuário
+- contexto de autenticação
+- rotas protegidas
+- layouts separados para portal e backoffice
+- dashboard do mutuário
+- dashboard interno
+- páginas do portal
+- estrutura inicial dos módulos internos
+- início do módulo de pedidos internos
 
 ---
 
 ## 🚧 Próximos Passos
 
-Os próximos passos previstos para evolução do projeto são:
-
-- Importação de dados via Excel
-- Prevenção de alertas duplicados
-- Regras mais finas por etapa e perfil
-- Melhorias no frontend
-- Dashboard operacional
-- Relatórios exportáveis
-- Integração futura com email e/ou SMS
+- Fechar o módulo interno de pedidos com ações operacionais completas
+- Ligar o módulo de mutuários com dados reais
+- Ligar módulo de aprovações do utilizador interno
+- Ligar desembolsos e reembolsos no backoffice
+- Reforçar dashboards operacionais
+- Melhorar UX/UI das páginas
+- Concluir importação de Excel
+- Expandir relatórios exportáveis
+- Evoluir notificações e monitoria
 
 ---
 
@@ -315,8 +501,6 @@ Os próximos passos previstos para evolução do projeto são:
 **Sidónio Aly António**  
 Engenheiro em Tecnologias de Informação e Comunicação  
 Moçambique
-
-- LinkedIn: [Sidónio Aly António](https://www.linkedin.com/in/sidonio-aly-antonio)
 
 ---
 

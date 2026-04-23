@@ -1,5 +1,6 @@
 const { Reembolso, PedidoCredito, User, Desembolso } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const generateReferencia = require("../utils/generateReferencia");
 const {
   podeRegistrarReembolso,
   STATUS_PEDIDO,
@@ -80,7 +81,6 @@ async function createReembolso(req, res) {
       dataReembolso,
       meioPagamento,
       numeroTransacao,
-      referencia,
       observacoes,
     } = req.body;
 
@@ -115,13 +115,15 @@ async function createReembolso(req, res) {
       });
     }
 
+    const referencia = await generateReferencia();
+
     const reembolso = await Reembolso.create({
       pedidoId,
       valorReembolsado,
       dataReembolso: dataReembolso || new Date(),
       meioPagamento: meioPagamento || "TRANSFERENCIA",
       numeroTransacao: numeroTransacao || null,
-      referencia: referencia || null,
+      referencia: await generateReferencia(),
       observacoes: observacoes || null,
       createdBy: req.user.id,
     });

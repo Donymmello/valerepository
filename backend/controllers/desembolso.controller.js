@@ -1,5 +1,6 @@
 const { Desembolso, PedidoCredito, User } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const generateReferencia = require("../utils/generateReferencia");
 const {
   podeDesembolsarPedido,
   podeTransitarStatus,
@@ -19,7 +20,6 @@ async function createDesembolso(req, res) {
       dataDesembolso,
       meioPagamento,
       numeroTransacao,
-      referencia,
       observacoes,
     } = req.body;
 
@@ -63,13 +63,15 @@ async function createDesembolso(req, res) {
       });
     }
 
+    const referencia = await generateReferencia();
+
     const desembolso = await Desembolso.create({
       pedidoId,
       valorDesembolsado,
       dataDesembolso: dataDesembolso || new Date(),
       meioPagamento: meioPagamento || "TRANSFERENCIA",
       numeroTransacao: numeroTransacao || null,
-      referencia: referencia || null,
+      referencia: await generateReferencia(),
       observacoes: observacoes || null,
       createdBy: req.user.id,
     });

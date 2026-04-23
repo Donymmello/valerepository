@@ -58,56 +58,6 @@ async function criarNotificacao({
 
 /*
   ==========================================================
-  LISTAR APROVAÇÕES DE UM PEDIDO
-  ==========================================================
-*/
-async function getAprovacoesByPedido(req, res) {
-  try {
-    const { pedidoId } = req.params;
-
-    const pedido = await PedidoCredito.findByPk(pedidoId, {
-      include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-        },
-      ],
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
-
-    const aprovacoes = await AprovacaoPedido.findAll({
-      where: { pedidoId },
-      include: [
-        {
-          model: User,
-          as: "aprovador",
-          attributes: ["id", "nome", "email", "role", "ativo"],
-        },
-      ],
-      order: [["nivel", "ASC"]],
-    });
-
-    return res.status(200).json({
-      pedido,
-      aprovacoes,
-    });
-  } catch (error) {
-    console.error("Erro ao listar aprovações do pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao listar aprovações do pedido.",
-      error: error.message,
-    });
-  }
-}
-
-/*
-  ==========================================================
   VERIFICAR SE O PEDIDO TEM REQUISITOS OBRIGATÓRIOS PENDENTES
   ==========================================================
 */
@@ -514,8 +464,100 @@ async function getMinhasAprovacoes(req, res) {
   }
 }
 
+/*
+  ==========================================================
+  LISTAR APROVAÇÕES DE UM PEDIDO
+  ==========================================================
+*/
+async function getAprovacoesByPedido(req, res) {
+  try {
+    const { pedidoId } = req.params;
+
+    const pedido = await PedidoCredito.findByPk(pedidoId, {
+      include: [
+        {
+          model: Mutuario,
+          as: "mutuario",
+        },
+      ],
+    });
+
+    if (!pedido) {
+      return res.status(404).json({
+        message: "Pedido de crédito não encontrado.",
+      });
+    }
+
+    const aprovacoes = await AprovacaoPedido.findAll({
+      where: { pedidoId },
+      include: [
+        {
+          model: User,
+          as: "aprovador",
+          attributes: ["id", "nome", "email", "role", "ativo"],
+        },
+      ],
+      order: [["nivel", "ASC"]],
+    });
+
+    return res.status(200).json({
+      pedido,
+      aprovacoes,
+    });
+  } catch (error) {
+    console.error("Erro ao listar aprovações do pedido:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao listar aprovações do pedido.",
+      error: error.message,
+    });
+  }
+}
+
+/*
+  ==========================================================
+  LISTAR TODAS AS APROVAÇÕES (ADMIN)
+  ==========================================================
+*/
+
+async function getAllAprovacoes(req, res) {
+  try {
+    const aprovacoes = await AprovacaoPedido.findAll({
+      include: [
+        {
+          model: PedidoCredito,
+          as: "pedido",
+          include: [
+            {
+              model: Mutuario,
+              as: "mutuario",
+              required: false,
+            },
+          ],
+        },
+        {
+          model: User,
+          as: "aprovador",
+          attributes: ["id", "nome", "email", "role", "ativo"],
+        },
+      ],
+      order: [["dataDecisao", "DESC"]],
+    });
+
+    return res.status(200).json(aprovacoes);
+  } catch (error) {
+    console.error("Erro ao listar todas as aprovações:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao listar todas as aprovações.",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
-  getAprovacoesByPedido,
   decidirAprovacao,
+  getAprovacoesByPedido,
   getMinhasAprovacoes,
+  getAllAprovacoes,
 };

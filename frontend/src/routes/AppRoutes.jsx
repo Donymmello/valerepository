@@ -10,6 +10,14 @@ import DetalhePedido from "../pages/portal/DetalhePedido";
 import ExtratoPedido from "../pages/portal/ExtratoPedido";
 import DashboardInterno from "../pages/admin/DashboardInterno";
 import PortalLayout from "../components/layout/PortalLayout";
+import BackofficeLayout from "../components/layout/BackofficeLayout";
+import PedidosList from "../pages/admin/pedidos/PedidosList";
+import PedidoDetalhe from "../pages/admin/pedidos/PedidoDetalhe";
+import MutuariosList from "../pages/admin/mutuarios/MutuariosList";
+import MutuarioDetalhe from "../pages/admin/mutuarios/MutuarioDetalhe";
+import AprovacoesList from "../pages/admin/aprovacoes/AprovacoesList";
+import DesembolsosList from "../pages/admin/desembolsos/DesembolsosList";
+import ReembolsosList from "../pages/admin/reembolsos/ReembolsosList";
 
 export default function AppRoutes() {
   return (
@@ -25,7 +33,7 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={["USER"]}>
               <PortalLayout>
-              <DashboardMutuario />
+                <DashboardMutuario />
               </PortalLayout>
             </ProtectedRoute>
           }
@@ -90,7 +98,97 @@ export default function AppRoutes() {
           path="/interno"
           element={
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
-              <DashboardInterno />
+              <BackofficeLayout>
+                <DashboardInterno />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <DashboardInterno />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/pedidos"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <PedidosList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/pedidos/:id"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <PedidoDetalhe />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/mutuarios"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <MutuariosList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/mutuarios/:id"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <MutuarioDetalhe />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/aprovacoes"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <AprovacoesList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/desembolsos"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <DesembolsosList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/reembolsos"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <ReembolsosList />
+              </BackofficeLayout>
             </ProtectedRoute>
           }
         />

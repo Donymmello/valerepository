@@ -1,4 +1,4 @@
-const { PedidoCredito, Mutuario, User, AprovacaoPedido } = require("../models");
+const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const {
   podeCriarPedido,
@@ -220,6 +220,98 @@ async function getPedidosByMutuario(req, res) {
 
     return res.status(500).json({
       message: "Erro interno ao listar pedidos do mutuário.",
+      error: error.message,
+    });
+  }
+}
+
+async function getPedidosElegiveisDesembolso(req, res) {
+  try {
+    const pedidos = await PedidoCredito.findAll({
+      where: {
+        status: STATUS_PEDIDO.APROVADO,
+      },
+      include: [
+        {
+          model: Mutuario,
+          as: "mutuario",
+          required: false,
+        },
+        {
+          model: Desembolso,
+          as: "desembolsos",
+          required: false,
+        },
+      ],
+      order: [["id", "DESC"]],
+    });
+
+    const elegiveis = pedidos.filter(
+      (pedido) =>
+        !Array.isArray(pedido.desembolsos) || pedido.desembolsos.length === 0
+    );
+
+    return res.status(200).json(elegiveis);
+  } catch (error) {
+    console.error("Erro ao listar pedidos elegíveis para desembolso:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao listar pedidos elegíveis para desembolso.",
+      error: error.message,
+    });
+  }
+}
+
+async function getPedidosElegiveisReembolso(req, res) {
+  try {
+    const pedidos = await PedidoCredito.findAll({
+      where: {
+        status: STATUS_PEDIDO.DESEMBOLSADO,
+      },
+      include: [
+        {
+          model: Mutuario,
+          as: "mutuario",
+          required: false,
+        },
+        {
+          model: Desembolso,
+          as: "desembolsos",
+          required: false,
+        },
+        {
+          model: Reembolso,
+          as: "reembolsos",
+          required: false,
+        },
+      ],
+      order: [["id", "DESC"]],
+    });
+
+    const elegiveis = pedidos.filter((pedido) => {
+      const totalDesembolsado = Array.isArray(pedido.desembolsos)
+        ? pedido.desembolsos.reduce(
+            (total, item) => total + Number(item.valorDesembolsado || 0),
+            0
+          )
+        : 0;
+
+      const totalReembolsado = Array.isArray(pedido.reembolsos)
+        ? pedido.reembolsos.reduce(
+            (total, item) => total + Number(item.valorReembolsado || 0),
+            0
+          )
+        : 0;
+
+      return totalDesembolsado > 0 && totalReembolsado < totalDesembolsado;
+    });
+
+    return res.status(200).json(elegiveis);
+  } catch (error) {
+    console.error("Erro ao listar pedidos elegíveis para reembolso:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao listar pedidos elegíveis para reembolso.",
       error: error.message,
     });
   }
@@ -452,6 +544,8 @@ async function deletePedidoCredito(req, res) {
 module.exports = {
   createPedidoCredito,
   getAllPedidosCredito,
+  getPedidosElegiveisDesembolso,
+  getPedidosElegiveisReembolso,
   getPedidoCreditoById,
   getPedidosByMutuario,
   updatePedidoCredito,
