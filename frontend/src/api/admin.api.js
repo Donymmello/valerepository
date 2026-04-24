@@ -114,3 +114,99 @@ export const createReembolsoRequest = async (payload) => {
   const response = await api.post("/reembolsos", payload);
   return response.data;
 };
+
+/*
+  ==========================================================
+  RELATÓRIOS
+  ==========================================================
+*/
+
+export const getResumoGeralRequest = async () => {
+  const response = await api.get("/relatorios/resumo-geral");
+  return response.data;
+};
+
+export const getRelatorioPedidosRequest = async (params = {}) => {
+  const response = await api.get("/relatorios/pedidos", { params });
+  return response.data;
+};
+
+export const getRelatorioFinanceiroPedidosRequest = async () => {
+  const response = await api.get("/relatorios/financeiro-pedidos");
+  return response.data;
+};
+
+export const getRelatorioDesembolsosRequest = async (params = {}) => {
+  const response = await api.get("/relatorios/desembolsos", { params });
+  return response.data;
+};
+
+export const getRelatorioReembolsosRequest = async (params = {}) => {
+  const response = await api.get("/relatorios/reembolsos", { params });
+  return response.data;
+};
+
+/*
+  ==========================================================
+  REQUISITOS PEDIDO
+  ==========================================================
+*/
+export const getAllRequisitosRequest = async () => {
+  const response = await api.get("/requisitos-credito");
+  return response.data;
+};
+
+export const createRequisitoRequest = async (payload) => {
+  const response = await api.post("/requisitos-credito", payload);
+  return response.data;
+};
+
+export const updateRequisitoRequest = async (id, payload) => {
+  const response = await api.put(`/requisitos-credito/${id}`, payload);
+  return response.data;
+};
+
+export const getRequisitosByPedidoRequest = async (pedidoId) => {
+  const response = await api.get(`/pedido-requisitos/pedido/${pedidoId}`);
+  return response.data;
+};
+
+export const adicionarPedidoRequisitoRequest = async (pedidoId, payload) => {
+  const response = await api.post(`/pedido-requisitos/pedido/${pedidoId}`, payload);
+  return response.data;
+};
+
+export const validarRequisitoPedidoRequest = async (id, payload) => {
+  const response = await api.patch(`/pedido-requisitos/${id}/validar`, payload);
+  return response.data;
+};
+
+/*
+  ==========================================================
+  NOTIFICAÇÕES
+  ==========================================================
+*/
+export const getMinhasNotificacoesRequest = async () => {
+  const response = await api.get("/notificacoes/minhas");
+  return response.data;
+};
+
+export const getNotificacaoByIdRequest = async (id) => {
+  const response = await api.get(`/notificacoes/${id}`);
+  return response.data;
+};
+
+export const marcarNotificacaoComoLidaRequest = async (id) => {
+  const response = await api.patch(`/notificacoes/${id}/lida`);
+  return response.data;
+};
+
+export const marcarTodasNotificacoesComoLidasRequest = async () => {
+  const response = await api.patch("/notificacoes/marcar-todas/lidas");
+  return response.data;
+};
+
+export const deleteNotificacaoRequest = async (id) => {
+  const response = await api.delete(`/notificacoes/${id}`);
+  return response.data;
+};

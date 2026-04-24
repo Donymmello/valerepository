@@ -98,7 +98,7 @@ export default function DashboardInterno() {
           <ModuloCard
             titulo="Relatórios"
             descricao="Área preparada para relatórios e análises futuras."
-            to="/interno"
+            to="/interno/relatorios"
             buttonLabel="Em Breve"
           />
         </Grid>

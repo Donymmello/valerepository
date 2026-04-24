@@ -26,6 +26,7 @@ import {
   getStatusLabel,
 } from "../../../utils/formatters";
 import { useAuth } from "../../../context/AuthContext";
+import PedidoRequisitosSection from "../../../pages/admin/pedidos/PedidoRequisitosSection";
 
 export default function PedidoDetalhe() {
   const { id } = useParams();
@@ -227,6 +228,12 @@ export default function PedidoDetalhe() {
               </Typography>
             </Stack>
           </Paper>
+          
+          <PedidoRequisitosSection
+            pedidoId={id}
+            pedidoStatus={pedido?.status}
+            onUpdated={carregarDados}
+          />
 
           <Paper sx={{ p: 3, borderRadius: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>

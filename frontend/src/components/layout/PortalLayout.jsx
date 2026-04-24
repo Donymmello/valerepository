@@ -1,6 +1,7 @@
 import {
   AppBar,
   Avatar,
+  Badge,
   Box,
   Button,
   Chip,
@@ -72,6 +73,24 @@ export default function PortalLayout({ children }) {
             alignItems={{ xs: "flex-start", sm: "center" }}
             sx={{ width: { xs: "100%", md: "auto" } }}
           >
+            <Button
+              component={RouterLink}
+              to="/portal/notificacoes"
+              variant="outlined"
+              color="inherit"
+              startIcon={
+                <Badge color="error" variant="dot">
+                  <span style={{ fontSize: "16px" }}>🔔</span>
+                </Badge>
+              }
+              sx={{
+                borderColor: "rgba(255,255,255,0.35)",
+                "&:hover": { borderColor: "#fff" },
+              }}
+            >
+              
+            </Button>
+
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Avatar sx={{ width: 36, height: 36 }}>
                 {user?.nome ? user.nome.charAt(0).toUpperCase() : "U"}
@@ -105,7 +124,7 @@ export default function PortalLayout({ children }) {
                 },
               }}
             >
-              Terminar sessão
+              Sair
             </Button>
           </Stack>
         </Toolbar>

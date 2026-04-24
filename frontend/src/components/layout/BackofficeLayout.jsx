@@ -1,6 +1,7 @@
 import {
   AppBar,
   Avatar,
+  Badge,
   Box,
   Button,
   Chip,
@@ -9,6 +10,7 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -24,6 +26,8 @@ export default function BackofficeLayout({ children }) {
     { label: "Aprovações", to: "/interno/aprovacoes" },
     { label: "Desembolsos", to: "/interno/desembolsos" },
     { label: "Reembolsos", to: "/interno/reembolsos" },
+    { label: "Relatórios", to: "/interno/relatorios" },
+  
   ];
 
   const handleLogout = () => {
@@ -71,6 +75,24 @@ export default function BackofficeLayout({ children }) {
             spacing={1.5}
             alignItems={{ xs: "flex-start", sm: "center" }}
           >
+            <Button
+              component={RouterLink}
+              to="/interno/notificacoes"
+              variant="outlined"
+              color="inherit"
+              startIcon={
+                <Badge color="error" variant="dot">
+                  <span style={{ fontSize: "16px" }}>🔔</span>
+                </Badge>
+              }
+              sx={{
+                borderColor: "rgba(255,255,255,0.35)",
+                "&:hover": { borderColor: "#fff" },
+              }}
+            >
+              
+            </Button>
+
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Avatar sx={{ width: 36, height: 36 }}>
                 {user?.nome ? user.nome.charAt(0).toUpperCase() : "U"}
@@ -102,7 +124,7 @@ export default function BackofficeLayout({ children }) {
                 "&:hover": { borderColor: "#fff" },
               }}
             >
-              Terminar sessão
+              Sair
             </Button>
           </Stack>
         </Toolbar>

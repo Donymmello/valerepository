@@ -18,6 +18,10 @@ import MutuarioDetalhe from "../pages/admin/mutuarios/MutuarioDetalhe";
 import AprovacoesList from "../pages/admin/aprovacoes/AprovacoesList";
 import DesembolsosList from "../pages/admin/desembolsos/DesembolsosList";
 import ReembolsosList from "../pages/admin/reembolsos/ReembolsosList";
+import RelatoriosList from "../pages/admin/relatorios/RelatoriosList";
+import RequisitosCreditoList from "../pages/admin/requistos/RequisitosCreditoList";
+import MinhasNotificacoes from "../pages/admin/notificacoes/MinhasNotificacoes";
+import Notificacoes from "../pages/portal/Notifacacoes";
 
 export default function AppRoutes() {
   return (
@@ -95,12 +99,12 @@ export default function AppRoutes() {
         />
 
         <Route
-          path="/interno"
+          path="/portal/notificacoes"
           element={
-            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
-              <BackofficeLayout>
-                <DashboardInterno />
-              </BackofficeLayout>
+            <ProtectedRoute allowedRoles={["USER"]}>
+              <PortalLayout>
+                <Notificacoes />
+              </PortalLayout>
             </ProtectedRoute>
           }
         />
@@ -192,6 +196,40 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/interno/relatorios"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <RelatoriosList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/requisitos-credito"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <RequisitosCreditoList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/notificacoes"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <MinhasNotificacoes />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
       </Routes>
     </BrowserRouter>
   );
