@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import {
   Alert,
   Box,
-  Button,
   Chip,
   CircularProgress,
   Divider,
@@ -11,18 +10,15 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  getMeuExtratoPedidoRequest,
-  exportarMeuExtratoExcelRequest,
-} from "../../api/portal.api";
+import { getExtratoPedidoInternoRequest } from "../../../api/admin.api";
 import {
   formatCurrency,
   formatDate,
   getStatusColor,
   getStatusLabel,
-} from "../../utils/formatters";
+} from "../../../utils/formatters";
 
-export default function ExtratoPedido() {
+export default function ExtratoPedidoInterno() {
   const { id } = useParams();
 
   const [dados, setDados] = useState(null);
@@ -32,7 +28,10 @@ export default function ExtratoPedido() {
   useEffect(() => {
     const carregarExtrato = async () => {
       try {
-        const data = await getMeuExtratoPedidoRequest(id);
+        setLoading(true);
+        setError("");
+
+        const data = await getExtratoPedidoInternoRequest(id);
         setDados(data);
       } catch (err) {
         console.error(err);
@@ -45,23 +44,6 @@ export default function ExtratoPedido() {
     carregarExtrato();
   }, [id]);
 
-  const handleExportarExtrato = async () => {
-    try {
-      const blob = await exportarMeuExtratoExcelRequest(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `extrato_pedido_${id}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      setError(err?.response?.data?.message || "Erro ao exportar extrato.");
-    }
-  };
-
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -72,27 +54,13 @@ export default function ExtratoPedido() {
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" mb={1}>
-            Extrato do Pedido
-          </Typography>
+      <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
+        Extrato do Pedido
+      </Typography>
 
-          <Typography variant="body2" color="text.secondary">
-            Consulte o resumo financeiro e os movimentos do pedido.
-          </Typography>
-        </Box>
-
-        <Button variant="outlined" onClick={handleExportarExtrato}>
-          Exportar Extrato
-        </Button>
-      </Stack>
+      <Typography variant="body2" color="text.secondary" mb={3}>
+        Consulta interna do resumo financeiro e dos movimentos do pedido.
+      </Typography>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -102,7 +70,7 @@ export default function ExtratoPedido() {
 
       {dados && (
         <Stack spacing={3}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
             <Stack
               direction={{ xs: "column", md: "row" }}
               justifyContent="space-between"
@@ -110,9 +78,10 @@ export default function ExtratoPedido() {
               mb={2}
             >
               <Box>
-                <Typography variant="h6">
-                  {dados.pedido?.numeroPedido}
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {dados.pedido?.numeroPedido || "-"}
                 </Typography>
+
                 <Typography variant="body2" color="text.secondary">
                   Finalidade: {dados.pedido?.finalidade || "-"}
                 </Typography>
@@ -128,12 +97,18 @@ export default function ExtratoPedido() {
 
             <Stack spacing={1.2}>
               <Typography>
+                <strong>Mutuário:</strong> {dados.pedido?.mutuario?.nomeCompleto || "-"}
+              </Typography>
+
+              <Typography>
                 <strong>Valor Solicitado:</strong>{" "}
                 {formatCurrency(dados.pedido?.valorSolicitado)}
               </Typography>
+
               <Typography>
                 <strong>Etapa Atual:</strong> {dados.pedido?.etapaAtual || "-"}
               </Typography>
+
               <Typography>
                 <strong>Data de Submissão:</strong>{" "}
                 {formatDate(dados.pedido?.dataSubmissao)}
@@ -141,8 +116,8 @@ export default function ExtratoPedido() {
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" mb={2}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
               Resumo Financeiro
             </Typography>
 
@@ -151,10 +126,12 @@ export default function ExtratoPedido() {
                 <strong>Total Desembolsado:</strong>{" "}
                 {formatCurrency(dados.resumoFinanceiro?.totalDesembolsado)}
               </Typography>
+
               <Typography>
                 <strong>Total Reembolsado:</strong>{" "}
                 {formatCurrency(dados.resumoFinanceiro?.totalReembolsado)}
               </Typography>
+
               <Typography>
                 <strong>Saldo em Dívida:</strong>{" "}
                 {formatCurrency(dados.resumoFinanceiro?.saldoEmDivida)}
@@ -162,8 +139,48 @@ export default function ExtratoPedido() {
             </Stack>
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" mb={2}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
+              Aprovações
+            </Typography>
+
+            {dados.pedido?.aprovacoes?.length ? (
+              <Stack spacing={2}>
+                {dados.pedido.aprovacoes.map((item) => (
+                  <Box key={item.id}>
+                    <Typography>
+                      <strong>Nível:</strong> {item.nivel || "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Decisão:</strong> {item.decisao || "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Comentário:</strong> {item.comentario || "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Aprovador:</strong> {item.aprovador?.nome || "-"}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      Data: {formatDate(item.dataDecisao)}
+                    </Typography>
+
+                    <Divider sx={{ mt: 1.5 }} />
+                  </Box>
+                ))}
+              </Stack>
+            ) : (
+              <Typography color="text.secondary">
+                Nenhuma aprovação registada.
+              </Typography>
+            )}
+          </Paper>
+
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
               Desembolsos
             </Typography>
 
@@ -175,15 +192,30 @@ export default function ExtratoPedido() {
                       <strong>Valor:</strong>{" "}
                       {formatCurrency(item.valorDesembolsado)}
                     </Typography>
+
                     <Typography>
                       <strong>Data:</strong> {formatDate(item.dataDesembolso)}
                     </Typography>
+
                     <Typography>
-                      <strong>Meio de Pagamento:</strong>{" "}
-                      {item.meioPagamento || "-"}
+                      <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
                     </Typography>
+
+                    <Typography>
+                      <strong>Número da Transação:</strong>{" "}
+                      {item.numeroTransacao || "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Referência:</strong> {item.referencia || "-"}
+                    </Typography>
+
                     <Typography>
                       <strong>Observações:</strong> {item.observacoes || "-"}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      Registado por: {item.criador?.nome || "-"}
                     </Typography>
 
                     <Divider sx={{ mt: 1.5 }} />
@@ -197,8 +229,8 @@ export default function ExtratoPedido() {
             )}
           </Paper>
 
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" mb={2}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
               Reembolsos
             </Typography>
 
@@ -210,15 +242,30 @@ export default function ExtratoPedido() {
                       <strong>Valor:</strong>{" "}
                       {formatCurrency(item.valorReembolsado)}
                     </Typography>
+
                     <Typography>
                       <strong>Data:</strong> {formatDate(item.dataReembolso)}
                     </Typography>
+
                     <Typography>
-                      <strong>Meio de Pagamento:</strong>{" "}
-                      {item.meioPagamento || "-"}
+                      <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
                     </Typography>
+
+                    <Typography>
+                      <strong>Número da Transação:</strong>{" "}
+                      {item.numeroTransacao || "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Referência:</strong> {item.referencia || "-"}
+                    </Typography>
+
                     <Typography>
                       <strong>Observações:</strong> {item.observacoes || "-"}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary">
+                      Registado por: {item.criador?.nome || "-"}
                     </Typography>
 
                     <Divider sx={{ mt: 1.5 }} />

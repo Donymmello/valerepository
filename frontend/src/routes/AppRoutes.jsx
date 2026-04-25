@@ -22,6 +22,9 @@ import RelatoriosList from "../pages/admin/relatorios/RelatoriosList";
 import RequisitosCreditoList from "../pages/admin/requistos/RequisitosCreditoList";
 import MinhasNotificacoes from "../pages/admin/notificacoes/MinhasNotificacoes";
 import Notificacoes from "../pages/portal/Notifacacoes";
+import LogsAuditoriaList from "../pages/admin/logs/LogsAuditoriaList";
+import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
+import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 
 export default function AppRoutes() {
   return (
@@ -225,6 +228,39 @@ export default function AppRoutes() {
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
               <BackofficeLayout>
                 <MinhasNotificacoes />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/logs-auditoria"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <LogsAuditoriaList />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/pedidos/:id/extrato"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <ExtratoPedidoInterno />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/excel"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <ExcelImportExport />
               </BackofficeLayout>
             </ProtectedRoute>
           }

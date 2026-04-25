@@ -210,3 +210,99 @@ export const deleteNotificacaoRequest = async (id) => {
   const response = await api.delete(`/notificacoes/${id}`);
   return response.data;
 };
+
+/*
+  ==========================================================
+  LOGS
+  ==========================================================
+*/
+export const getAllLogsAuditoriaRequest = async () => {
+  const response = await api.get("/logs-auditoria");
+  return response.data;
+};
+
+export const getMeusLogsAuditoriaRequest = async () => {
+  const response = await api.get("/logs-auditoria/meus");
+  return response.data;
+};
+
+export const getLogAuditoriaByIdRequest = async (id) => {
+  const response = await api.get(`/logs-auditoria/${id}`);
+  return response.data;
+};
+
+/*
+  ==========================================================
+  EXTRATOS
+  ==========================================================
+*/
+export const getExtratoPedidoInternoRequest = async (pedidoId) => {
+  const response = await api.get(`/extrato/pedido/${pedidoId}`);
+  return response.data;
+};
+
+/*
+  ==========================================================
+  IMPORTS/EXPORTS
+  ==========================================================
+*/
+export const exportarMutuariosExcelRequest = async () => {
+  const response = await api.get("/export/mutuarios", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarPedidosExcelRequest = async () => {
+  const response = await api.get("/export/pedidos", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarDesembolsosExcelRequest = async () => {
+  const response = await api.get("/export/desembolsos", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarReembolsosExcelRequest = async () => {
+  const response = await api.get("/export/reembolsos", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarRelatorioFinanceiroExcelRequest = async () => {
+  const response = await api.get("/export/relatorio-financeiro", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const importarMutuariosExcelRequest = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post("/import/mutuarios", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
+
+export const importarPedidosExcelRequest = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post("/import/pedidos", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};

@@ -10,7 +10,10 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { getMeusPedidosRequest } from "../../api/portal.api";
+import {
+  getMeusPedidosRequest,
+  exportarMeusPedidosExcelRequest,
+} from "../../api/portal.api";
 import {
   formatCurrency,
   formatDate,
@@ -42,6 +45,23 @@ export default function MeusPedidos() {
     carregarPedidos();
   }, []);
 
+  const handleExportarMeusPedidos = async () => {
+    try {
+      const blob = await exportarMeusPedidosExcelRequest();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "meus_pedidos.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao exportar pedidos.");
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -66,13 +86,19 @@ export default function MeusPedidos() {
           </Typography>
         </Box>
 
-        <Button
-          component={RouterLink}
-          to="/portal/criar-pedido"
-          variant="contained"
-        >
-          Novo Pedido
-        </Button>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button variant="outlined" onClick={handleExportarMeusPedidos}>
+            Exportar Meus Pedidos
+          </Button>
+
+          <Button
+            component={RouterLink}
+            to="/portal/criar-pedido"
+            variant="contained"
+          >
+            Novo Pedido
+          </Button>
+        </Stack>
       </Stack>
 
       {error && (
@@ -115,9 +141,7 @@ export default function MeusPedidos() {
                   alignItems={{ xs: "flex-start", sm: "center" }}
                   mb={1}
                 >
-                  <Typography variant="h6">
-                    {pedido.numeroPedido}
-                  </Typography>
+                  <Typography variant="h6">{pedido.numeroPedido}</Typography>
 
                   <Chip
                     label={getStatusLabel(pedido.status)}

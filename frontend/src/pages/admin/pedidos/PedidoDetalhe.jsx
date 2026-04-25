@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -61,18 +61,12 @@ export default function PedidoDetalhe() {
 
       setPedido(pedidoData);
 
-      /*
-        O backend devolve:
-        {
-          pedido,
-          aprovacoes
-        }
-      */
-      setAprovacoes(Array.isArray(aprovacoesData?.aprovacoes) ? aprovacoesData.aprovacoes : []);
+      setAprovacoes(
+        Array.isArray(aprovacoesData?.aprovacoes)
+          ? aprovacoesData.aprovacoes
+          : []
+      );
 
-      /*
-        Pré-preenche o nível com a etapa atual do pedido
-      */
       setForm((prev) => ({
         ...prev,
         nivel: String(pedidoData?.etapaAtual || ""),
@@ -149,13 +143,31 @@ export default function PedidoDetalhe() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
-        Detalhe do Pedido
-      </Typography>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", md: "center" }}
+        spacing={2}
+        mb={3}
+      >
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
+            Detalhe do Pedido
+          </Typography>
 
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Visualização interna e decisão do pedido de crédito.
-      </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Visualização interna e decisão do pedido de crédito.
+          </Typography>
+        </Box>
+
+        <Button
+          component={RouterLink}
+          to={`/interno/pedidos/${id}/extrato`}
+          variant="outlined"
+        >
+          Ver Extrato
+        </Button>
+      </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -228,7 +240,7 @@ export default function PedidoDetalhe() {
               </Typography>
             </Stack>
           </Paper>
-          
+
           <PedidoRequisitosSection
             pedidoId={id}
             pedidoStatus={pedido?.status}

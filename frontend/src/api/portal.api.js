@@ -55,3 +55,22 @@ export const deleteNotificacaoRequest = async (id) => {
   const response = await api.delete(`/notificacoes/${id}`);
   return response.data;
 };
+
+/*
+  ==========================================================
+  EXPORTAÇÃO PARA EXCEL
+  ==========================================================
+*/
+export const exportarMeusPedidosExcelRequest = async () => {
+  const response = await api.get("/portal/export/meus-pedidos", {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarMeuExtratoExcelRequest = async (id) => {
+  const response = await api.get(`/portal/export/meu-extrato/${id}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};

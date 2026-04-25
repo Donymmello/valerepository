@@ -289,6 +289,7 @@ async function gerarExcellDesembolsos() {
       : "",
     MeioPagamento: desembolso.meioPagamento || "",
     NumeroTransacao: desembolso.numeroTransacao || "",
+    Referencia: desembolso.referencia || "",
     Observacoes: desembolso.observacoes || "",
     CriadoPorId: desembolso.createdBy || "",
     CriadoPorNome:
@@ -316,6 +317,7 @@ async function gerarExcellDesembolsos() {
             DataDesembolso: "",
             MeioPagamento: "",
             NumeroTransacao: "",
+            Referencia: "",
             Observacoes: "",
             CriadoPorId: "",
             CriadoPorNome: "",
@@ -393,6 +395,7 @@ async function gerarExcellReembolsos() {
       ? new Date(reembolso.dataReembolso).toLocaleString("pt-PT")
       : "",
     MeioPagamento: reembolso.meioPagamento || "",
+    Referencia: reembolso.referencia || "",
     NumeroTransacao: reembolso.numeroTransacao || "",
     Observacoes: reembolso.observacoes || "",
     CriadoPorId: reembolso.createdBy || "",
@@ -421,6 +424,7 @@ async function gerarExcellReembolsos() {
             DataReembolso: "",
             MeioPagamento: "",
             NumeroTransacao: "",
+            Referencia: "",
             Observacoes: "",
             CriadoPorId: "",
             CriadoPorNome: "",

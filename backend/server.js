@@ -41,6 +41,7 @@ const alertaPrazoRoutes = require("./routes/alertaPrazo.routes");
 const requisitoCreditoRoutes = require("./routes/requisitoCredito.routes");
 const pedidoRequisitoRoutes = require("./routes/pedidoRequisito.routes");
 const excellRoutes = require("./routes/excell.routes");
+const portalExcelRoutes = require("./routes/portalExcel.routes");
 const portalMutuarioRoutes = require("./routes/portalMutuario.routes");
 const vincularMutuarioRoutes = require("./routes/vincularMutuario.routes");
 
@@ -66,7 +67,7 @@ app.use("/api/pedido-requisitos", pedidoRequisitoRoutes);
 app.use("/api", excellRoutes);
 app.use("/api", portalMutuarioRoutes);
 app.use("/api", vincularMutuarioRoutes);
-
+app.use("/api/portal/export", portalExcelRoutes);
 /*
   ==========================================================
   PORTA DO SERVIDOR
