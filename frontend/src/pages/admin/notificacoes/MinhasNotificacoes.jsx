@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -87,7 +88,9 @@ export default function MinhasNotificacoes() {
       await carregarNotificacoes();
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.message || "Erro ao marcar notificação como lida.");
+      setError(
+        err?.response?.data?.message || "Erro ao marcar notificação como lida."
+      );
     } finally {
       setActionLoadingId(null);
     }
@@ -191,7 +194,9 @@ export default function MinhasNotificacoes() {
               sx={{
                 p: 3,
                 borderRadius: 3,
-                borderLeft: item.lida ? "4px solid transparent" : "4px solid #ed6c02",
+                borderLeft: item.lida
+                  ? "4px solid transparent"
+                  : "4px solid #ed6c02",
                 opacity: item.lida ? 0.9 : 1,
               }}
             >
@@ -234,7 +239,8 @@ export default function MinhasNotificacoes() {
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Data:</strong> {formatDate(item.created_at || item.createdAt)}
+                    <strong>Data:</strong>{" "}
+                    {formatDate(item.created_at || item.createdAt)}
                   </Typography>
                 </Box>
 
@@ -243,6 +249,16 @@ export default function MinhasNotificacoes() {
                   spacing={1}
                   alignItems={{ xs: "stretch", sm: "center" }}
                 >
+                  {item.pedidoId && (
+                    <Button
+                      component={RouterLink}
+                      to={`/interno/pedidos/${item.pedidoId}`}
+                      variant="outlined"
+                    >
+                      Ver Pedido
+                    </Button>
+                  )}
+
                   {!item.lida && (
                     <Button
                       variant="contained"

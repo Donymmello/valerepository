@@ -27,6 +27,7 @@ export default function BackofficeLayout({ children }) {
     { label: "Desembolsos", to: "/interno/desembolsos" },
     { label: "Reembolsos", to: "/interno/reembolsos" },
     { label: "Relatórios", to: "/interno/relatorios" },
+    { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
   
   ];
 

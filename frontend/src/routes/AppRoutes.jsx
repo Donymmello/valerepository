@@ -25,6 +25,7 @@ import Notificacoes from "../pages/portal/Notifacacoes";
 import LogsAuditoriaList from "../pages/admin/logs/LogsAuditoriaList";
 import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
+import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
 
 export default function AppRoutes() {
   return (
@@ -261,6 +262,17 @@ export default function AppRoutes() {
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
               <BackofficeLayout>
                 <ExcelImportExport />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/alertas-prazo"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+              <BackofficeLayout>
+                <AlertasPrazo />
               </BackofficeLayout>
             </ProtectedRoute>
           }

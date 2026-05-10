@@ -306,3 +306,13 @@ export const importarPedidosExcelRequest = async (file) => {
 
   return response.data;
 };
+
+/*
+  ==========================================================
+  ALERTAS DE PRAZOS
+  ==========================================================
+*/
+export const verificarAlertasPrazoRequest = async () => {
+  const response = await api.post("/alertas-prazo/verificar");
+  return response.data;
+};
