@@ -22,7 +22,7 @@ import RelatoriosList from "../pages/admin/relatorios/RelatoriosList";
 import RequisitosCreditoList from "../pages/admin/requistos/RequisitosCreditoList";
 import MinhasNotificacoes from "../pages/admin/notificacoes/MinhasNotificacoes";
 import Notificacoes from "../pages/portal/Notifacacoes";
-import LogsAuditoriaList from "../pages/admin/logs/LogsAuditoriaList";
+import LogsAuditoriaList from "../pages/admin/auditoria/LogsAuditoriaList";
 import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
@@ -237,7 +237,7 @@ export default function AppRoutes() {
         <Route
           path="/interno/logs-auditoria"
           element={
-            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
               <BackofficeLayout>
                 <LogsAuditoriaList />
               </BackofficeLayout>
