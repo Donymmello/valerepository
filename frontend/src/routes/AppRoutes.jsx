@@ -237,7 +237,7 @@ export default function AppRoutes() {
         <Route
           path="/interno/logs-auditoria"
           element={
-            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR"]}>
               <BackofficeLayout>
                 <LogsAuditoriaList />
               </BackofficeLayout>
