@@ -10,6 +10,7 @@ const Desembolso = require("./desembolso.model");
 const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
+const ParcelaPagamento = require("./parcelaPagamento.model");
 
 /*
   =========================
@@ -209,6 +210,20 @@ Desembolso.belongsTo(PedidoCredito, {
   as: "pedido",
 });
 
+/*
+  Um pedido pode ter várias parcelas de pagamento.
+*/  
+
+PedidoCredito.hasMany(ParcelaPagamento, {
+  foreignKey: "pedidoId",
+  as: "parcelas",
+});
+
+ParcelaPagamento.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
 
 module.exports = {
   sequelize,
@@ -222,4 +237,5 @@ module.exports = {
   Reembolso,
   RequisitoCredito,
   PedidoRequisito,
+  ParcelaPagamento,
 };

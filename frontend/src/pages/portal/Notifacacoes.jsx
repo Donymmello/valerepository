@@ -26,6 +26,8 @@ function getTipoColor(tipo) {
       return "error";
     case "ALERTA_PRAZO":
       return "warning";
+    case "ALERTA_PAGAMENTO":
+      return "info";
     case "SISTEMA":
     default:
       return "default";
@@ -40,6 +42,8 @@ function getTipoLabel(tipo) {
       return "Rejeição";
     case "ALERTA_PRAZO":
       return "Alerta de Prazo";
+    case "ALERTA_PAGAMENTO":
+      return "Alerta de Pagamento";
     case "SISTEMA":
     default:
       return "Sistema";
@@ -107,7 +111,7 @@ export default function Notificacoes() {
       console.error(err);
       setError(
         err?.response?.data?.message ||
-          "Erro ao marcar todas as notificações como lidas."
+        "Erro ao marcar todas as notificações como lidas."
       );
     } finally {
       setBulkLoading(false);

@@ -44,6 +44,7 @@ const excellRoutes = require("./routes/excell.routes");
 const portalExcelRoutes = require("./routes/portalExcel.routes");
 const portalMutuarioRoutes = require("./routes/portalMutuario.routes");
 const vincularMutuarioRoutes = require("./routes/vincularMutuario.routes");
+const alertaPagamentoRoutes = require("./routes/alertaPagamento.routes");
 
 /*
   ==========================================================
@@ -68,6 +69,8 @@ app.use("/api", excellRoutes);
 app.use("/api", portalMutuarioRoutes);
 app.use("/api", vincularMutuarioRoutes);
 app.use("/api/portal/export", portalExcelRoutes);
+app.use("/api/alertas-pagamento", alertaPagamentoRoutes);
+
 /*
   ==========================================================
   PORTA DO SERVIDOR

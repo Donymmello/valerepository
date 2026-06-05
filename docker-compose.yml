@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # 1. BANCO DE DADOS (MySQL)
+  banco_dados:
+    image: mysql:8.0
+    container_name: meu_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: senha_super_secreta
+      MYSQL_DATABASE: credito_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - dados_mysql:/var/lib/mysql
+
+  # 2. BACKEND (Express)
+  api_backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "5000:5000"
+    environment:
+      - DB_HOST= # O Express se conecta usando o nome do serviço!
+      - DB_USER=root
+      - DB_PASS=ic3man06#
+      - DB_NAME=credito_db
+    depends_on:
+      - banco_dados # Só liga o backend DEPOIS que o banco estiver de pé
+
+  # 3. FRONTEND (React + Vite)
+  web_frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api_backend
+
+volumes:
+  dados_mysql: # Garante que os dados do banco não sumam quando o container para

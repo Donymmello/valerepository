@@ -1,0 +1,53 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
+
+const ParcelaPagamento = sequelize.define(
+    "ParcelaPagamento",
+     {
+        id: {
+            type: DataTypes.INTEGER,
+            autoIncrement: true,
+            primaryKey: true,
+        },
+        pedidoId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        numeroParcela: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+        },
+        valorPrevisto: {
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: false,
+        },
+        dataVencimento: {
+            type: DataTypes.DATEONLY,
+            allowNull: false,
+        },
+        estado: {
+            type: DataTypes.ENUM("PENDENTE", "PAGO", "ATRASADO"),
+            allowNull: false,
+            defaultValue: "PENDENTE",
+        },
+        valorPago: {
+            type: DataTypes.DECIMAL(15, 2),
+            allowNull: true,
+            defaultValue: 0,
+        },
+        dataPagamento: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
+        observacoes: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+        },
+    },
+    {
+        tableName: "parcelas_pagamento",
+        underscored: true,
+    }
+);
+
+module.exports = ParcelaPagamento;

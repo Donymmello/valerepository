@@ -36,8 +36,6 @@ async function createPedidoCredito(req, res) {
       valorSolicitado,
       finalidade,
       pacoteFinanciamento,
-      prazoAvaliacao,
-      prazoValidacao,
       observacoes,
     } = req.body;
 
@@ -70,6 +68,14 @@ async function createPedidoCredito(req, res) {
       });
     }
 
+    const dataSubmissao = new Date();
+
+    const prazoAvaliacaoDate = new Date(dataSubmissao);
+    prazoAvaliacaoDate.setDate(prazoAvaliacaoDate.getDate() + 3);
+
+    const prazoValidacaoDate = new Date(dataSubmissao);
+    prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 5);
+
     const pedido = await PedidoCredito.create({
       numeroPedido: generateNumeroPedido(),
       mutuarioId,
@@ -78,9 +84,9 @@ async function createPedidoCredito(req, res) {
       pacoteFinanciamento: pacoteFinanciamento || null,
       status: STATUS_PEDIDO.SUBMETIDO,
       etapaAtual: 1,
-      dataSubmissao: new Date(),
-      prazoAvaliacao: prazoAvaliacao || null,
-      prazoValidacao: prazoValidacao || null,
+      dataSubmissao,
+      prazoAvaliacao: prazoAvaliacaoDate,
+      prazoValidacao: prazoValidacaoDate,
       observacoes: observacoes || null,
       createdBy: req.user.id,
     });

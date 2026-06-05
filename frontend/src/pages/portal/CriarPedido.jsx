@@ -20,8 +20,6 @@ export default function CriarPedido() {
     valorSolicitado: "",
     finalidade: "",
     pacoteFinanciamento: "",
-    prazoAvaliacao: "",
-    prazoValidacao: "",
     observacoes: "",
   });
 
@@ -54,8 +52,10 @@ export default function CriarPedido() {
 
     try {
       await createMeuPedidoRequest({
-        ...form,
         valorSolicitado: Number(form.valorSolicitado),
+        finalidade: form.finalidade,
+        pacoteFinanciamento: form.pacoteFinanciamento || null,
+        observacoes: form.observacoes || null,
       });
 
       setSuccessOpen(true);
@@ -132,30 +132,6 @@ export default function CriarPedido() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Prazo de Avaliação"
-                name="prazoAvaliacao"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={form.prazoAvaliacao}
-                onChange={handleChange}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Prazo de Validação"
-                name="prazoValidacao"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                value={form.prazoValidacao}
-                onChange={handleChange}
-              />
-            </Grid>
-
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -170,11 +146,7 @@ export default function CriarPedido() {
           </Grid>
 
           <Box sx={{ mt: 3 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-            >
+            <Button type="submit" variant="contained" disabled={submitting}>
               {submitting ? "A submeter..." : "Submeter Pedido"}
             </Button>
           </Box>

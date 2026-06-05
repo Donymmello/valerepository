@@ -9,7 +9,12 @@ const registrarLogAuditoria = require("../utils/logAuditoria");
   Regra forte:
   - verifica por userId + pedidoId + tipo + titulo + lida=false
 */
-async function criarNotificacao({ userId, pedidoId = null, titulo, mensagem, tipo = "ALERTA_PRAZO" }) {
+async function criarNotificacao({
+    userId,
+    pedidoId = null,
+    titulo, mensagem,
+    tipo = "ALERTA_PRAZO"
+}) {
     if (!userId) return null;
 
     const notificacaoExistente = await Notificacao.findOne({
@@ -34,7 +39,18 @@ async function criarNotificacao({ userId, pedidoId = null, titulo, mensagem, tip
         tipo,
     });
 
-    return novaNotificacao;
+}
+
+async function obterDestinatariosInternos() {
+    return User.findAll({
+        where: {
+            ativo: true,
+            role: {
+                [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"],
+            },
+        },
+        attributes: ["id", "nome", "email", "role", "ativo"],
+    });
 }
 
 /*
@@ -51,6 +67,8 @@ async function verificarAlertasPrazo(req, res) {
         const hoje = new Date();
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
+
+        const destinatariosInternos = await obterDestinatariosInternos();
 
         /*
          pedidos em analise com prazo de avaliacao vencido ou proximo
@@ -123,15 +141,24 @@ async function verificarAlertasPrazo(req, res) {
                 ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de avaliação.`
                 : `O pedido ${pedido.numeroPedido} tem o prazo de avaliação a vencer em breve.`;
 
-            const notificacaoCriada = await criarNotificacao({
-                userId: pedido.createdBy,
-                pedidoId: pedido.id,
-                titulo,
-                mensagem,
-                tipo: "ALERTA_PRAZO"
-            });
 
-            if (notificacaoCriada) {
+            let criadoParaAlguem = false;
+
+            for (const interno of destinatariosInternos) {
+                const notificacaoCriada = await criarNotificacao({
+                    userId: interno.id,
+                    pedidoId: pedido.id,
+                    titulo,
+                    mensagem,
+                    tipo: "ALERTA_PRAZO",
+                });
+
+                if (notificacaoCriada) {
+                    criadoParaAlguem = true;
+                }
+            }
+
+            if (criadoParaAlguem) {
                 alertasCriados.push({
                     pedidoId: pedido.id,
                     numeroPedido: pedido.numeroPedido,
@@ -140,8 +167,6 @@ async function verificarAlertasPrazo(req, res) {
                 });
             }
         }
-
-        // Criar notificações para pedidos em validação
 
         for (const pedido of pedidosValidacao) {
             const prazo = new Date(pedido.prazoValidacao);
@@ -155,15 +180,23 @@ async function verificarAlertasPrazo(req, res) {
                 ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de validação.`
                 : `O pedido ${pedido.numeroPedido} tem o prazo de validação a vencer em breve.`;
 
-            const notificacaoCriada = await criarNotificacao({
-                userId: pedido.createdBy,
-                pedidoId: pedido.id,
-                titulo,
-                mensagem,
-                tipo: "ALERTA_PRAZO"
-            });
+            let criadoParaAlguem = false;
 
-            if (notificacaoCriada) {
+            for (const interno of destinatariosInternos) {
+                const notificacaoCriada = await criarNotificacao({
+                    userId: interno.id,
+                    pedidoId: pedido.id,
+                    titulo,
+                    mensagem,
+                    tipo: "ALERTA_PRAZO",
+                });
+
+                if (notificacaoCriada) {
+                    criadoParaAlguem = true;
+                }
+            }
+
+            if (criadoParaAlguem) {
                 alertasCriados.push({
                     pedidoId: pedido.id,
                     numeroPedido: pedido.numeroPedido,
@@ -178,7 +211,7 @@ async function verificarAlertasPrazo(req, res) {
             acao: "VERIFICAR_ALERTAS_PRAZO",
             entidade: "PedidoCredito",
             entidadeId: null,
-            descricao: `Verificação de alertas de prazo realizada. Total de alertas criados: ${alertasCriados.length}.`
+            descricao: `Verificação de alertas de prazo realizada. Total de alertas criados: ${alertasCriados.length}.`,
         });
 
         return res.status(200).json({
@@ -199,4 +232,3 @@ async function verificarAlertasPrazo(req, res) {
 module.exports = {
     verificarAlertasPrazo,
 };
-

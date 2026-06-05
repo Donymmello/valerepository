@@ -1,6 +1,7 @@
-const { Desembolso, PedidoCredito, User } = require("../models");
+const { Desembolso, PedidoCredito, User, ParcelaPagamento } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const generateReferencia = require("../utils/generateReferencia");
+const generateCodParcela = require("../utils/generateCodParcela");
 const {
   podeDesembolsarPedido,
   podeTransitarStatus,
@@ -71,10 +72,20 @@ async function createDesembolso(req, res) {
       dataDesembolso: dataDesembolso || new Date(),
       meioPagamento: meioPagamento || "TRANSFERENCIA",
       numeroTransacao: numeroTransacao || null,
-      referencia: await generateReferencia(),
+      referencia,
       observacoes: observacoes || null,
       createdBy: req.user.id,
     });
+
+    // Gerar parcelas de pagamento
+    const parcelas = await generateCodParcela({
+      pedidoId: pedido.id,
+      valorTotal: desembolso.valorDesembolsado,
+      numeroParcelas: 6, // Pode ser ajustado para um número específico
+      primeiraDataVencimento: new Date(), // Pode ser ajustado para uma data específica
+    });
+
+    await ParcelaPagamento.bulkCreate(parcelas);
 
     await pedido.update({
       status: STATUS_PEDIDO.DESEMBOLSADO,
