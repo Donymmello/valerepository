@@ -10,6 +10,7 @@ import {
   Paper,
   TextField,
   Typography,
+  MenuItem,
 } from "@mui/material";
 import { useAuth } from "../../context/AuthContext";
 
@@ -121,12 +122,18 @@ export default function RegisterMutuario() {
 
               <Grid item xs={12} md={6}>
                 <TextField
+                  select
                   fullWidth
                   label="Tipo de documento"
                   name="documentoTipo"
                   value={form.documentoTipo}
                   onChange={handleChange}
-                />
+                >
+                  {/* 2. Opções que vão aparecer para o usuário clicar */}
+                  <MenuItem value="B.I">Bilhete de Identidade</MenuItem>
+                  <MenuItem value="PASSAPORTE">Passaporte</MenuItem>
+                  <MenuItem value="CARTA">Carta de Condução</MenuItem>
+                </TextField>
               </Grid>
 
               <Grid item xs={12} md={6}>

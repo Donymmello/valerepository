@@ -12,14 +12,14 @@ const {
 router.get(
   "/meus-pedidos",
   authMiddleware,
-  authorizeRoles("USER"),
+  authorizeRoles("USER", "MUTUARIO"),
   exportarMeusPedidos
 );
 
 router.get(
   "/meu-extrato/:pedidoId",
   authMiddleware,
-  authorizeRoles("USER"),
+  authorizeRoles("USER", "MUTUARIO"),
   exportarMeuExtratoPedido
 );
 

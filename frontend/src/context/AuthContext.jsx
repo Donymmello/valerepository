@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getMeRequest, loginRequest, registerMutuarioRequest } from "../api/auth.api";
+import { getMeRequest, loginRequest, registerMutuarioRequest, registerUserRequest, } from "../api/auth.api";
 
 const AuthContext = createContext(null);
 
@@ -59,6 +59,18 @@ export function AuthProvider({ children }) {
   };
 
   /*
+    Registo do user
+  */
+  const registerUser = async (payload) => {
+    const data = await registerUserRequest(payload);
+
+    localStorage.setItem("token", data.token);
+    setUser(data.user);
+
+    return data;
+  };
+
+  /*
     Logout
   */
   const logout = () => {
@@ -73,6 +85,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: !!user,
       login,
       registerMutuario,
+      registerUser,
       logout,
     }),
     [user, loading]

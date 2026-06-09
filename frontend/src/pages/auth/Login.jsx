@@ -39,7 +39,7 @@ export default function Login() {
     try {
       const data = await login(form);
 
-      if (data.user.role === "USER") {
+      if (data.user.role === "MUTUARIO" || data.user.role === "USER") {
         navigate("/portal");
       } else {
         navigate("/interno");
@@ -103,6 +103,13 @@ export default function Login() {
               {submitting ? "A entrar..." : "Entrar"}
             </Button>
           </Box>
+
+          <Link
+            component={RouterLink}
+            to="/forgot-password"
+          >
+            Esqueci a senha
+          </Link>
 
           <Box mt={3}>
             <Typography variant="body2">

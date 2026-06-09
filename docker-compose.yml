@@ -1,32 +1,30 @@
 version: '3.8'
 
 services:
-  # 1. BANCO DE DADOS (MySQL)
-  banco_dados:
+  credito: # <--- ESTE NOME TEM DE SER IGUAL AO DB_HOST DO .ENV!
     image: mysql:8.0
     container_name: meu_mysql
+    env_file:
+      - ./backend/.env
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: senha_super_secreta
-      MYSQL_DATABASE: credito_db
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
     ports:
       - "3306:3306"
     volumes:
       - dados_mysql:/var/lib/mysql
 
-  # 2. BACKEND (Express)
   api_backend:
     build: ./backend
-    container_name: backend
+    container_name: meu_backend
     ports:
       - "5000:5000"
-    environment:
-      - DB_HOST= # O Express se conecta usando o nome do serviço!
-      - DB_USER=root
-      - DB_PASS=ic3man06#
-      - DB_NAME=credito_db
+    # Adiciona esta linha abaixo para o Docker injetar o teu .env no container!
+    env_file:
+      - ./backend/.env
     depends_on:
-      - banco_dados # Só liga o backend DEPOIS que o banco estiver de pé
+      - credito
 
   # 3. FRONTEND (React + Vite)
   web_frontend:

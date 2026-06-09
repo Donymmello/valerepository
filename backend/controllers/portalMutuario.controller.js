@@ -14,7 +14,7 @@ const { STATUS_PEDIDO } = require("../utils/regrasPedido");
   ==========================================================
 */
 function garantirPerfilUser(req, res) {
-  if (!req.user || req.user.role !== "USER") {
+  if (!req.user || req.user.role !== "USER" && req.user.role !== "MUTUARIO") {
     res.status(403).json({
       message: "Acesso permitido apenas para o portal do mutuário.",
     });

@@ -8,6 +8,8 @@ const {
   registerMutuario,
   login,
   getMe,
+  forgotPassword,
+  resetPassword,
 } = require("../controllers/auth.controller");
 
 // Importa o middleware de autenticação
@@ -37,5 +39,9 @@ router.post("/login", login);
 
 // Buscar dados do utilizador autenticado
 router.get("/me", authMiddleware, getMe);
+
+router.post("/forgot-password", authMiddleware, forgotPassword);
+
+router.post("/reset-password", authMiddleware, resetPassword);
 
 module.exports = router;

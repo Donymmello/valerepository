@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { User, Mutuario } = require("../models");
+const { User, Mutuario, PasswordResetToken, } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
 
@@ -111,9 +112,23 @@ const generateToken = (user) => {
 */
 const registerInterno = async (req, res) => {
   try {
-    const { nome, email, password, role } = req.body;
+    const {
+      nome,
+      email,
+      password,
+      role,
 
-    if (req.user.role !== "ADMIN") {
+      nomeCompleto,
+      documentoTipo,
+      documentoNumero,
+      dataNascimento,
+      provincia,
+      distrito,
+      localResidencia,
+      telefone,
+    } = req.body;
+
+    if (!req.user || req.user.role !== "ADMIN") {
       return res.status(403).json({
         message: "Apenas ADMIN pode registar utilizadores internos.",
       });
@@ -135,7 +150,7 @@ const registerInterno = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      where: { email },
+      where: { email }
     });
 
     if (existingUser) {
@@ -143,6 +158,33 @@ const registerInterno = async (req, res) => {
         message: "Já existe um utilizador com este email.",
       });
     }
+
+    if (role === "MUTUARIO") {
+      const existingMutuarioByEmail = await Mutuario.findOne({
+        where: { email},
+      });
+
+      if (existingMutuarioByEmail) {
+        return res.status(409).json({
+          message: "mutuario com este email ja existe.",
+        });
+      }
+
+      if (documentoNumero) {
+        const existingMutuarioPordocumentoNumero =
+         await Mutuario.findOne({
+          where: {
+             documentoNumero,
+          },
+        });
+
+      if (existingMutuarioPordocumentoNumero) {
+        return res.status(409).json({
+          message: "mutuario com este documento ja existe.",
+        });
+      }
+    }
+  }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -154,12 +196,32 @@ const registerInterno = async (req, res) => {
       ativo: true,
     });
 
+    let mutuario = null;
+
+    if (role === "MUTUARIO") {
+      const codigoMutuario = await generateCodigoMutuario();
+
+      mutuario = await Mutuario.create({
+      codigoMutuario,
+      nomeCompleto,
+      documentoTipo: documentoTipo || null,
+      documentoNumero: documentoNumero || null,
+      dataNascimento: dataNascimento || null,
+      provincia: provincia || null,
+      distrito: distrito || null,
+      localResidencia: localResidencia || null,
+      telefone: telefone || null,
+      email: email || null,
+      userId: user.id,
+      });
+    }
+
     await registrarLogAuditoria({
       userId: req.user.id,
-      acao: "CRIAR_UTILIZADOR_INTERNO",
+      acao: "CRIAR_UTILIZADOR",
       entidade: "User",
       entidadeId: user.id,
-      descricao: `Utilizador interno ${user.email} criado com perfil ${user.role}.`,
+      descricao: `Utilizador  ${user.email} criado com perfil ${user.role}.`,
     });
 
     return res.status(201).json({
@@ -171,6 +233,7 @@ const registerInterno = async (req, res) => {
         role: user.role,
         ativo: user.ativo,
       },
+      mutuario,
     });
   } catch (error) {
     console.error("Erro ao registar utilizador interno:", error);
@@ -206,9 +269,9 @@ const registerMutuario = async (req, res) => {
       telefone,
     } = req.body;
 
-    if (!nome || !email || !password || !nomeCompleto) {
+    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero) {
       return res.status(400).json({
-        message: "nome, email, password e nomeCompleto são obrigatórios.",
+        message: "nome, email, password e nomeCompleto Id são obrigatórios.",
       });
     }
 
@@ -395,10 +458,120 @@ const getMe = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email é obrigatório.",
+      });
+    }
+
+    const user = await User.findOne({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Se o email existir receberá instruções para redefinição de password.",
+      });
+    }
+
+    const token = crypto.randomBytes(20).toString("hex");
+
+    const expiresAt = Date.now();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    await PasswordResetToken.create({
+      userId: user.id,
+      token,
+      expiresAt,
+    });
+
+    const resetLink =
+      '${process.env.FRONTEND_URL}/reset-password?token=${token}';
+
+    console.log("RESET PASSWORD LINK");
+    console.log(resetLink);
+
+    return res.status(200).json({
+      message:
+        "Se o email existir receberá instruções para redefinição.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro interno.",
+    });
+  }
+}
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        message: "Token e password sao obrigatorios",
+      });
+    }
+
+    const resetToken =
+      await PasswordResetToken.findOne({
+        where: {
+          token,
+          uded: false,
+        },
+      });
+
+    if (!resetToken) {
+      return res.status(400).json({
+        message: "Token invalido.",
+      });
+    }
+
+    if (new Date() > resetToken.expiresAt) {
+      return res.status(400).json({
+        message: "Token expirado.",
+      });
+    }
+
+    const user = await User.findByPk(
+      resetToken.userId
+    );
+
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
+
+    user.password = hashedPassword;
+
+    await user.save();
+
+    resetToken.used = true;
+
+    await resetToken.save();
+
+    return res.status(200).json({
+      message: "Password redifinida com sucesso.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro interno.",
+    });
+  }
+}
+
+
 module.exports = {
   bootstrapAdmin,
   registerInterno,
   registerMutuario,
   login,
   getMe,
+  forgotPassword,
+  resetPassword,
 };

@@ -1,5 +1,6 @@
 const sequelize = require("../config/db");
 
+
 const User = require("./user.model");
 const Mutuario = require("./mutuario.model");
 const PedidoCredito = require("./pedidoCredito.model");
@@ -11,6 +12,7 @@ const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
 const ParcelaPagamento = require("./parcelaPagamento.model");
+const PasswordResetToken = require("./passwordResetToken");
 
 /*
   =========================
@@ -238,4 +240,5 @@ module.exports = {
   RequisitoCredito,
   PedidoRequisito,
   ParcelaPagamento,
+  PasswordResetToken,
 };

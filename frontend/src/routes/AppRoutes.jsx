@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Login from "../pages/auth/Login";
 import RegisterMutuario from "../pages/auth/RegisterMutuario";
+import ForgotPassword from "../pages/auth/ForgotPassword";
+import ResetPassword from "../pages/auth/ResetPassword";
 import DashboardMutuario from "../pages/portal/DashboardMutuario";
 import MeuMutuario from "../pages/portal/MeuMutuario";
 import MeusPedidos from "../pages/portal/MeusPedidos";
@@ -26,6 +28,7 @@ import LogsAuditoriaList from "../pages/admin/auditoria/LogsAuditoriaList";
 import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
+import RegisterUser from "../pages/auth/RegisterUser";
 
 export default function AppRoutes() {
   return (
@@ -35,11 +38,13 @@ export default function AppRoutes() {
 
         <Route path="/login" element={<Login />} />
         <Route path="/register-mutuario" element={<RegisterMutuario />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/portal"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <DashboardMutuario />
               </PortalLayout>
@@ -50,7 +55,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/meu-mutuario"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <MeuMutuario />
               </PortalLayout>
@@ -61,7 +66,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/meus-pedidos"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <MeusPedidos />
               </PortalLayout>
@@ -72,7 +77,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/criar-pedido"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <CriarPedido />
               </PortalLayout>
@@ -83,7 +88,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/meus-pedidos/:id"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <DetalhePedido />
               </PortalLayout>
@@ -94,7 +99,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/meus-pedidos/:id/extrato"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <ExtratoPedido />
               </PortalLayout>
@@ -105,7 +110,7 @@ export default function AppRoutes() {
         <Route
           path="/portal/notificacoes"
           element={
-            <ProtectedRoute allowedRoles={["USER"]}>
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
               <PortalLayout>
                 <Notificacoes />
               </PortalLayout>
@@ -119,6 +124,17 @@ export default function AppRoutes() {
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
               <BackofficeLayout>
                 <DashboardInterno />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/interno/register-interno"
+           element={
+            <ProtectedRoute allowedRoles={["ADMIN"]}>
+              <BackofficeLayout>
+                <RegisterUser />
               </BackofficeLayout>
             </ProtectedRoute>
           }

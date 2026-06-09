@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 5000
 
 # Comando para rodar o servidor
-CMD ["npm", "run", "dev"]
+CMD ["node", "server.js"]

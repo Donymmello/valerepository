@@ -8,10 +8,10 @@ require("dotenv").config();
 const sequelize = new Sequelize(
   process.env.DB_NAME,       // nome da base de dados
   process.env.DB_USER,       // utilizador do MySQL
-  process.env.DB_PASSWORD,   // senha do MySQL
+  process.env.DB_PASS,   // senha do MySQL
   {
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
+    port: 3306,
     dialect: "mysql",
     logging: false, // se quiser ver queries SQL no terminal, mude para true
   }
