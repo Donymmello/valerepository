@@ -1,9 +1,12 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { User, Mutuario, PasswordResetToken, } = require("../models");
+const { Op } = require("sequelize");
+const { User, Mutuario, PasswordResetToken, EmailVerificationToken } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
+const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
+const { sendVerificationEmail } = require("../utils/emailService");
 
 /*
   ==========================================================
@@ -480,7 +483,7 @@ const forgotPassword = async (req, res) => {
 
     const token = crypto.randomBytes(20).toString("hex");
 
-    const expiresAt = Date.now();
+    const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
     await PasswordResetToken.create({
@@ -490,7 +493,7 @@ const forgotPassword = async (req, res) => {
     });
 
     const resetLink =
-      '${process.env.FRONTEND_URL}/reset-password?token=${token}';
+      `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     console.log("RESET PASSWORD LINK");
     console.log(resetLink);
@@ -522,7 +525,7 @@ const resetPassword = async (req, res) => {
       await PasswordResetToken.findOne({
         where: {
           token,
-          uded: false,
+          used: false,
         },
       });
 
@@ -545,7 +548,7 @@ const resetPassword = async (req, res) => {
     const hashedPassword =
       await bcrypt.hash(password, 10);
 
-    user.password = hashedPassword;
+    user.passwordHash = hashedPassword;
 
     await user.save();
 
@@ -565,11 +568,236 @@ const resetPassword = async (req, res) => {
   }
 }
 
+/*
+  ==========================================================
+  REGISTO COM OTP (NOVO)
+  ==========================================================
+  Etapa 1: Utilizador preenche formulário e recebe OTP por email
+*/
+const registerMutuarioRequestOTP = async (req, res) => {
+  try {
+    const {
+      nome,
+      email,
+      password,
+      nomeCompleto,
+      documentoTipo,
+      documentoNumero,
+      dataNascimento,
+      provincia,
+      distrito,
+      localResidencia,
+      telefone,
+    } = req.body;
+
+    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero) {
+      return res.status(400).json({
+        message: "nome, email, password, nomeCompleto, documentoTipo e documentoNumero são obrigatórios.",
+      });
+    }
+
+    // Validar email
+    const existingUser = await User.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Já existe um utilizador com este email.",
+      });
+    }
+
+    // Validar documento
+    if (documentoNumero) {
+      const mutuarioExistentePorDocumento = await Mutuario.findOne({
+        where: { documentoNumero },
+      });
+
+      if (mutuarioExistentePorDocumento) {
+        return res.status(409).json({
+          message: "Já existe um mutuário com este número de documento.",
+        });
+      }
+    }
+
+    // Limpar OTPs expirados deste email
+    await EmailVerificationToken.destroy({
+      where: {
+        email,
+        expiresAt: { [Op.lt]: new Date() },
+      },
+    });
+
+    // Gerar OTP
+    const otp = generateOTP();
+    const expiresAt = getExpirationTime(10);
+
+    // Hash da password para armazenar temporariamente
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Armazenar dados temporários
+    await EmailVerificationToken.create({
+      email,
+      otp,
+      expiresAt,
+      temporaryData: {
+        nome,
+        passwordHash,
+        nomeCompleto,
+        documentoTipo,
+        documentoNumero,
+        dataNascimento,
+        provincia,
+        distrito,
+        localResidencia,
+        telefone,
+      },
+    });
+
+    // Enviar OTP por email (em dev mostra no console)
+    await sendVerificationEmail(email, otp, nomeCompleto);
+
+    return res.status(200).json({
+      message: "OTP enviado para o seu email. Válido por 10 minutos.",
+      email,
+    });
+  } catch (error) {
+    console.error("Erro ao solicitar OTP:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao solicitar OTP.",
+      error: error.message,
+    });
+  }
+};
+
+/*
+  ==========================================================
+  VERIFICAR OTP E COMPLETAR REGISTO
+  ==========================================================
+  Etapa 2: Utilizador verifica OTP e a conta é criada
+*/
+const verifyOTPAndRegister = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email e OTP são obrigatórios.",
+      });
+    }
+
+    // Procurar token de verificação
+    const verificationToken = await EmailVerificationToken.findOne({
+      where: {
+        email,
+        otp,
+        verified: false,
+      },
+    });
+
+    if (!verificationToken) {
+      return res.status(400).json({
+        message: "OTP inválido.",
+      });
+    }
+
+    // Verificar expiração
+    if (new Date() > verificationToken.expiresAt) {
+      return res.status(400).json({
+        message: "OTP expirado. Solicite um novo.",
+      });
+    }
+
+    // Extrair dados temporários
+    const {
+      nome,
+      passwordHash,
+      nomeCompleto,
+      documentoTipo,
+      documentoNumero,
+      dataNascimento,
+      provincia,
+      distrito,
+      localResidencia,
+      telefone,
+    } = verificationToken.temporaryData;
+
+    // Criar utilizador
+    const user = await User.create({
+      nome,
+      email,
+      passwordHash,
+      role: "USER",
+      ativo: true,
+    });
+
+    // Criar mutuário
+    const codigoMutuario = await generateCodigoMutuario();
+
+    const mutuario = await Mutuario.create({
+      codigoMutuario,
+      nomeCompleto,
+      documentoTipo: documentoTipo || null,
+      documentoNumero: documentoNumero || null,
+      dataNascimento: dataNascimento || null,
+      provincia: provincia || null,
+      distrito: distrito || null,
+      localResidencia: localResidencia || null,
+      telefone: telefone || null,
+      email: email || null,
+      userId: user.id,
+    });
+
+    // Marcar OTP como verificado
+    verificationToken.verified = true;
+    await verificationToken.save();
+
+    // Gerar JWT
+    const token = generateToken(user);
+
+    // Log de auditoria
+    await registrarLogAuditoria({
+      userId: user.id,
+      acao: "REGISTAR_MUTUARIO_COM_OTP",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário registado com verificação de email. User ID ${user.id}, Mutuário ID ${mutuario.id}.`,
+    });
+
+    return res.status(201).json({
+      message: "Registo completado com sucesso.",
+      token,
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        role: user.role,
+        ativo: user.ativo,
+      },
+      mutuario: {
+        id: mutuario.id,
+        codigoMutuario: mutuario.codigoMutuario,
+        nomeCompleto: mutuario.nomeCompleto,
+      },
+    });
+  } catch (error) {
+    console.error("Erro ao verificar OTP:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao verificar OTP.",
+      error: error.message,
+    });
+  }
+};
+
 
 module.exports = {
   bootstrapAdmin,
   registerInterno,
   registerMutuario,
+  registerMutuarioRequestOTP,
+  verifyOTPAndRegister,
   login,
   getMe,
   forgotPassword,

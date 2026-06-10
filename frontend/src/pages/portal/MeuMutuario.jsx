@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link as RouterLink} from "react-router-dom";
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   Paper,
   Stack,
@@ -67,6 +69,20 @@ export default function MeuMutuario() {
             <Typography><strong>Distrito:</strong> {mutuario.distrito || "-"}</Typography>
             <Typography><strong>Residência:</strong> {mutuario.localResidencia || "-"}</Typography>
             <Typography><strong>Email:</strong> {mutuario.email || "-"}</Typography>
+          </Stack>
+
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
+            <Button
+              component={RouterLink}
+              to="/portal/editar-perfil"
+              variant="contained"
+            >
+              Editar Perfil
+            </Button>
           </Stack>
         </Paper>
       )}

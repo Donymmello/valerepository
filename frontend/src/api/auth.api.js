@@ -29,3 +29,13 @@ export const resetPasswordRequest = async (payload) => {
   const response = await api.post("/auth/reset-password", payload);
   return response.data;
 };
+
+export const registerMutuarioWithOTPRequest = async (payload) => {
+  const response = await api.post("/auth/register-mutuario-otp", payload);
+  return response.data;
+};
+
+export const verifyOTPRequest = async (payload) => {
+  const response = await api.post("/auth/verify-otp", payload);
+  return response.data;
+};

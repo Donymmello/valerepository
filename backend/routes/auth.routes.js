@@ -6,6 +6,8 @@ const {
   bootstrapAdmin,
   registerInterno,
   registerMutuario,
+  registerMutuarioRequestOTP,
+  verifyOTPAndRegister,
   login,
   getMe,
   forgotPassword,
@@ -30,6 +32,12 @@ router.post("/bootstrap-admin", bootstrapAdmin);
 
 // Registo público do mutuário autónomo
 router.post("/register-mutuario", registerMutuario);
+
+// Registo com OTP - Etapa 1: Solicitar OTP
+router.post("/register-mutuario-otp", registerMutuarioRequestOTP);
+
+// Registo com OTP - Etapa 2: Verificar OTP e completar
+router.post("/verify-otp", verifyOTPAndRegister);
 
 // Registo interno de utilizadores administrativos
 router.post("/register-interno", authMiddleware, registerInterno);

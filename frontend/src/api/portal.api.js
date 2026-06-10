@@ -11,6 +11,11 @@ export const getMeuMutuarioRequest = async () => {
   return response.data;
 };
 
+export const updateMeuMutuarioRequest = async (payload) => {
+  const response = await api.put("/portal/meu-mutuario", payload);
+  return response.data;
+};
+
 export const getMeusPedidosRequest = async () => {
   const response = await api.get("/portal/meus-pedidos");
   return response.data;

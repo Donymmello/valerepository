@@ -12,11 +12,10 @@ import {
   Typography,
   MenuItem,
 } from "@mui/material";
-import { useAuth } from "../../context/AuthContext";
+import { registerMutuarioWithOTPRequest } from "../../api/auth.api";
 
 export default function RegisterMutuario() {
   const navigate = useNavigate();
-  const { registerMutuario } = useAuth();
 
   const [form, setForm] = useState({
     nome: "",
@@ -48,12 +47,15 @@ export default function RegisterMutuario() {
     setSubmitting(true);
 
     try {
-      await registerMutuario(form);
-      navigate("/portal");
+      await registerMutuarioWithOTPRequest(form);
+      
+      // Ir para página de verificação de OTP
+      navigate("/verify-otp", {
+        state: { email: form.email },
+      });
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao registar mutuário.");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -71,7 +73,7 @@ export default function RegisterMutuario() {
           </Typography>
 
           <Typography variant="body2" color="text.secondary" mb={3}>
-            Crie a sua conta para acompanhar os seus pedidos de crédito.
+            Crie a sua conta para acompanhar os seus pedidos de crédito. Receberá um código de verificação por email.
           </Typography>
 
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -85,6 +87,7 @@ export default function RegisterMutuario() {
                   name="nome"
                   value={form.nome}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -95,6 +98,7 @@ export default function RegisterMutuario() {
                   name="nomeCompleto"
                   value={form.nomeCompleto}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -106,6 +110,7 @@ export default function RegisterMutuario() {
                   type="email"
                   value={form.email}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -117,6 +122,7 @@ export default function RegisterMutuario() {
                   type="password"
                   value={form.password}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -128,8 +134,8 @@ export default function RegisterMutuario() {
                   name="documentoTipo"
                   value={form.documentoTipo}
                   onChange={handleChange}
+                  required
                 >
-                  {/* 2. Opções que vão aparecer para o usuário clicar */}
                   <MenuItem value="B.I">Bilhete de Identidade</MenuItem>
                   <MenuItem value="PASSAPORTE">Passaporte</MenuItem>
                   <MenuItem value="CARTA">Carta de Condução</MenuItem>
@@ -143,6 +149,7 @@ export default function RegisterMutuario() {
                   name="documentoNumero"
                   value={form.documentoNumero}
                   onChange={handleChange}
+                  required
                 />
               </Grid>
 
@@ -205,7 +212,7 @@ export default function RegisterMutuario() {
               sx={{ mt: 3 }}
               disabled={submitting}
             >
-              {submitting ? "A registar..." : "Registar"}
+              {submitting ? "A registar..." : "Continuar"}
             </Button>
           </Box>
 

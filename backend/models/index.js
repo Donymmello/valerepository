@@ -12,7 +12,8 @@ const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
 const ParcelaPagamento = require("./parcelaPagamento.model");
-const PasswordResetToken = require("./passwordResetToken");
+const PasswordResetToken = require("./passwordResetToken")(sequelize);
+const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
 
 /*
   =========================
@@ -241,4 +242,5 @@ module.exports = {
   PedidoRequisito,
   ParcelaPagamento,
   PasswordResetToken,
+  EmailVerificationToken,
 };
