@@ -26,7 +26,7 @@ const PedidoRequisito = sequelize.define('PedidoRequisito', {
     },
 
     estado: {
-        type: DataTypes.ENUM('PENDENTE', 'CUMPRIDO', 'REJETADO'),
+        type: DataTypes.ENUM('PENDENTE', 'APROVADO', 'REJETADO'),
         allowNull: false,
         defaultValue: 'PENDENTE'
     },

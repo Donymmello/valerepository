@@ -1,5 +1,6 @@
-const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso } = require("../models");
+const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso, Notificacao } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const { Op } = require("sequelize");
 const {
   podeCriarPedido,
   podeEditarPedido,
@@ -22,6 +23,43 @@ function generateNumeroPedido() {
   const random = Math.floor(100000 + Math.random() * 900000);
 
   return `PED-${year}${month}${day}-${random}`;
+}
+
+/*
+  ==========================================================
+  FUNÇÃO AUXILIAR: CRIAR ALERTAS AUTOMÁTICOS AO CRIAR PEDIDO
+  ==========================================================
+  Notifica todos os backoffice internos (ADMIN, GESTOR, ANALISTA, DIRETOR)
+  quando um novo pedido é criado.
+*/
+async function criarAlertasPedidoCriado(pedido) {
+  try {
+    // Obter todos os utilizadores internos ativos
+    const usuariosInternos = await User.findAll({
+      where: {
+        ativo: true,
+        role: {
+          [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"],
+        },
+      },
+    });
+
+    // Criar notificações para cada utilizador interno
+    for (const usuario of usuariosInternos) {
+      await Notificacao.create({
+        userId: usuario.id,
+        pedidoId: pedido.id,
+        titulo: "Novo Pedido de Crédito Criado",
+        mensagem: `Novo pedido de crédito ${pedido.numeroPedido} foi criado. Prazo de avaliação: 7 dias.`,
+        tipo: "PEDIDO_CRIADO",
+        lida: false,
+      });
+    }
+
+    console.log(`✅ Alertas criados para ${usuariosInternos.length} utilizadores internos`);
+  } catch (error) {
+    console.error("Erro ao criar alertas automáticos:", error);
+  }
 }
 
 /*
@@ -70,11 +108,12 @@ async function createPedidoCredito(req, res) {
 
     const dataSubmissao = new Date();
 
+    // Prazos padrão: 7 dias (não podem ser alterados)
     const prazoAvaliacaoDate = new Date(dataSubmissao);
-    prazoAvaliacaoDate.setDate(prazoAvaliacaoDate.getDate() + 3);
+    prazoAvaliacaoDate.setDate(prazoAvaliacaoDate.getDate() + 7);
 
     const prazoValidacaoDate = new Date(dataSubmissao);
-    prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 5);
+    prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 7);
 
     const pedido = await PedidoCredito.create({
       numeroPedido: generateNumeroPedido(),
@@ -98,6 +137,9 @@ async function createPedidoCredito(req, res) {
       entidadeId: pedido.id,
       descricao: `Pedido ${pedido.numeroPedido} criado para o mutuário ID ${pedido.mutuarioId}.`,
     });
+
+    // Criar alertas automáticos para backoffice
+    await criarAlertasPedidoCriado(pedido);
 
     return res.status(201).json({
       message: "Pedido de crédito criado com sucesso.",
@@ -355,8 +397,6 @@ async function updatePedidoCredito(req, res) {
       valorSolicitado,
       finalidade,
       pacoteFinanciamento,
-      prazoAvaliacao,
-      prazoValidacao,
       observacoes,
       etapaAtual,
     } = req.body;
@@ -367,6 +407,10 @@ async function updatePedidoCredito(req, res) {
       });
     }
 
+    // ⚠️ PROTEÇÃO FORTE: Prazos NÃO podem ser alterados
+    // São definidos automaticamente com 7 dias ao criar o pedido
+    // Qualquer tentativa de alterar é IGNORADA por razões de segurança
+    
     await pedido.update({
       valorSolicitado:
         valorSolicitado !== undefined ? valorSolicitado : pedido.valorSolicitado,
@@ -375,16 +419,9 @@ async function updatePedidoCredito(req, res) {
         pacoteFinanciamento !== undefined
           ? pacoteFinanciamento
           : pedido.pacoteFinanciamento,
-      prazoAvaliacao:
-        prazoAvaliacao !== undefined ? prazoAvaliacao : pedido.prazoAvaliacao,
-      prazoValidacao:
-        prazoValidacao !== undefined ? prazoValidacao : pedido.prazoValidacao,
+      // ❌ prazoAvaliacao NÃO pode ser alterado (PROTEGIDO)
+      // ❌ prazoValidacao NÃO pode ser alterado (PROTEGIDO)
       observacoes: observacoes !== undefined ? observacoes : pedido.observacoes,
-
-      /*
-        Mantemos etapaAtual editável só por enquanto,
-        mas idealmente isso devia ser controlado apenas pelo fluxo de aprovação.
-      */
       etapaAtual: etapaAtual !== undefined ? etapaAtual : pedido.etapaAtual,
     });
 

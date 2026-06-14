@@ -14,6 +14,7 @@ const PedidoRequisito = require("./pedidoRequisito.model");
 const ParcelaPagamento = require("./parcelaPagamento.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
+const Anexo = require("./anexo.model");
 
 /*
   =========================
@@ -190,6 +191,16 @@ PedidoRequisito.belongsTo(RequisitoCredito, {
   as: "requisito",
 });
 
+PedidoRequisito.hasMany(Anexo, {
+  foreignKey: "pedidoRequisitoId",
+  as: "anexos",
+});
+
+Anexo.belongsTo(PedidoRequisito, {
+  foreignKey: "pedidoRequisitoId",
+  as: "pedidoRequisito",
+});
+
 /*
   Um utilizador pode validar vários requisitos de pedido.
 */
@@ -243,4 +254,5 @@ module.exports = {
   ParcelaPagamento,
   PasswordResetToken,
   EmailVerificationToken,
+  Anexo,
 };

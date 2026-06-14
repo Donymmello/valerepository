@@ -23,6 +23,8 @@ services:
     # Adiciona esta linha abaixo para o Docker injetar o teu .env no container!
     env_file:
       - ./backend/.env
+    volumes:
+      - ./backend:/app
     depends_on:
       - credito
 

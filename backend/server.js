@@ -3,6 +3,12 @@ const cors = require("cors");
 const { sequelize } = require("./models");
 require("dotenv").config();
 
+// Importar middlewares de monitoramento
+const requestIdMiddleware = require("./middleware/requestId.middleware");
+const { errorHandlerMiddleware } = require("./middleware/errorHandler.middleware");
+const { performanceMetricsMiddleware } = require("./middleware/performanceMetrics.middleware");
+const logger = require("./utils/logger");
+
 /*
   ==========================================================
   CRIAÇÃO DA APLICAÇÃO EXPRESS
@@ -13,13 +19,19 @@ const app = express();
 
 /*
   ==========================================================
-  MIDDLEWARES GLOBAIS
+  MIDDLEWARES GLOBAIS - ORDEM IMPORTANTE
   ==========================================================
-  express.json() -> permite receber JSON no body
-  cors()         -> permite comunicação com frontend
+  1. RequestID - deve ser primeiro para rastrear tudo
+  2. JSON parsing
+  3. CORS
+  4. Performance metrics
+  5. Handlers específicos
+  6. Error handler - deve ser último
 */
+app.use(requestIdMiddleware); // ✅ Request ID
 app.use(express.json());
 app.use(cors());
+app.use(performanceMetricsMiddleware); // ✅ Performance Metrics
 
 /*
   ==========================================================
@@ -27,6 +39,9 @@ app.use(cors());
   ==========================================================
   Aqui importamos as rotas de autenticação.
 */
+const healthRoutes = require("./routes/health.routes");
+const monitoringRoutes = require("./routes/monitoring.routes");
+const alertsRoutes = require("./routes/alerts.routes");
 const authRoutes = require("./routes/auth.routes");
 const pedidoCreditoRoutes = require("./routes/pedidoCredito.routes");
 const mutuarioRoutes = require("./routes/mutuario.routes");
@@ -45,13 +60,17 @@ const portalExcelRoutes = require("./routes/portalExcel.routes");
 const portalMutuarioRoutes = require("./routes/portalMutuario.routes");
 const vincularMutuarioRoutes = require("./routes/vincularMutuario.routes");
 const alertaPagamentoRoutes = require("./routes/alertaPagamento.routes");
+const anexoRoutes = require("./routes/anexo.routes");
 
 /*
   ==========================================================
   REGISTO DAS ROTAS
   ==========================================================
-  Tudo que começar por /api/auth será tratado em authRoutes.
+  Tudo que começar por /api será tratado nas respetivas rotas.
 */
+app.use("/api/health", healthRoutes);
+app.use("/api/monitoring", monitoringRoutes);
+app.use("/api/alerts", alertsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/pedidos-credito", pedidoCreditoRoutes);
 app.use("/api/mutuarios", mutuarioRoutes);
@@ -70,6 +89,14 @@ app.use("/api", portalMutuarioRoutes);
 app.use("/api", vincularMutuarioRoutes);
 app.use("/api/portal/export", portalExcelRoutes);
 app.use("/api/alertas-pagamento", alertaPagamentoRoutes);
+app.use("/api/anexos", anexoRoutes);
+
+/*
+  ==========================================================
+  ERROR HANDLER - Deve ser o último middleware
+  ==========================================================
+*/
+app.use(errorHandlerMiddleware); // ✅ Error Handler com Stack Trace
 
 /*
   ==========================================================
@@ -91,18 +118,28 @@ async function startServer() {
   try {
     // Testa a ligação com a base de dados
     await sequelize.authenticate();
-    console.log("Ligação com MySQL estabelecida com sucesso.");
+    logger.info("Ligação com MySQL estabelecida com sucesso.", {
+      database: process.env.DB_NAME,
+    });
 
     // Sincroniza os models com a base de dados
     await sequelize.sync({ alter: true });
-    console.log("Models sincronizados com sucesso.");
+    logger.info("Models sincronizados com sucesso.");
 
     // Inicia o servidor HTTP
     app.listen(PORT, () => {
-      console.log(`Servidor rodando em http://localhost:${PORT}`);
+      logger.info(`Servidor rodando`, {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        url: `http://localhost:${PORT}`,
+      });
     });
   } catch (error) {
-    console.error("Erro ao iniciar:", error);
+    logger.error("Erro ao iniciar servidor", {
+      error: error.message,
+      stack: error.stack,
+    });
+    process.exit(1);
   }
 }
 

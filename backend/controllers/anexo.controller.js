@@ -1,0 +1,74 @@
+const path = require("path");
+
+const {
+    Anexo,
+    PedidoRequisito,
+} = require("../models");
+
+exports.upload = async (req, res) => {
+    try {
+        const anexo = await Anexo.create({
+            pedidoRequisitoId: req.params.id,
+            nome: req.file.orginalname,
+            arquivo: req.file.filename,
+            mimeType: req.file.mimetype,
+            tamanho: req.file.size,
+            userId: req.user.id,
+        });
+
+        return res.status(201).json(anexo);
+    } catch (error) {
+        console.error(error);
+
+        return res.status(5000).json({
+            message: "Erro ao enviar documento",
+        });
+    }
+};
+
+exports.listar = async (req, res) => {
+    try {
+        const anexos = await Anexo.findAll({
+            where: {
+                pedidoRequisitoId: req.params.id,
+            },
+            order: [["created_at", "DESC"]],
+        });
+
+        return res.json(anexos);
+    } catch (error) {
+        comsole.error(error);
+
+        return res.status(500).json({
+            message: "Erro ao listar anexos"
+        });
+    }
+};
+
+exports.download = async (req, res) => {
+    try {
+        const anexo = await Anexo.findByPk(
+            req.params.id
+        );
+
+        if (!anexo) {
+            return res.status(404).json({
+                message: "Documento nao encontrado",
+            });
+        }
+
+        return res.download(
+            path.resolve(
+                "uploads/anexos",
+                anexo.arquivo
+            ),
+            anexo.nome
+        );
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Erro ao baixar documento",
+        });
+    }
+};
