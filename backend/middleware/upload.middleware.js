@@ -1,13 +1,21 @@
 const multer = require("multer");
 const path = require("path");
 const crypto = require("crypto");
+const fs = require("fs"); // 1. IMPORTANTE: Importar o módulo de sistema de arquivos
 
 const storage = multer.diskStorage({
     destination(req, file, cb) {
-        cb(null, "upload/anexos");
+        const dir = "upload/anexos";
+
+        // 2. CORREÇÃO: Se a pasta não existir, o Node cria ela automaticamente
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+
+        cb(null, dir);
     },
 
-    filename(req, file,cb) {
+    filename(req, file, cb) {
         const nome =
           crypto.randomBytes(16).toString("hex") +
           path.extname(file.originalname);
@@ -23,7 +31,7 @@ const fileFilter = (req, file, cb) => {
         "image/png",
     ];
 
-    if (permitidos,includes(file.mimetype)) {
+    if (permitidos.includes(file.mimetype)) {
         return cb(null, true);
     }
 
@@ -34,6 +42,6 @@ module.exports = multer({
     storage,
     fileFilter,
     limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 10 * 1024 * 1024, // Limite de 10MB
     },
 });

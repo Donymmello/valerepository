@@ -4,27 +4,29 @@ const router = express.Router();
 const upload = require("../middleware/upload.middleware");
 const authMiddleware = require("../middleware/auth.middleware");
 
-const anexoController = require(
-  "../controllers/anexo.controller"
-);
+const {
+  listar,
+  anexar,
+  download,
+} = require("../controllers/anexo.controller");
 
 router.post(
-  "/upload/:id",
+  "/anexar/:id",
   authMiddleware,
   upload.single("arquivo"),
-  anexoController.upload
+  anexar
 );
 
 router.get(
   "/requisito/:id",
   authMiddleware,
-  anexoController.listar
+  listar
 );
 
 router.get(
   "/:id/download",
   authMiddleware,
-  anexoController.download
+  download
 );
 
 module.exports = router;

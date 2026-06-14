@@ -5,7 +5,7 @@ const {
     PedidoRequisito,
 } = require("../models");
 
-exports.upload = async (req, res) => {
+async function anexar (req, res) {
     try {
         const anexo = await Anexo.create({
             pedidoRequisitoId: req.params.id,
@@ -20,13 +20,13 @@ exports.upload = async (req, res) => {
     } catch (error) {
         console.error(error);
 
-        return res.status(5000).json({
+        return res.status(500).json({
             message: "Erro ao enviar documento",
         });
     }
-};
+}
 
-exports.listar = async (req, res) => {
+async function listar (req, res) {
     try {
         const anexos = await Anexo.findAll({
             where: {
@@ -43,9 +43,9 @@ exports.listar = async (req, res) => {
             message: "Erro ao listar anexos"
         });
     }
-};
+}
 
-exports.download = async (req, res) => {
+async function download (req, res) {
     try {
         const anexo = await Anexo.findByPk(
             req.params.id
@@ -71,4 +71,10 @@ exports.download = async (req, res) => {
             message: "Erro ao baixar documento",
         });
     }
+}
+
+module.exports = {
+    anexar,
+    listar,
+    download,
 };
