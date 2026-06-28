@@ -6,11 +6,13 @@ import {
   Button,
   Chip,
   Container,
+  IconButton,
   Stack,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import NotificationsIcon from "@mui/icons-material/Notifications";
+import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -28,7 +30,6 @@ export default function BackofficeLayout({ children }) {
     { label: "Reembolsos", to: "/interno/reembolsos" },
     { label: "Relatórios", to: "/interno/relatorios" },
     { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
-  
   ];
 
   const handleLogout = () => {
@@ -37,20 +38,13 @@ export default function BackofficeLayout({ children }) {
   };
 
   const isActive = (path) => {
-    if (path === "/interno") {
-      return location.pathname === "/interno";
-    }
-
+    if (path === "/interno") return location.pathname === "/interno";
     return location.pathname.startsWith(path);
   };
 
   return (
     <Box sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
-      <AppBar
-        position="sticky"
-        elevation={1}
-        sx={{ backgroundColor: "#111827" }}
-      >
+      <AppBar position="sticky" elevation={1} sx={{ backgroundColor: "#111827" }}>
         <Toolbar
           sx={{
             py: 1.5,
@@ -61,12 +55,17 @@ export default function BackofficeLayout({ children }) {
             gap: 2,
           }}
         >
-          <Stack spacing={0.5}>
+          {/* Logo — clicável, mantem na dashboard */}
+          <Stack
+            spacing={0.5}
+            sx={{ cursor: "pointer" }}
+            onClick={() => 
+              navigate("/interno")}
+          >
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               Backoffice
             </Typography>
-
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+            <Typography variant="body2" sx={{ opacity: 0.7 }}>
               Gestão interna do sistema de crédito
             </Typography>
           </Stack>
@@ -76,26 +75,24 @@ export default function BackofficeLayout({ children }) {
             spacing={1.5}
             alignItems={{ xs: "flex-start", sm: "center" }}
           >
-            <Button
-              component={RouterLink}
-              to="/interno/notificacoes"
-              variant="outlined"
-              color="inherit"
-              startIcon={
+            {/* Notificações com ícone MUI real */}
+            <Tooltip title="Notificações">
+              <IconButton
+                component={RouterLink}
+                to="/interno/notificacoes"
+                color="inherit"
+              >
                 <Badge color="error" variant="dot">
-                  <span style={{ fontSize: "16px" }}>🔔</span>
+                  <NotificationsIcon />
                 </Badge>
-              }
-              sx={{
-                borderColor: "rgba(255,255,255,0.35)",
-                "&:hover": { borderColor: "#fff" },
-              }}
-            >
-              
-            </Button>
+              </IconButton>
+            </Tooltip>
 
+            {/* Avatar + info do user */}
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <Avatar sx={{ width: 36, height: 36 }}>
+              <Avatar
+                sx={{ width: 36, height: 36, bgcolor: "#3b82f6", fontWeight: 700 }}
+              >
                 {user?.nome ? user.nome.charAt(0).toUpperCase() : "U"}
               </Avatar>
 
@@ -103,7 +100,6 @@ export default function BackofficeLayout({ children }) {
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                   {user?.nome || "Utilizador"}
                 </Typography>
-
                 <Chip
                   label={user?.role || "-"}
                   size="small"
@@ -111,6 +107,7 @@ export default function BackofficeLayout({ children }) {
                     mt: 0.5,
                     backgroundColor: "rgba(255,255,255,0.15)",
                     color: "#fff",
+                    fontSize: "0.65rem",
                   }}
                 />
               </Box>
@@ -119,10 +116,11 @@ export default function BackofficeLayout({ children }) {
             <Button
               variant="outlined"
               color="inherit"
+              size="small"
               onClick={handleLogout}
               sx={{
                 borderColor: "rgba(255,255,255,0.35)",
-                "&:hover": { borderColor: "#fff" },
+                "&:hover": { borderColor: "#fff", bgcolor: "rgba(255,255,255,0.08)" },
               }}
             >
               Sair
@@ -131,33 +129,34 @@ export default function BackofficeLayout({ children }) {
         </Toolbar>
       </AppBar>
 
+      {/* Barra de navegação */}
       <Box sx={{ borderBottom: "1px solid #e5e7eb", backgroundColor: "#fff" }}>
         <Container maxWidth="xl">
           <Stack
             direction={{ xs: "column", md: "row" }}
-            spacing={1}
-            sx={{ py: 2 }}
+            spacing={0.5}
+            sx={{ py: 1.5, overflowX: "auto" }}
           >
             {links.map((link) => {
               const active = isActive(link.to);
-
               return (
                 <Button
                   key={link.to}
                   component={RouterLink}
                   to={link.to}
                   variant={active ? "contained" : "text"}
+                  size="small"
                   sx={{
-                    justifyContent: "flex-start",
+                    whiteSpace: "nowrap",
                     borderRadius: 2,
                     textTransform: "none",
                     fontWeight: 600,
                     px: 2,
-                    py: 1.2,
+                    py: 1,
                     backgroundColor: active ? "#111827" : "transparent",
-                    color: active ? "#fff" : "#111827",
+                    color: active ? "#fff" : "#374151",
                     "&:hover": {
-                      backgroundColor: active ? "#111827" : "#e5e7eb",
+                      backgroundColor: active ? "#111827" : "#f3f4f6",
                     },
                   }}
                 >

@@ -30,19 +30,25 @@ const Mutuario = sequelize.define(
 
     documentoTipo: {
       type: DataTypes.STRING(50),
-      allowNull: true,
+      allowNull: false,
       field: "documento_tipo",
     },
 
     documentoNumero: {
-      type: DataTypes.STRING(100),
-      allowNull: true,
+      type: DataTypes.STRING(14),
+      allowNull: false,
       field: "documento_numero",
+    },
+
+    nuit: {
+      type: DataTypes.STRING(9),
+      allowNull: false,
+      field: "nuit"
     },
 
     dataNascimento: {
       type: DataTypes.DATEONLY,
-      allowNull: true,
+      allowNull: false,
       field: "data_nascimento",
     },
 

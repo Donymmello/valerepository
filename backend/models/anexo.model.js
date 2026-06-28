@@ -11,7 +11,7 @@ const Anexo = sequelize.define(
             autoIncrement: true,
         },
 
-        PedidoRequisitoId: {
+        pedidoRequisitoId: {
             type: DataTypes.INTEGER,
             allowNull: false,
             field: "pedido_requisito_id",

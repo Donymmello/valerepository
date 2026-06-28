@@ -84,6 +84,33 @@ const PedidoCredito = sequelize.define(
       field: "prazo_validacao",
     },
 
+    prazo: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+
+    taxa: {
+      type: DataTypes.DECIMAL(8, 4),
+      allowNull: false,
+    },
+
+    prestacao: {
+      type: DataTypes.DECIMAL(18, 2),
+      allowNull: false,
+    },
+
+    jurosTotal: {
+      type: DataTypes.DECIMAL(18, 2),
+      allowNull: false,
+      field: "juros_total",
+    },
+
+    montanteTotal: {
+      type: DataTypes.DECIMAL(18, 2),
+      allowNull: false,
+      field: "montante_total",
+    },
+
     observacoes: {
       type: DataTypes.TEXT,
       allowNull: true,

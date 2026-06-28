@@ -61,6 +61,8 @@ const portalMutuarioRoutes = require("./routes/portalMutuario.routes");
 const vincularMutuarioRoutes = require("./routes/vincularMutuario.routes");
 const alertaPagamentoRoutes = require("./routes/alertaPagamento.routes");
 const anexoRoutes = require("./routes/anexo.routes");
+const simulacaoRoutes = require("./routes/simulacao.routes");
+const comprovativoRoutes = require("./routes/comprovativo.routes");
 
 /*
   ==========================================================
@@ -90,6 +92,8 @@ app.use("/api", vincularMutuarioRoutes);
 app.use("/api/portal/export", portalExcelRoutes);
 app.use("/api/alertas-pagamento", alertaPagamentoRoutes);
 app.use("/api/anexos", anexoRoutes);
+app.use("/api/simulacao", simulacaoRoutes);
+app.use("/api/comprovativos", comprovativoRoutes);
 
 /*
   ==========================================================

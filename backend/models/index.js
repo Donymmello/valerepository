@@ -15,6 +15,8 @@ const ParcelaPagamento = require("./parcelaPagamento.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
 const Anexo = require("./anexo.model");
+const Simulacao = require("./simulacao.model");
+const Comprovativo = require("./comprovativo.model");
 
 /*
   =========================
@@ -226,7 +228,7 @@ Desembolso.belongsTo(PedidoCredito, {
 
 /*
   Um pedido pode ter várias parcelas de pagamento.
-*/  
+*/
 
 PedidoCredito.hasMany(ParcelaPagamento, {
   foreignKey: "pedidoId",
@@ -234,6 +236,37 @@ PedidoCredito.hasMany(ParcelaPagamento, {
 });
 
 ParcelaPagamento.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
+User.hasMany(Simulacao, {
+  foreignKey: "userId",
+  as: "simulacoes",
+});
+
+Simulacao.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+Comprovativo.belongsTo(User, {
+  foreignKey: "userId",
+  as: "remetente",
+});
+
+Comprovativo.belongsTo(User, {
+  foreignKey: "validadoPor",
+  as: "validador",
+});
+
+
+PedidoCredito.hasMany(Comprovativo, {
+  foreignKey: "pedidoId",
+  as: "comprovativos",
+});
+
+Comprovativo.belongsTo(PedidoCredito, {
   foreignKey: "pedidoId",
   as: "pedido",
 });
@@ -255,4 +288,6 @@ module.exports = {
   PasswordResetToken,
   EmailVerificationToken,
   Anexo,
+  Simulacao,
+  Comprovativo,
 };

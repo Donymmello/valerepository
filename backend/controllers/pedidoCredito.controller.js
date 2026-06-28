@@ -7,6 +7,8 @@ const {
   podeTransitarStatus,
   STATUS_PEDIDO,
 } = require("../utils/regrasPedido");
+const calcularPrestacao = require("../utils/calCredito");
+
 
 /*
   ==========================================================
@@ -72,6 +74,7 @@ async function createPedidoCredito(req, res) {
     const {
       mutuarioId,
       valorSolicitado,
+      prazo,
       finalidade,
       pacoteFinanciamento,
       observacoes,
@@ -106,6 +109,18 @@ async function createPedidoCredito(req, res) {
       });
     }
 
+    if (!valorSolicitado || !prazo) {
+      return res.status(400).json({
+        message: "Os campos valor e prazo são obrigatórios.",
+      });
+    }
+
+    if (Number(valorSolicitado) <= 0 || Number(prazo) <= 0) {
+      return res.status(400).json({
+        message: "valor e prazo devem ser maiores que zero.",
+      });
+    }
+
     const dataSubmissao = new Date();
 
     // Prazos padrão: 7 dias (não podem ser alterados)
@@ -114,6 +129,12 @@ async function createPedidoCredito(req, res) {
 
     const prazoValidacaoDate = new Date(dataSubmissao);
     prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 7);
+
+    const taxa = 18;
+
+    const prestacao = calcularPrestacao(Number(valorSolicitado), taxa, Number(prazo));
+    const montanteTotal = prestacao * Number(prazo);
+    const jurosTotal = montanteTotal - Number(valorSolicitado);
 
     const pedido = await PedidoCredito.create({
       numeroPedido: generateNumeroPedido(),
@@ -126,6 +147,11 @@ async function createPedidoCredito(req, res) {
       dataSubmissao,
       prazoAvaliacao: prazoAvaliacaoDate,
       prazoValidacao: prazoValidacaoDate,
+      prazo,
+      taxa,
+      prestacao,
+      jurosTotal,
+      montanteTotal,
       observacoes: observacoes || null,
       createdBy: req.user.id,
     });

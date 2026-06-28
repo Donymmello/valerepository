@@ -40,7 +40,7 @@ const Notificacao = sequelize.define(
     },
 
     tipo: {
-      type: DataTypes.ENUM("ALERTA_PRAZO", "APROVACAO", "REJEICAO", "SISTEMA"),
+      type: DataTypes.ENUM("ALERTA_PRAZO", "APROVACAO", "REJEICAO", "SISTEMA", "REQUISITO"),
       allowNull: false,
       defaultValue: "SISTEMA",
     },

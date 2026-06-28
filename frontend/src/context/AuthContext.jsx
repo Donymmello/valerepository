@@ -46,6 +46,11 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const setSession = (token, userData) => {
+    localStorage.setItem("token", token);
+    setUser(userData);
+  };
+
   /*
     Registo do mutuário
   */
@@ -78,12 +83,15 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+
+
   const value = useMemo(
     () => ({
       user,
       loading,
       isAuthenticated: !!user,
       login,
+      setSession,
       registerMutuario,
       registerUser,
       logout,

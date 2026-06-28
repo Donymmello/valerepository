@@ -22,7 +22,7 @@ async function createNotificacao(req, res) {
       });
     }
 
-    const tiposPermitidos = ["ALERTA_PRAZO", "APROVACAO", "REJEICAO", "SISTEMA"];
+    const tiposPermitidos = ["ALERTA_PRAZO", "APROVACAO", "REJEICAO", "SISTEMA", "REQUISITO"];
 
     if (tipo && !tiposPermitidos.includes(tipo)) {
       return res.status(400).json({

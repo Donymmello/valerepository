@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
   MenuItem,
   Paper,
@@ -12,9 +13,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { Description as DescriptionIcon, Download as DownloadIcon } from "@mui/icons-material";
 import {
   adicionarPedidoRequisitoRequest,
   getAllRequisitosRequest,
+  getAnexosByRequisitoRequest,
+  downloadAnexoRequest,
   getRequisitosByPedidoRequest,
   validarRequisitoPedidoRequest,
 } from "../../../api/admin.api";
@@ -33,6 +37,146 @@ function getEstadoColor(estado) {
   }
 }
 
+function formatBytes(bytes) {
+  if (!bytes) return "";
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(0)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
+/*
+  ==========================================================
+  SUBCOMPONENTE: ANEXOS DE UM REQUISITO
+  ==========================================================
+  Carrega e mostra os documentos que o mutuário enviou para
+  este requisito específico do pedido. Permite download.
+*/
+function RequisitoAnexos({ pedidoRequisitoId }) {
+  const [anexos, setAnexos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  useEffect(() => {
+    let ativo = true;
+
+    const carregar = async () => {
+      try {
+        setLoading(true);
+        setErro("");
+        const data = await getAnexosByRequisitoRequest(pedidoRequisitoId);
+        if (ativo) setAnexos(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+        if (ativo) setErro("Erro ao carregar documentos enviados.");
+      } finally {
+        if (ativo) setLoading(false);
+      }
+    };
+
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, [pedidoRequisitoId]);
+
+  const handleDownload = async (anexo) => {
+    try {
+      setDownloadingId(anexo.id);
+
+      const response = await downloadAnexoRequest(anexo.id);
+
+      // Cria um link temporário para disparar o download do blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", anexo.nome || "documento");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao baixar o documento.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ py: 1 }}>
+        <CircularProgress size={16} />
+        <Typography variant="body2" color="text.secondary">
+          A carregar documentos...
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (erro) {
+    return (
+      <Typography variant="body2" color="error">
+        {erro}
+      </Typography>
+    );
+  }
+
+  if (anexos.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+        O mutuário ainda não enviou nenhum documento para este requisito.
+      </Typography>
+    );
+  }
+
+  return (
+    <Stack spacing={1}>
+      {anexos.map((anexo) => (
+        <Paper
+          key={anexo.id}
+          variant="outlined"
+          sx={{
+            p: 1.5,
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <DescriptionIcon color="action" fontSize="small" />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                {anexo.nome}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {formatBytes(anexo.tamanho)}
+                {anexo.createdAt ? ` · Enviado em ${formatDate(anexo.createdAt)}` : ""}
+              </Typography>
+            </Box>
+          </Stack>
+
+          <Button
+            size="small"
+            startIcon={<DownloadIcon />}
+            onClick={() => handleDownload(anexo)}
+            disabled={downloadingId === anexo.id}
+          >
+            {downloadingId === anexo.id ? "A baixar..." : "Baixar"}
+          </Button>
+        </Paper>
+      ))}
+    </Stack>
+  );
+}
+
+/*
+  ==========================================================
+  COMPONENTE PRINCIPAL
+  ==========================================================
+*/
 export default function PedidoRequisitosSection({ pedidoId, pedidoStatus, onUpdated }) {
   const { user } = useAuth();
 
@@ -293,6 +437,14 @@ export default function PedidoRequisitosSection({ pedidoId, pedidoStatus, onUpda
                   <Typography variant="body2" color="text.secondary">
                     <strong>Data de validação:</strong> {formatDate(item.dataValidacao)}
                   </Typography>
+
+                  {/* ─── Documentos enviados pelo mutuário ─────────────── */}
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }} mb={1}>
+                      Documentos enviados
+                    </Typography>
+                    <RequisitoAnexos pedidoRequisitoId={item.id} />
+                  </Box>
 
                   {podeValidar && (
                     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>

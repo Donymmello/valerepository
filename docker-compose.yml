@@ -25,6 +25,9 @@ services:
       - ./backend/.env
     volumes:
       - ./backend:/app
+      - /app/node_modules
+      - ./backend/upload:/app/upload
+      - ./backend/upload/comprovativos:/app/upload/comprovativos
     depends_on:
       - credito
 
@@ -34,6 +37,9 @@ services:
     container_name: frontend
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules    # <-- Repare no espaço obrigatório depois do hífen
     depends_on:
       - api_backend
 

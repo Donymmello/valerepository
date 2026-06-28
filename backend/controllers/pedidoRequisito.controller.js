@@ -2,6 +2,7 @@ const {
   PedidoCredito,
   RequisitoCredito,
   PedidoRequisito,
+  Notificacao,
 } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const {
@@ -88,6 +89,14 @@ async function adicionarPedidoRequisito(req, res) {
       requisitoId,
       estado: "PENDENTE",
       observacoes: observacoes || null,
+    });
+
+    await Notificacao.create({
+      userId: pedido.createdBy,
+      pedidoId: pedido.id,
+      titulo: "Novo requisito solicitado",
+      mensagem: `Foi solicitado o requisito "${requisito.nome}". Faça o envio do documento pelo portal.`,
+      tipo: "REQUISITO",
     });
 
     await registrarLogAuditoria({

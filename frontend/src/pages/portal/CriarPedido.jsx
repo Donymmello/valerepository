@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
+  Chip,
+  CircularProgress,
+  Divider,
   Grid,
   MenuItem,
   Paper,
   Snackbar,
+  Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { CalculateOutlined as CalculateOutlinedIcon, Close as CloseIcon } from "@mui/icons-material";
 import { createMeuPedidoRequest } from "../../api/portal.api";
+import {
+  getMinhasSimulacoesRequest,
+  simularCreditoRequest,
+} from "../../api/public.api";
 
 export default function CriarPedido() {
   const navigate = useNavigate();
@@ -20,6 +29,12 @@ export default function CriarPedido() {
     valorSolicitado: "",
     finalidade: "",
     pacoteFinanciamento: "",
+    prazo: "",
+
+    prestacao: "",
+    jurosTotal: "",
+    montanteTotal: "",
+
     observacoes: "",
   });
 
@@ -27,11 +42,98 @@ export default function CriarPedido() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (event) => {
-    setForm((prev) => ({
-      ...prev,
-      [event.target.name]: event.target.value,
-    }));
+  // Simulação mais recente do user, usada para pré-preencher o formulário
+  const [simulacao, setSimulacao] = useState(null);
+  const [loadingSimulacao, setLoadingSimulacao] = useState(true);
+  const [simulacaoDescartada, setSimulacaoDescartada] = useState(false);
+
+  useEffect(() => {
+    const carregarUltimaSimulacao = async () => {
+      try {
+        const simulacoes = await getMinhasSimulacoesRequest();
+
+        if (Array.isArray(simulacoes) && simulacoes.length > 0) {
+          // a API já devolve ordenado por created_at DESC, mas garantimos aqui também
+          const maisRecente = simulacoes[0];
+          setSimulacao(maisRecente);
+
+          setForm((prev) => ({
+            ...prev,
+            valorSolicitado: String(maisRecente.valorSolicitado),
+            prazo: String(maisRecente.prazo),
+            prestacao: Number(maisRecente.prestacao).toFixed(2),
+            jurosTotal: Number(maisRecente.jurosTotal).toFixed(2),
+            montanteTotal: Number(maisRecente.montanteTotal).toFixed(2),
+          }));
+        }
+      } catch (err) {
+        // Não é crítico: se falhar, o user simplesmente preenche manualmente
+        console.error("Erro ao carregar simulação recente:", err);
+      } finally {
+        setLoadingSimulacao(false);
+      }
+    };
+
+    carregarUltimaSimulacao();
+  }, []);
+
+  const handleChange = async (event) => {
+    const { name, value } = event.target;
+
+    const novoForm = {
+      ...form,
+      [name]: value,
+    };
+
+    setForm(novoForm);
+
+    if (name === "valorSolicitado" || name === "prazo") {
+      await atualizarSimulacao(
+        name === "valorSolicitado"
+          ? value
+          : novoForm.valorSolicitado,
+
+        name === "prazo"
+          ? value
+          : novoForm.prazo
+      );
+    }
+  };
+
+  const handleDescartarSimulacao = () => {
+  setSimulacao(null);
+  setSimulacaoDescartada(true);
+
+  setForm((prev) => ({
+    ...prev,
+    valorSolicitado: "",
+    prazo: "",
+    prestacao: "",
+    jurosTotal: "",
+    montanteTotal: "",
+  }));
+};
+
+  const atualizarSimulacao = async (valor, prazo) => {
+    if (!valor || !prazo) return;
+
+    if (Number(valor) <= 0 || Number(prazo) <= 0) return;
+
+    try {
+      const resultado = await simularCreditoRequest({
+        valorSolicitado: Number(valor),
+        prazo: Number(prazo),
+      });
+
+      setForm((prev) => ({
+        ...prev,
+        prestacao: Number(resultado.prestacao).toFixed(2),
+        jurosTotal: Number(resultado.jurosTotal).toFixed(2),
+        montanteTotal: Number(resultado.montanteTotal).toFixed(2),
+      }));
+    } catch (error) {
+      console.error("Erro ao recalcular simulação:", error);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -53,6 +155,7 @@ export default function CriarPedido() {
     try {
       await createMeuPedidoRequest({
         valorSolicitado: Number(form.valorSolicitado),
+        prazo: Number(form.prazo),
         finalidade: form.finalidade,
         pacoteFinanciamento: form.pacoteFinanciamento || null,
         observacoes: form.observacoes || null,
@@ -71,17 +174,104 @@ export default function CriarPedido() {
     }
   };
 
+  const mostrarResumoSimulacao =
+    !loadingSimulacao && simulacao && !simulacaoDescartada;
+
   return (
-    <Box>
-      <Paper sx={{ p: 4 }}>
-        <Typography variant="h4" mb={1}>
-          Criar Pedido
+    <Box sx={{ maxWidth: 820, mx: "auto" }}>
+      <Box mb={4}>
+        <Typography variant="h4" sx={{ fontWeight: 700 }} mb={0.5}>
+          Criar Pedido de Crédito
         </Typography>
-
-        <Typography variant="body2" color="text.secondary" mb={3}>
-          Preencha os dados abaixo para submeter um novo pedido de crédito.
+        <Typography variant="body2" color="text.secondary">
+          Preencha os dados abaixo para submeter um novo pedido.
         </Typography>
+      </Box>
 
+      {loadingSimulacao && (
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+          <CircularProgress size={18} />
+          <Typography variant="body2" color="text.secondary">
+            A verificar simulações recentes...
+          </Typography>
+        </Stack>
+      )}
+
+      {mostrarResumoSimulacao && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: 3,
+            borderColor: "success.light",
+            bgcolor: "success.50",
+            position: "relative",
+          }}
+        >
+          <Button
+            size="small"
+            onClick={handleDescartarSimulacao}
+            startIcon={<CloseIcon fontSize="small" />}
+            sx={{ position: "absolute", top: 8, right: 8 }}
+            color="inherit"
+          >
+            Ignorar
+          </Button>
+
+          <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
+            <CalculateOutlinedIcon color="success" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Baseado na sua simulação
+            </Typography>
+            <Chip label="Pré-preenchido" size="small" color="success" variant="outlined" />
+          </Stack>
+
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">
+                Valor
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                MZN {Number(simulacao.valorSolicitado).toLocaleString()}
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">
+                Prazo
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {simulacao.prazo} meses
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">
+                Prestação Mensal
+              </Typography>
+              <Typography sx={{ fontWeight: 700, color: "success.dark" }}>
+                MZN {Number(simulacao.prestacao).toFixed(2)}
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={3}>
+              <Typography variant="caption" color="text.secondary">
+                Total a Pagar
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                MZN {Number(simulacao.montanteTotal).toFixed(2)}
+              </Typography>
+            </Grid>
+          </Grid>
+
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
+            O valor solicitado abaixo foi preenchido automaticamente. Pode ajustá-lo se necessário.
+          </Typography>
+        </Paper>
+      )}
+
+      <Paper sx={{ p: 4, borderRadius: 3 }}>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
@@ -89,11 +279,11 @@ export default function CriarPedido() {
         )}
 
         <Box component="form" onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5}>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Valor Solicitado"
+                label="Valor Solicitado (MZN)"
                 name="valorSolicitado"
                 type="number"
                 value={form.valorSolicitado}
@@ -125,6 +315,7 @@ export default function CriarPedido() {
                 fullWidth
                 label="Finalidade"
                 name="finalidade"
+                placeholder="Para que pretende utilizar este crédito?"
                 multiline
                 minRows={4}
                 value={form.finalidade}
@@ -135,7 +326,53 @@ export default function CriarPedido() {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Observações"
+                label="Prazo (Meses)"
+                name="prazo"
+                type="number"
+                value={form.prazo}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Prestação Mensal"
+                name="prestacao"
+                value={form.prestacao}
+                InputProps={{
+                  readOnly: true,
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Juros Totais"
+                value={form.jurosTotal}
+                InputProps={{
+                  readOnly: true,
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Montante Total"
+                name="montanteTotal"
+                value={form.montanteTotal}
+                InputProps={{
+                  readOnly: true,
+                }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Observações (opcional)"
                 name="observacoes"
                 multiline
                 minRows={3}
@@ -145,11 +382,27 @@ export default function CriarPedido() {
             </Grid>
           </Grid>
 
-          <Box sx={{ mt: 3 }}>
-            <Button type="submit" variant="contained" disabled={submitting}>
+          <Divider sx={{ my: 3 }} />
+
+          <Stack direction="row" justifyContent="flex-end" spacing={2}>
+            <Button
+              variant="text"
+              onClick={() => navigate(-1)}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={submitting}
+              sx={{ borderRadius: 2, px: 4 }}
+            >
               {submitting ? "A submeter..." : "Submeter Pedido"}
             </Button>
-          </Box>
+          </Stack>
         </Box>
       </Paper>
 

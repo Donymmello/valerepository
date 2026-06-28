@@ -265,6 +265,7 @@ const registerMutuario = async (req, res) => {
       nomeCompleto,
       documentoTipo,
       documentoNumero,
+      nuit,
       dataNascimento,
       provincia,
       distrito,
@@ -272,9 +273,9 @@ const registerMutuario = async (req, res) => {
       telefone,
     } = req.body;
 
-    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero) {
+    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
       return res.status(400).json({
-        message: "nome, email, password e nomeCompleto Id são obrigatórios.",
+        message: "preencher campos obrigatórios.",
       });
     }
 
@@ -288,6 +289,17 @@ const registerMutuario = async (req, res) => {
       });
     }
 
+    if (nuit) {
+      const mutuarioExistentePorNuit = await Mutuario.findOne({
+        where: { nuit },
+      });
+
+      if (mutuarioExistentePorNuit) {
+        return res.status(409).json({
+          message: "Já existe um mutuário com este nuit.",
+        });
+      }
+
     if (documentoNumero) {
       const mutuarioExistentePorDocumento = await Mutuario.findOne({
         where: { documentoNumero },
@@ -299,6 +311,7 @@ const registerMutuario = async (req, res) => {
         });
       }
     }
+  }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -317,6 +330,7 @@ const registerMutuario = async (req, res) => {
       nomeCompleto,
       documentoTipo: documentoTipo || null,
       documentoNumero: documentoNumero || null,
+      nuit: nuit || null,
       dataNascimento: dataNascimento || null,
       provincia: provincia || null,
       distrito: distrito || null,
@@ -583,6 +597,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
       nomeCompleto,
       documentoTipo,
       documentoNumero,
+      nuit,
       dataNascimento,
       provincia,
       distrito,
@@ -590,9 +605,9 @@ const registerMutuarioRequestOTP = async (req, res) => {
       telefone,
     } = req.body;
 
-    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero) {
+    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
       return res.status(400).json({
-        message: "nome, email, password, nomeCompleto, documentoTipo e documentoNumero são obrigatórios.",
+        message: "preencher campos obrigatórios.",
       });
     }
 
@@ -607,6 +622,17 @@ const registerMutuarioRequestOTP = async (req, res) => {
       });
     }
 
+    if (nuit) {
+      const mutuarioExistentePorNuit = await Mutuario.findOne({
+        where: { nuit },
+      });
+
+      if (mutuarioExistentePorNuit) {
+        return res.status(409).json({
+          message: "Já existe um mutuário com este nuit.",
+        });
+      }
+
     // Validar documento
     if (documentoNumero) {
       const mutuarioExistentePorDocumento = await Mutuario.findOne({
@@ -619,6 +645,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
         });
       }
     }
+  }
 
     // Limpar OTPs expirados deste email
     await EmailVerificationToken.destroy({
@@ -645,6 +672,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
         passwordHash,
         nomeCompleto,
         documentoTipo,
+        nuit,
         documentoNumero,
         dataNascimento,
         provincia,
@@ -716,6 +744,7 @@ const verifyOTPAndRegister = async (req, res) => {
       nomeCompleto,
       documentoTipo,
       documentoNumero,
+      nuit,
       dataNascimento,
       provincia,
       distrito,
@@ -741,6 +770,7 @@ const verifyOTPAndRegister = async (req, res) => {
       documentoTipo: documentoTipo || null,
       documentoNumero: documentoNumero || null,
       dataNascimento: dataNascimento || null,
+      nuit: nuit || null,
       provincia: provincia || null,
       distrito: distrito || null,
       localResidencia: localResidencia || null,

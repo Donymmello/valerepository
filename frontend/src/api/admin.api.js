@@ -316,3 +316,76 @@ export const verificarAlertasPrazoRequest = async () => {
   const response = await api.post("/alertas-prazo/verificar");
   return response.data;
 };
+
+// ================================================================
+// ADICIONAR ESTAS FUNÇÕES AO admin_api.js
+// (na secção REQUISITOS PEDIDO, a seguir a validarRequisitoPedidoRequest)
+// ================================================================
+
+/*
+  ==========================================================
+  ANEXOS DO REQUISITO (BACKOFFICE)
+  ==========================================================
+*/
+
+/**
+ * Lista os anexos enviados pelo mutuário para um requisito do pedido.
+ * pedidoRequisitoId = item.id da lista de requisitosPedido
+ */
+export const getAnexosByRequisitoRequest = async (pedidoRequisitoId) => {
+  const response = await api.get(`/anexos/requisito/${pedidoRequisitoId}`);
+  return response.data;
+};
+
+/**
+ * Faz o download de um anexo via axios (envia o header Authorization automaticamente)
+ * e devolve um blob. O authMiddleware só aceita token via header, por isso não dá
+ * para usar um <a href> simples — o browser não envia esse header numa navegação directa.
+ */
+export const downloadAnexoRequest = async (anexoId) => {
+  const response = await api.get(`/anexos/${anexoId}/download`, {
+    responseType: "blob",
+  });
+  return response; // devolve a response completa para extrair o filename dos headers
+};
+
+/*
+  ==========================================================
+  COMPROVATIVOS (BACKOFFICE)
+  ==========================================================
+*/
+
+/**
+ * Lista todos os comprovativos de um pedido.
+ */
+export const getComprovatiosByPedidoRequest = async (pedidoId) => {
+  const response = await api.get(`/comprovativos/pedido/${pedidoId}`);
+  return response.data;
+};
+
+/**
+ * Valida ou rejeita um comprovativo.
+ * Se estado === "VALIDADO", cria automaticamente o reembolso.
+ */
+export const validarComprovatioRequest = async (id, payload) => {
+  const response = await api.patch(`/comprovativos/${id}/validar`, payload);
+  return response.data;
+};
+
+/**
+ * Baixa um comprovativo (via blob, com token no header).
+ */
+export const downloadComprovatioRequest = async (id, nome) => {
+  const response = await api.get(`/comprovativos/${id}/download`, {
+    responseType: "blob",
+  });
+
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", nome || "comprovativo");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};

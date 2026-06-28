@@ -9,7 +9,7 @@ async function anexar (req, res) {
     try {
         const anexo = await Anexo.create({
             pedidoRequisitoId: req.params.id,
-            nome: req.file.orginalname,
+            nome: req.file.originalname,
             arquivo: req.file.filename,
             mimeType: req.file.mimetype,
             tamanho: req.file.size,
@@ -37,7 +37,7 @@ async function listar (req, res) {
 
         return res.json(anexos);
     } catch (error) {
-        comsole.error(error);
+        console.error(error);
 
         return res.status(500).json({
             message: "Erro ao listar anexos"
@@ -59,7 +59,7 @@ async function download (req, res) {
 
         return res.download(
             path.resolve(
-                "uploads/anexos",
+                "upload/anexos",
                 anexo.arquivo
             ),
             anexo.nome

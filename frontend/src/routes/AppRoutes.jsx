@@ -31,13 +31,17 @@ import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
 import RegisterUser from "../pages/auth/RegisterUser";
+import Simulacoes from "../pages/portal/Simulacoes";
+import LandingPage from "../pages/public/LandingPage";
+import MeusCreditos from "../pages/portal/MeusCreditos";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/landing-page" replace />} />
 
+        <Route path="/landing-page" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register-mutuario" element={<RegisterMutuario />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
@@ -122,6 +126,25 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="/portal/meus-creditos"
+          element={
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
+              <PortalLayout>
+                <MeusCreditos />
+              </PortalLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/simulacao/minhas"
+          element={
+              <PortalLayout>
+                <Simulacoes />
+              </PortalLayout>          }
+        />
+
+        <Route
           path="/portal/notificacoes"
           element={
             <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
@@ -145,7 +168,7 @@ export default function AppRoutes() {
 
         <Route
           path="/interno/register-interno"
-           element={
+          element={
             <ProtectedRoute allowedRoles={["ADMIN"]}>
               <BackofficeLayout>
                 <RegisterUser />

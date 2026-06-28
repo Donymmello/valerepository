@@ -1,12 +1,17 @@
+const path = require("path");
 const {
   Mutuario,
   PedidoCredito,
+  PedidoRequisito,
+  RequisitoCredito,
   Desembolso,
   Reembolso,
   User,
+  Anexo,
 } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { STATUS_PEDIDO } = require("../utils/regrasPedido");
+const calcularPrestacao = require("../utils/calCredito");
 
 /*
   ==========================================================
@@ -190,6 +195,10 @@ async function getMeuPedidoById(req, res) {
             {
               association: "requisito",
             },
+            {
+              association: "anexos",
+              required: false,
+            },
           ],
         },
       ],
@@ -227,6 +236,7 @@ async function createMeuPedido(req, res) {
 
     const {
       valorSolicitado,
+      prazo,
       finalidade,
       pacoteFinanciamento,
       prazoAvaliacao,
@@ -246,6 +256,12 @@ async function createMeuPedido(req, res) {
       });
     }
 
+    if (!prazo || Number(prazo) <= 0) {
+      return res.status(400).json({
+        message: "O prazo é obrigatório e deve ser maior que zero.",
+      });
+    }
+
     const mutuario = await obterMeuMutuario(req.user.id);
 
     if (!mutuario) {
@@ -254,12 +270,40 @@ async function createMeuPedido(req, res) {
       });
     }
 
+    const dataSubmissao = new Date();
+
+    // Prazos padrão: 7 dias (não podem ser alterados)
+    const prazoAvaliacaoDate = new Date(dataSubmissao);
+    prazoAvaliacaoDate.setDate(prazoAvaliacaoDate.getDate() + 7);
+
+    const prazoValidacaoDate = new Date(dataSubmissao);
+    prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 7);
+
+    const taxa = 18;
+
+    const prestacao = calcularPrestacao(
+      Number(valorSolicitado),
+      taxa,
+      Number(prazo)
+    );
+
+    const montanteTotal = prestacao * Number(prazo);
+
+    const jurosTotal = montanteTotal - Number(valorSolicitado);
+
     const pedido = await PedidoCredito.create({
       numeroPedido: generateNumeroPedido(),
       mutuarioId: mutuario.id,
       valorSolicitado,
       finalidade,
       pacoteFinanciamento: pacoteFinanciamento || null,
+
+      prazo,
+      taxa,
+      prestacao,
+      jurosTotal,
+      montanteTotal,
+
       status: STATUS_PEDIDO.SUBMETIDO,
       etapaAtual: 1,
       dataSubmissao: new Date(),
@@ -388,10 +432,61 @@ async function getMeuExtratoPedido(req, res) {
   }
 }
 
+async function anexarReqPedido(req, res) {
+  try {
+    const anexo = await Anexo.create({
+      pedidoRequisitoId: req.params.id,
+      nome: req.file.originalname,
+      arquivo: req.file.filename,
+      mimeType: req.file.mimetype,
+      tamanho: req.file.size,
+      userId: req.user.id,
+    });
+
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "UPLOAD_ANEXO_REQUISITO_CREDITO",
+      entidade: "PedidoRequisito",
+      entidadeId: req.params.id,
+      descricao: `Documento ${req.file.originalname} enviado.`,
+    });
+
+    return res.status(201).json(anexo);
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao enviar documento",
+    });
+  }
+}
+
+async function getMeuReqAnexos(req, res) {
+  try {
+    const anexos = await Anexo.findAll({
+      where: {
+        pedidoRequisitoId: req.params.id,
+      },
+      order: [["created_at", "DESC"]],
+    });
+
+    return res.json(anexos);
+  } catch (error) {
+    comsole.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao listar anexos"
+    });
+  }
+}
+
+
 module.exports = {
   getMeuMutuario,
   getMeusPedidos,
   getMeuPedidoById,
   createMeuPedido,
   getMeuExtratoPedido,
+  anexarReqPedido,
+  getMeuReqAnexos,
 };

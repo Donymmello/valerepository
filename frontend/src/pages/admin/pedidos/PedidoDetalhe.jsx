@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -11,12 +11,22 @@ import {
   Paper,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
 import {
+  Assignment as AssignmentIcon,
+  CheckCircleOutline as CheckCircleIcon,
+  Gavel as GavelIcon,
+  Receipt as ReceiptIcon,
+  UploadFile as UploadFileIcon,
+} from "@mui/icons-material";
+import {
   decidirAprovacaoRequest,
   getAprovacoesByPedidoRequest,
+  getExtratoPedidoInternoRequest,
   getPedidoByIdRequest,
 } from "../../../api/admin.api";
 import {
@@ -27,6 +37,13 @@ import {
 } from "../../../utils/formatters";
 import { useAuth } from "../../../context/AuthContext";
 import PedidoRequisitosSection from "../../../pages/admin/pedidos/PedidoRequisitosSection";
+import ComprovativoBackofficeSection from "../../../pages/admin/ComprovativoBackofficeSection";
+
+// ─── Painel de tab ────────────────────────────────────────────────────────────
+function TabPanel({ value, index, children }) {
+  if (value !== index) return null;
+  return <Box pt={3}>{children}</Box>;
+}
 
 export default function PedidoDetalhe() {
   const { id } = useParams();
@@ -38,6 +55,12 @@ export default function PedidoDetalhe() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
   const [successOpen, setSuccessOpen] = useState(false);
+  const [tab, setTab] = useState(0);
+
+  // Extrato
+  const [extrato, setExtrato] = useState(null);
+  const [loadingExtrato, setLoadingExtrato] = useState(false);
+  const [erroExtrato, setErroExtrato] = useState("");
 
   const [form, setForm] = useState({
     nivel: "",
@@ -45,9 +68,7 @@ export default function PedidoDetalhe() {
     comentario: "",
   });
 
-  const podeDecidir = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"].includes(
-    user?.role
-  );
+  const podeDecidir = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"].includes(user?.role);
 
   const carregarDados = async () => {
     try {
@@ -60,24 +81,33 @@ export default function PedidoDetalhe() {
       ]);
 
       setPedido(pedidoData);
-
       setAprovacoes(
-        Array.isArray(aprovacoesData?.aprovacoes)
-          ? aprovacoesData.aprovacoes
-          : []
+        Array.isArray(aprovacoesData?.aprovacoes) ? aprovacoesData.aprovacoes : []
       );
-
       setForm((prev) => ({
         ...prev,
         nivel: String(pedidoData?.etapaAtual || ""),
       }));
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || "Erro ao carregar detalhe do pedido."
-      );
+      setError(err?.response?.data?.message || "Erro ao carregar detalhe do pedido.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarExtrato = async () => {
+    if (extrato) return;
+    try {
+      setLoadingExtrato(true);
+      setErroExtrato("");
+      const data = await getExtratoPedidoInternoRequest(id);
+      setExtrato(data);
+    } catch (err) {
+      console.error(err);
+      setErroExtrato("Erro ao carregar extrato.");
+    } finally {
+      setLoadingExtrato(false);
     }
   };
 
@@ -85,25 +115,19 @@ export default function PedidoDetalhe() {
     carregarDados();
   }, [id]);
 
+  useEffect(() => {
+    if (tab === 3) carregarExtrato();
+  }, [tab]);
+
   const handleChange = (event) => {
-    setForm((prev) => ({
-      ...prev,
-      [event.target.name]: event.target.value,
-    }));
+    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   };
 
   const handleDecidir = async () => {
     setError("");
 
-    if (!form.nivel) {
-      setError("O nível é obrigatório.");
-      return;
-    }
-
-    if (!form.decisao) {
-      setError("Selecione a decisão.");
-      return;
-    }
+    if (!form.nivel) { setError("O nível é obrigatório."); return; }
+    if (!form.decisao) { setError("Selecione a decisão."); return; }
 
     setActionLoading(true);
 
@@ -115,19 +139,11 @@ export default function PedidoDetalhe() {
       });
 
       setSuccessOpen(true);
-
-      setForm((prev) => ({
-        ...prev,
-        decisao: "",
-        comentario: "",
-      }));
-
+      setForm((prev) => ({ ...prev, decisao: "", comentario: "" }));
       await carregarDados();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || "Erro ao registar decisão de aprovação."
-      );
+      setError(err?.response?.data?.message || "Erro ao registar decisão de aprovação.");
     } finally {
       setActionLoading(false);
     }
@@ -142,7 +158,8 @@ export default function PedidoDetalhe() {
   }
 
   return (
-    <Box>
+    <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+      {/* Cabeçalho */}
       <Stack
         direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"
@@ -151,193 +168,324 @@ export default function PedidoDetalhe() {
         mb={3}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={0.5}>
             Detalhe do Pedido
           </Typography>
-
           <Typography variant="body2" color="text.secondary">
             Visualização interna e decisão do pedido de crédito.
           </Typography>
         </Box>
 
-        <Button
-          component={RouterLink}
-          to={`/interno/pedidos/${id}/extrato`}
-          variant="outlined"
-        >
-          Ver Extrato
-        </Button>
+        {pedido && (
+          <Chip
+            label={getStatusLabel(pedido.status)}
+            color={getStatusColor(pedido.status)}
+            sx={{ fontWeight: 700, fontSize: "0.85rem", px: 1 }}
+          />
+        )}
       </Stack>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       {pedido && (
-        <Stack spacing={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              justifyContent="space-between"
-              spacing={2}
-              mb={2}
-            >
+        <>
+          {/* Resumo rápido */}
+          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
+            <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   {pedido.numeroPedido}
                 </Typography>
-
                 <Typography variant="body2" color="text.secondary">
-                  Submetido em {formatDate(pedido.dataSubmissao)}
+                  {pedido.mutuario?.nomeCompleto || "—"} · Submetido em {formatDate(pedido.dataSubmissao)}
                 </Typography>
               </Box>
-
-              <Chip
-                label={getStatusLabel(pedido.status)}
-                color={getStatusColor(pedido.status)}
-              />
-            </Stack>
-
-            <Divider sx={{ my: 2 }} />
-
-            <Stack spacing={1.2}>
-              <Typography>
-                <strong>Mutuário:</strong> {pedido.mutuario?.nomeCompleto || "-"}
-              </Typography>
-
-              <Typography>
-                <strong>Valor Solicitado:</strong>{" "}
-                {formatCurrency(pedido.valorSolicitado)}
-              </Typography>
-
-              <Typography>
-                <strong>Finalidade:</strong> {pedido.finalidade || "-"}
-              </Typography>
-
-              <Typography>
-                <strong>Pacote de Financiamento:</strong>{" "}
-                {pedido.pacoteFinanciamento || "-"}
-              </Typography>
-
-              <Typography>
-                <strong>Etapa Atual:</strong> {pedido.etapaAtual || "-"}
-              </Typography>
-
-              <Typography>
-                <strong>Prazo de Avaliação:</strong>{" "}
-                {formatDate(pedido.prazoAvaliacao)}
-              </Typography>
-
-              <Typography>
-                <strong>Prazo de Validação:</strong>{" "}
-                {formatDate(pedido.prazoValidacao)}
-              </Typography>
-
-              <Typography>
-                <strong>Observações:</strong> {pedido.observacoes || "-"}
-              </Typography>
+              <Box sx={{ textAlign: { md: "right" } }}>
+                <Typography variant="caption" color="text.secondary">
+                  Valor Solicitado
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "#1a237e" }}>
+                  {formatCurrency(pedido.valorSolicitado)}
+                </Typography>
+              </Box>
             </Stack>
           </Paper>
 
-          <PedidoRequisitosSection
-            pedidoId={id}
-            pedidoStatus={pedido?.status}
-            onUpdated={carregarDados}
-          />
+          {/* Tabs */}
+          <Paper sx={{ borderRadius: 3 }}>
+            <Tabs
+              value={tab}
+              onChange={(_, v) => setTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                px: 2,
+                borderBottom: "1px solid #e0e0e0",
+                "& .MuiTab-root": { textTransform: "none", fontWeight: 600, minHeight: 56 },
+              }}
+            >
+              <Tab icon={<AssignmentIcon fontSize="small" />} iconPosition="start" label="Informação" />
+              <Tab icon={<CheckCircleIcon fontSize="small" />} iconPosition="start" label="Requisitos" />
+              <Tab icon={<UploadFileIcon fontSize="small" />} iconPosition="start" label="Comprovativos" />
+              <Tab icon={<ReceiptIcon fontSize="small" />} iconPosition="start" label="Extrato" />
+              {podeDecidir && (
+                <Tab icon={<GavelIcon fontSize="small" />} iconPosition="start" label="Decisão" />
+              )}
+            </Tabs>
 
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
-              Histórico de Aprovações
-            </Typography>
+            <Box sx={{ p: 3 }}>
 
-            {aprovacoes.length ? (
-              <Stack spacing={2}>
-                {aprovacoes.map((item) => (
-                  <Box key={item.id}>
-                    <Typography>
-                      <strong>Nível:</strong> {item.nivel || "-"}
-                    </Typography>
-                    <Typography>
-                      <strong>Decisão:</strong> {item.decisao || "-"}
-                    </Typography>
-                    <Typography>
-                      <strong>Comentário:</strong> {item.comentario || "-"}
-                    </Typography>
-                    <Typography>
-                      <strong>Aprovador:</strong> {item.aprovador?.nome || "-"}
-                    </Typography>
+              {/* ── Tab 0: Informação ─────────────────────────────────── */}
+              <TabPanel value={tab} index={0}>
+                <Stack spacing={1.5} mb={3}>
+                  <Typography>
+                    <strong>Mutuário:</strong> {pedido.mutuario?.nomeCompleto || "-"}
+                  </Typography>
+                  <Typography>
+                    <strong>Finalidade:</strong> {pedido.finalidade || "-"}
+                  </Typography>
+                  <Typography>
+                    <strong>Pacote de Financiamento:</strong> {pedido.pacoteFinanciamento || "-"}
+                  </Typography>
+                  <Typography>
+                    <strong>Etapa Atual:</strong> {pedido.etapaAtual || "-"}
+                  </Typography>
+                  <Typography>
+                    <strong>Prazo de Avaliação:</strong> {formatDate(pedido.prazoAvaliacao)}
+                  </Typography>
+                  <Typography>
+                    <strong>Prazo de Validação:</strong> {formatDate(pedido.prazoValidacao)}
+                  </Typography>
+                  <Typography>
+                    <strong>Observações:</strong> {pedido.observacoes || "-"}
+                  </Typography>
+                </Stack>
+
+                <Divider sx={{ mb: 3 }} />
+
+                <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
+                  Histórico de Aprovações
+                </Typography>
+
+                {aprovacoes.length ? (
+                  <Stack spacing={2}>
+                    {aprovacoes.map((item) => (
+                      <Box key={item.id}>
+                        <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                          <Typography sx={{ fontWeight: 600 }}>
+                            Nível {item.nivel || "-"}
+                          </Typography>
+                          <Chip
+                            label={item.decisao || "Pendente"}
+                            size="small"
+                            color={
+                              item.decisao === "APROVADO" ? "success" :
+                              item.decisao === "REJEITADO" ? "error" : "warning"
+                            }
+                          />
+                        </Stack>
+                        {item.comentario && (
+                          <Typography variant="body2" color="text.secondary">
+                            {item.comentario}
+                          </Typography>
+                        )}
+                        <Typography variant="body2" color="text.secondary">
+                          Aprovador: {item.aprovador?.nome || "-"} · {formatDate(item.dataDecisao)}
+                        </Typography>
+                        <Divider sx={{ mt: 1.5 }} />
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography color="text.secondary">
+                    Ainda não existem aprovações registadas.
+                  </Typography>
+                )}
+              </TabPanel>
+
+              {/* ── Tab 1: Requisitos ─────────────────────────────────── */}
+              <TabPanel value={tab} index={1}>
+                <PedidoRequisitosSection
+                  pedidoId={id}
+                  pedidoStatus={pedido?.status}
+                  onUpdated={carregarDados}
+                />
+              </TabPanel>
+
+              {/* ── Tab 2: Comprovativos ──────────────────────────────── */}
+              <TabPanel value={tab} index={2}>
+                <ComprovativoBackofficeSection
+                  pedidoId={id}
+                  onUpdated={carregarDados}
+                />
+              </TabPanel>
+
+              {/* ── Tab 3: Extrato ────────────────────────────────────── */}
+              <TabPanel value={tab} index={3}>
+                {loadingExtrato ? (
+                  <Stack direction="row" spacing={1} alignItems="center" py={2}>
+                    <CircularProgress size={18} />
                     <Typography variant="body2" color="text.secondary">
-                      Data: {formatDate(item.dataDecisao)}
+                      A carregar extrato...
                     </Typography>
-                    <Divider sx={{ mt: 1.5 }} />
-                  </Box>
-                ))}
-              </Stack>
-            ) : (
-              <Typography color="text.secondary">
-                Ainda não existem aprovações registadas.
-              </Typography>
-            )}
+                  </Stack>
+                ) : erroExtrato ? (
+                  <Alert severity="error">{erroExtrato}</Alert>
+                ) : extrato ? (
+                  <Stack spacing={3}>
+                    {/* Resumo financeiro */}
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Total Desembolsado
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "#0369a1" }}>
+                          {formatCurrency(extrato.resumoFinanceiro?.totalDesembolsado)}
+                        </Typography>
+                      </Paper>
+                      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Total Reembolsado
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "#15803d" }}>
+                          {formatCurrency(extrato.resumoFinanceiro?.totalReembolsado)}
+                        </Typography>
+                      </Paper>
+                      <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, flex: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Saldo em Aberto
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "#b45309" }}>
+                          {formatCurrency(extrato.resumoFinanceiro?.saldoEmAberto)}
+                        </Typography>
+                      </Paper>
+                    </Stack>
+
+                    {/* Desembolsos */}
+                    {extrato.desembolsos?.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
+                          Desembolsos
+                        </Typography>
+                        <Stack spacing={1}>
+                          {extrato.desembolsos.map((d) => (
+                            <Paper key={d.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#0369a1" }}>
+                                    {formatCurrency(d.valorDesembolsado)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {d.meioPagamento} · {formatDate(d.dataDesembolso)}
+                                  </Typography>
+                                </Box>
+                                {d.referencia && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Ref: {d.referencia}
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {/* Reembolsos */}
+                    {extrato.reembolsos?.length > 0 && (
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
+                          Reembolsos
+                        </Typography>
+                        <Stack spacing={1}>
+                          {extrato.reembolsos.map((r) => (
+                            <Paper key={r.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600, color: "#15803d" }}>
+                                    {formatCurrency(r.valorReembolsado)}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {r.meioPagamento} · {formatDate(r.dataReembolso)}
+                                  </Typography>
+                                </Box>
+                                {r.referencia && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Ref: {r.referencia}
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+
+                    {!extrato.desembolsos?.length && !extrato.reembolsos?.length && (
+                      <Typography color="text.secondary">
+                        Ainda não existem movimentos financeiros neste pedido.
+                      </Typography>
+                    )}
+                  </Stack>
+                ) : null}
+              </TabPanel>
+
+              {/* ── Tab 4: Decisão (só para quem pode decidir) ───────── */}
+              {podeDecidir && (
+                <TabPanel value={tab} index={4}>
+                  <Stack spacing={2.5}>
+                    <TextField
+                      fullWidth
+                      label="Nível"
+                      name="nivel"
+                      value={form.nivel}
+                      onChange={handleChange}
+                      type="number"
+                      InputProps={{ readOnly: true }}
+                      helperText="Este valor segue a etapa actual do pedido."
+                    />
+
+                    <TextField
+                      select
+                      fullWidth
+                      label="Decisão"
+                      name="decisao"
+                      value={form.decisao}
+                      onChange={handleChange}
+                    >
+                      <MenuItem value="">Selecionar</MenuItem>
+                      <MenuItem value="APROVADO">Aprovar</MenuItem>
+                      <MenuItem value="REJEITADO">Rejeitar</MenuItem>
+                    </TextField>
+
+                    <TextField
+                      fullWidth
+                      label="Comentário"
+                      name="comentario"
+                      multiline
+                      minRows={4}
+                      value={form.comentario}
+                      onChange={handleChange}
+                    />
+
+                    <Box>
+                      <Button
+                        variant="contained"
+                        onClick={handleDecidir}
+                        disabled={actionLoading}
+                        size="large"
+                        sx={{ borderRadius: 2, px: 4 }}
+                      >
+                        {actionLoading ? "A guardar..." : "Guardar Decisão"}
+                      </Button>
+                    </Box>
+                  </Stack>
+                </TabPanel>
+              )}
+
+            </Box>
           </Paper>
-
-          {podeDecidir && (
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
-                Registar Decisão
-              </Typography>
-
-              <Stack spacing={2}>
-                <TextField
-                  fullWidth
-                  label="Nível"
-                  name="nivel"
-                  value={form.nivel}
-                  onChange={handleChange}
-                  type="number"
-                  InputProps={{
-                    readOnly: true,
-                  }}
-                  helperText="Este valor segue a etapa atual do pedido."
-                />
-
-                <TextField
-                  select
-                  fullWidth
-                  label="Decisão"
-                  name="decisao"
-                  value={form.decisao}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="">Selecionar</MenuItem>
-                  <MenuItem value="APROVADO">Aprovar</MenuItem>
-                  <MenuItem value="REJEITADO">Rejeitar</MenuItem>
-                </TextField>
-
-                <TextField
-                  fullWidth
-                  label="Comentário"
-                  name="comentario"
-                  multiline
-                  minRows={4}
-                  value={form.comentario}
-                  onChange={handleChange}
-                />
-
-                <Box>
-                  <Button
-                    variant="contained"
-                    onClick={handleDecidir}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? "A guardar..." : "Guardar Decisão"}
-                  </Button>
-                </Box>
-              </Stack>
-            </Paper>
-          )}
-        </Stack>
+        </>
       )}
 
       <Snackbar
