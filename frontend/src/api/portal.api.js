@@ -151,3 +151,13 @@ export const downloadComprovatioRequest = async (id, nome) => {
   link.remove();
   window.URL.revokeObjectURL(url);
 };
+
+export const getMeusCreditosRequest = async () => {
+    const response = await api.get("/portal/meus-creditos");
+    return response.data;
+};
+
+export const getMeuCreditoRequest = async (id) => {
+    const response = await api.get(`/portal/meus-creditos/${id}`);
+    return response.data;
+};

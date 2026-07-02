@@ -19,6 +19,15 @@ export const simularCreditoRequest = async ({ valorSolicitado, prazo }) => {
   return response.data;
 };
 
+export const simularCalculoCreditoRequest = async (payload) => {
+    const response = await api.post(
+        "/simulacao/calcular",
+        payload
+    );
+
+    return response.data;
+};
+
 /**
  * Associa uma simulação anónima (feita antes do login) ao
  * user que acabou de se autenticar. Requer token válido.

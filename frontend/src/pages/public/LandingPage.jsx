@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import { AccountBalanceWallet, Speed, Security, CheckCircleOutline } from '@mui/icons-material';
 import { simularCreditoRequest } from '../../api/public.api';
+//import { simularCalculoCreditoRequest } from '../../api/public.api';
 import { useAuth } from "../../context/AuthContext";
 
 

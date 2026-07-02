@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "db:sync": "node scripts/syncDatabase.js",
+    "db:reset": "node scripts/resetDatabase.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },

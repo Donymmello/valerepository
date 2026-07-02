@@ -127,8 +127,49 @@ async function reclamarSimulacao(req, res) {
   }
 }
 
+async function calcular(req, res) {
+  try {
+    const { valorSolicitado, prazo } = req.body;
+
+    if (!valorSolicitado || !prazo) {
+      return res.status(400).json({
+        message: "Valor e prazo são obrigatórios.",
+      });
+    }
+
+    const taxa = 18;
+
+    const prestacao = calcularPrestacao(
+      Number(valorSolicitado),
+      taxa,
+      Number(prazo)
+    );
+
+    const montanteTotal = prestacao * Number(prazo);
+
+    const jurosTotal =
+      montanteTotal - Number(valorSolicitado);
+
+    return res.json({
+      valorSolicitado,
+      prazo,
+      taxa,
+      prestacao,
+      jurosTotal,
+      montanteTotal,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao calcular crédito.",
+    });
+  }
+}
+
 module.exports = {
   simular,
   listarMinhasSimulacoes,
   reclamarSimulacao,
+  calcular
 };

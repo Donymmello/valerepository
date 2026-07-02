@@ -9,9 +9,11 @@ const {
   getMeuPedidoById,
   createMeuPedido,
   anexarReqPedido,
-  getMeusRequisitos,
   getMeuExtratoPedido,
   getMeuReqAnexos,
+  getMeusCreditos,
+  getMeuCreditoById,
+  updateMeuMutuario,
 } = require("../controllers/portalMutuario.controller");
 
 /*
@@ -24,6 +26,12 @@ router.get(
   "/portal/meu-mutuario",
   authMiddleware,
   getMeuMutuario
+);
+
+router.put(
+  "/portal/meu-mutuario",
+  authMiddleware,
+  updateMeuMutuario
 );
 
 router.get(
@@ -55,6 +63,18 @@ router.get(
   "/portal/meus-pedidos/:id/extrato",
   authMiddleware,
   getMeuExtratoPedido
+);
+
+router.get(
+  "/portal/meus-creditos",
+  authMiddleware,
+  getMeusCreditos
+);
+
+router.get(
+  "/portal/meus-creditos/:id",
+  authMiddleware,
+  getMeuCreditoById
 );
 
 module.exports = router;

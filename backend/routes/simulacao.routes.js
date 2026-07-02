@@ -6,6 +6,7 @@ const optionalAuthMiddleware = require("../middleware/optionalAuth.middleware");
 
 const {
   simular,
+  calcular,
   listarMinhasSimulacoes,
   reclamarSimulacao,
 } = require("../controllers/simulacao.controller");
@@ -15,6 +16,8 @@ const {
   Se vier token válido, a simulação já fica associada ao user.
 */
 router.post("/simular", optionalAuthMiddleware, simular);
+
+router.post("/calcular", calcular);
 
 /*
   Protegida: histórico de simulações do user autenticado.

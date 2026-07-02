@@ -12,6 +12,8 @@ import MeusPedidos from "../pages/portal/MeusPedidos";
 import CriarPedido from "../pages/portal/CriarPedido";
 import DetalhePedido from "../pages/portal/DetalhePedido";
 import ExtratoPedido from "../pages/portal/ExtratoPedido";
+import MeusCreditos from "../pages/portal/MeusCreditos";
+import DetalheCredito from "../pages/portal/DetalheCredito";
 import DashboardInterno from "../pages/admin/DashboardInterno";
 import PortalLayout from "../components/layout/PortalLayout";
 import BackofficeLayout from "../components/layout/BackofficeLayout";
@@ -23,17 +25,16 @@ import AprovacoesList from "../pages/admin/aprovacoes/AprovacoesList";
 import DesembolsosList from "../pages/admin/desembolsos/DesembolsosList";
 import ReembolsosList from "../pages/admin/reembolsos/ReembolsosList";
 import RelatoriosList from "../pages/admin/relatorios/RelatoriosList";
-import RequisitosCreditoList from "../pages/admin/requistos/RequisitosCreditoList";
+import RequisitosCreditoList from "../pages/admin/requisitos/RequisitosCreditoList";
 import MinhasNotificacoes from "../pages/admin/notificacoes/MinhasNotificacoes";
-import Notificacoes from "../pages/portal/Notifacacoes";
+import Notificacoes from "../pages/portal/Notificacoes";
 import LogsAuditoriaList from "../pages/admin/auditoria/LogsAuditoriaList";
 import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
 import RegisterUser from "../pages/auth/RegisterUser";
-import Simulacoes from "../pages/portal/Simulacoes";
 import LandingPage from "../pages/public/LandingPage";
-import MeusCreditos from "../pages/portal/MeusCreditos";
+
 
 export default function AppRoutes() {
   return (
@@ -102,7 +103,29 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
+ 
+        <Route
+          path="/portal/meus-creditos"
+          element={
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
+              <PortalLayout>
+                <MeusCreditos />
+              </PortalLayout>
+            </ProtectedRoute>
+          }
+        />
+ 
+        <Route
+          path="/portal/meus-creditos/:id"
+          element={
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
+              <PortalLayout>
+                <DetalheCredito />
+              </PortalLayout>
+            </ProtectedRoute>
+          }
+        />
+ 
         <Route
           path="/portal/meus-pedidos/:id"
           element={
@@ -123,25 +146,6 @@ export default function AppRoutes() {
               </PortalLayout>
             </ProtectedRoute>
           }
-        />
-
-        <Route
-          path="/portal/meus-creditos"
-          element={
-            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
-              <PortalLayout>
-                <MeusCreditos />
-              </PortalLayout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/simulacao/minhas"
-          element={
-              <PortalLayout>
-                <Simulacoes />
-              </PortalLayout>          }
         />
 
         <Route
@@ -168,7 +172,7 @@ export default function AppRoutes() {
 
         <Route
           path="/interno/register-interno"
-          element={
+           element={
             <ProtectedRoute allowedRoles={["ADMIN"]}>
               <BackofficeLayout>
                 <RegisterUser />

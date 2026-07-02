@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon,
-  CalculateOutlined as CalculateIcon,
+  AccountBalance as AccountBalanceIcon,
   Person as PersonIcon,
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
@@ -189,7 +189,7 @@ export default function DashboardMutuario() {
         <Grid item xs={12} sm={6} md={3}>
           <Paper
             component={RouterLink}
-            to="/simulacao/minhas"
+            to="/portal/meus-creditos"
             sx={{
               p: 3, borderRadius: 3, height: "100%", textDecoration: "none",
               display: "flex", flexDirection: "column", gap: 1,
@@ -198,12 +198,12 @@ export default function DashboardMutuario() {
               transition: "all 0.15s",
             }}
           >
-            <CalculateIcon sx={{ color: "#1a237e", fontSize: 32 }} />
+            <AccountBalanceIcon sx={{ color: "#1a237e", fontSize: 32 }} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Simulações
+              Meus Créditos
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Veja o histórico das suas simulações.
+              Veja o estado dos seus créditos.
             </Typography>
           </Paper>
         </Grid>

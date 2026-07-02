@@ -18,6 +18,7 @@ const Reembolso = sequelize.define(
       type: DataTypes.INTEGER,
         allowNull: false,
         field: 'pedido_id',
+
     },
     valorReembolsado: {
       type: DataTypes.DECIMAL(12, 2),

@@ -9,7 +9,7 @@ const ParcelaPagamento = sequelize.define(
             autoIncrement: true,
             primaryKey: true,
         },
-        pedidoId: {
+        creditoId: {
             type: DataTypes.INTEGER,
             allowNull: false,
         },

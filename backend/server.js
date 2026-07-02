@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { sequelize } = require("./models");
+const syncDatabase = require("./config/databaseSync");
 require("dotenv").config();
 
 // Importar middlewares de monitoramento
@@ -127,8 +128,8 @@ async function startServer() {
     });
 
     // Sincroniza os models com a base de dados
-    await sequelize.sync({ alter: true });
-    logger.info("Models sincronizados com sucesso.");
+    await syncDatabase();
+    
 
     // Inicia o servidor HTTP
     app.listen(PORT, () => {

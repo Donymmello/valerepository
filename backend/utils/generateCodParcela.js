@@ -1,20 +1,19 @@
 function generateCodParcela({
-  pedidoId,
-  valorTotal,
+  creditoId,
+  prestacao,
   numeroParcelas,
   primeiraDataVencimento,
 }) {
   const parcelas = [];
-  const valorBase = Number(valorTotal) / Number(numeroParcelas);
 
-  for (let i = 0; i < numeroParcelas; i++) {
+  for (let i = 0; i < Number(numeroParcelas); i++) {
     const data = new Date(primeiraDataVencimento);
     data.setMonth(data.getMonth() + i);
 
     parcelas.push({
-      pedidoId,
+      creditoId,
       numeroParcela: i + 1,
-      valorPrevisto: Number(valorBase.toFixed(2)),
+      valorPrevisto: Number(prestacao),
       dataVencimento: data.toISOString().split("T")[0],
       estado: "PENDENTE",
     });

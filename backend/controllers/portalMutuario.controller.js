@@ -9,6 +9,7 @@ const {
   User,
   Anexo,
 } = require("../models");
+const CreditoService = require("../services/credito.service");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
@@ -91,6 +92,61 @@ async function getMeuMutuario(req, res) {
 
     return res.status(500).json({
       message: "Erro interno ao buscar dados do mutuário.",
+      error: error.message,
+    });
+  }
+}
+
+async function updateMeuMutuario(req, res) {
+  try {
+    if (!garantirPerfilUser(req, res)) return;
+
+    const mutuario = await obterMeuMutuario(req.user.id);
+
+    if (!mutuario) {
+      return res.status(404).json({
+        message: "Não existe mutuário associado a este utilizador.",
+      });
+    }
+
+    const {
+      nomeCompleto,
+      telefone,
+      provincia,
+      distrito,
+      localResidencia,
+      email,
+    } = req.body;
+
+    if (!nomeCompleto || !nomeCompleto.trim()) {
+      return res.status(400).json({
+        message: "O nome completo é obrigatório.",
+      });
+    }
+
+    await mutuario.update({
+      nomeCompleto: nomeCompleto.trim(),
+      telefone: telefone || null,
+      provincia: provincia || null,
+      distrito: distrito || null,
+      localResidencia: localResidencia || null,
+      email: email || null,
+    });
+
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "ATUALIZAR_MEU_MUTUARIO",
+      entidade: "Mutuario",
+      entidadeId: mutuario.id,
+      descricao: `Mutuário ${mutuario.codigoMutuario} atualizado pelo próprio usuário.`,
+    });
+
+    return res.status(200).json(mutuario);
+  } catch (error) {
+    console.error("Erro ao atualizar meu mutuário:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao atualizar dados do mutuário.",
       error: error.message,
     });
   }
@@ -472,7 +528,7 @@ async function getMeuReqAnexos(req, res) {
 
     return res.json(anexos);
   } catch (error) {
-    comsole.error(error);
+    console.error(error);
 
     return res.status(500).json({
       message: "Erro ao listar anexos"
@@ -480,13 +536,95 @@ async function getMeuReqAnexos(req, res) {
   }
 }
 
+/*
+==========================================================
+LISTAR MEUS CRÉDITOS
+==========================================================
+*/
+async function getMeusCreditos(req, res) {
+  try {
+    if (!garantirPerfilUser(req, res)) return;
+
+    const mutuario = await obterMeuMutuario(req.user.id);
+
+    if (!mutuario) {
+      return res.status(404).json({
+        message: "Mutuário não encontrado.",
+      });
+    }
+
+    const creditos =
+      await CreditoService.listarMeusCreditos(
+        mutuario.id
+      );
+
+    return res.status(200).json(creditos);
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao listar créditos.",
+      error: error.message,
+    });
+
+  }
+}
+
+/*
+==========================================================
+DETALHE DO MEU CRÉDITO
+==========================================================
+*/
+async function getMeuCreditoById(req, res) {
+  try {
+    if (!garantirPerfilUser(req, res)) return;
+
+    const mutuario = await obterMeuMutuario(req.user.id);
+
+    if (!mutuario) {
+      return res.status(404).json({
+        message: "Mutuário não encontrado.",
+      });
+    }
+
+    const credito =
+      await CreditoService.buscarMeuCredito(
+        req.params.id,
+        mutuario.id
+      );
+
+    if (!credito) {
+      return res.status(404).json({
+        message: "Crédito não encontrado.",
+      });
+    }
+
+    return res.status(200).json(credito);
+
+  } catch (error) {
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Erro ao obter crédito.",
+      error: error.message,
+    });
+
+  }
+}
+
 
 module.exports = {
   getMeuMutuario,
+  updateMeuMutuario,
   getMeusPedidos,
   getMeuPedidoById,
   createMeuPedido,
   getMeuExtratoPedido,
   anexarReqPedido,
   getMeuReqAnexos,
+  getMeusCreditos,
+  getMeuCreditoById,
 };

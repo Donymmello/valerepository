@@ -26,7 +26,7 @@ export default function PortalLayout({ children }) {
     { label: "Meu Perfil", to: "/portal/meu-mutuario" },
     { label: "Meus Pedidos", to: "/portal/meus-pedidos" },
     { label: "Criar Pedido", to: "/portal/criar-pedido" },
-    { label: "Simulações", to: "/simulacao/minhas" },
+    //{ label: "Simulações", to: "/simulacao/minhas" },
     { label: "Meus Créditos", to: "/portal/meus-creditos" },
     { label: "Notificações", to: "/portal/notificacoes" },
   ];

@@ -48,7 +48,7 @@ export default function RegisterUser() {
       if (role === "MUTUARIO" || role === "USER") {
         navigate("/portal");
       } else {
-        navigate("/interno");
+        navigate("/login");
       }
     } catch (err) {
       console.error(err);

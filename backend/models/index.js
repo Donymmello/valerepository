@@ -4,6 +4,11 @@ const sequelize = require("../config/db");
 const User = require("./user.model");
 const Mutuario = require("./mutuario.model");
 const PedidoCredito = require("./pedidoCredito.model");
+const Credito = require("./credito.model");
+const ParcelaPagamento = require("./parcelaPagamento.model");
+const Comprovativo = require("./comprovativo.model");
+const Anexo = require("./anexo.model");
+const Simulacao = require("./simulacao.model");
 const AprovacaoPedido = require("./aprovacaoPedido.model");
 const Notificacao = require("./notificacao.model");
 const LogAuditoria = require("./logAuditoria.model");
@@ -11,12 +16,8 @@ const Desembolso = require("./desembolso.model");
 const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
-const ParcelaPagamento = require("./parcelaPagamento.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
-const Anexo = require("./anexo.model");
-const Simulacao = require("./simulacao.model");
-const Comprovativo = require("./comprovativo.model");
 
 /*
   =========================
@@ -193,16 +194,6 @@ PedidoRequisito.belongsTo(RequisitoCredito, {
   as: "requisito",
 });
 
-PedidoRequisito.hasMany(Anexo, {
-  foreignKey: "pedidoRequisitoId",
-  as: "anexos",
-});
-
-Anexo.belongsTo(PedidoRequisito, {
-  foreignKey: "pedidoRequisitoId",
-  as: "pedidoRequisito",
-});
-
 /*
   Um utilizador pode validar vários requisitos de pedido.
 */
@@ -214,6 +205,31 @@ User.hasMany(PedidoRequisito, {
 PedidoRequisito.belongsTo(User, {
   foreignKey: "validadoPor",
   as: "validador",
+});
+
+PedidoRequisito.hasMany(Anexo, {
+  foreignKey: "pedidoRequisitoId",
+  as: "anexos",
+});
+
+Anexo.belongsTo(PedidoRequisito, {
+  foreignKey: "pedidoRequisitoId",
+  as: "pedidoRequisito",
+});
+
+Credito.belongsTo(PedidoCredito, {
+  foreignKey: "pedidoId",
+  as: "pedido",
+});
+
+Credito.hasMany(ParcelaPagamento, {
+  foreignKey: "creditoId",
+  as: "parcelas",
+});
+
+ParcelaPagamento.belongsTo(Credito, {
+  foreignKey: "creditoId",
+  as: "credito",
 });
 
 PedidoCredito.hasMany(Desembolso, {
@@ -229,7 +245,6 @@ Desembolso.belongsTo(PedidoCredito, {
 /*
   Um pedido pode ter várias parcelas de pagamento.
 */
-
 PedidoCredito.hasMany(ParcelaPagamento, {
   foreignKey: "pedidoId",
   as: "parcelas",
@@ -240,43 +255,13 @@ ParcelaPagamento.belongsTo(PedidoCredito, {
   as: "pedido",
 });
 
-User.hasMany(Simulacao, {
-  foreignKey: "userId",
-  as: "simulacoes",
-});
-
-Simulacao.belongsTo(User, {
-  foreignKey: "userId",
-  as: "user",
-});
-
-Comprovativo.belongsTo(User, {
-  foreignKey: "userId",
-  as: "remetente",
-});
-
-Comprovativo.belongsTo(User, {
-  foreignKey: "validadoPor",
-  as: "validador",
-});
-
-
-PedidoCredito.hasMany(Comprovativo, {
-  foreignKey: "pedidoId",
-  as: "comprovativos",
-});
-
-Comprovativo.belongsTo(PedidoCredito, {
-  foreignKey: "pedidoId",
-  as: "pedido",
-});
-
 
 module.exports = {
   sequelize,
   User,
   Mutuario,
   PedidoCredito,
+  Credito,
   AprovacaoPedido,
   Notificacao,
   LogAuditoria,
@@ -285,9 +270,9 @@ module.exports = {
   RequisitoCredito,
   PedidoRequisito,
   ParcelaPagamento,
-  PasswordResetToken,
-  EmailVerificationToken,
+  Comprovativo,
   Anexo,
   Simulacao,
-  Comprovativo,
+  PasswordResetToken,
+  EmailVerificationToken,
 };

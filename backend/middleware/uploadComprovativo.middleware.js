@@ -10,7 +10,7 @@ const fs = require("fs");
   Reutiliza a mesma lógica do upload.middleware existente.
 */
 
-const UPLOAD_DIR = "uploads/comprovativos";
+const UPLOAD_DIR = "upload/comprovativos";
 
 // Garante que a pasta existe ao arrancar
 if (!fs.existsSync(UPLOAD_DIR)) {
