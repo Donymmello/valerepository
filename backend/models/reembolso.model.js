@@ -14,11 +14,17 @@ const Reembolso = sequelize.define(
       autoIncrement: true,
         primaryKey: true,
     },
-    pedidoId: {
-      type: DataTypes.INTEGER,
-        allowNull: false,
-        field: 'pedido_id',
 
+    creditoId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: 'credito_id'
+    },
+
+    parcelaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: 'parcela_id'
     },
     valorReembolsado: {
       type: DataTypes.DECIMAL(12, 2),

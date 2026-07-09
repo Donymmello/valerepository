@@ -5,11 +5,12 @@ const authMiddleware = require("../middleware/auth.middleware");
 const authorizeRoles = require("../middleware/role.middleware");
 
 const {
+  dashboardFinanceiro,
   getResumoGeral,
   getRelatorioPedidos,
   getRelatorioFinanceiroPedidos,
   getRelatorioDesembolsos,
-  getRelatorioReembolsos
+  getRelatorioReembolsos,
 } = require("../controllers/relatorio.controller");
 
 /*
@@ -17,6 +18,13 @@ const {
   ROTAS DE RELATÓRIOS
   ==========================================================
 */  
+
+router.get(
+  "/dashboard",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  dashboardFinanceiro
+);
 
 router.get(
   "/resumo-geral",

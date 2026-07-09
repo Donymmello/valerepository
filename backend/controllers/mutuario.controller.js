@@ -1,6 +1,6 @@
 const { Mutuario, User, PedidoCredito } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
+const { generateCodigoMutuario } = require("../utils/generateCode");
 
 /*
   ==========================================================

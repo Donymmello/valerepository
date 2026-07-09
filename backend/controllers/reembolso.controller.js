@@ -1,82 +1,64 @@
-const { Reembolso, PedidoCredito, User, Desembolso } = require("../models");
+const { Reembolso, Credito, ParcelaPagamento, User, Desembolso } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-const generateReferencia = require("../utils/generateReferencia");
+const { generateReferencia } = require("../utils/generateCode");
+const CreditoService = require("../services/credito.service");
 const {
   podeRegistrarReembolso,
-  STATUS_PEDIDO,
-} = require("../utils/regrasPedido");
+  ESTADO_CREDITO,
+} = require("../utils/regrasCredito");
 
 /*
     ==========================================================
     FUNÇÃO AUXILIAR PARA CALCULAR O ESTADO FINANCEIRO DO PEDIDO
-    SE O PEDIDO ESTIVER TOTALMENTE PAGO, FECHA AUTOMATICAMENTE
+    SE O CRÉDITO ESTIVER TOTALMENTE REEMBOLSADO, FECHA AUTOMATICAMENTE
+    
+    NOTA: Agora usa estado "LIQUIDADO" do Credito (não STATUS_PEDIDO.ENCERRADO)
     ==========================================================
 */
-async function calcularEstadoFinanceiro(pedidoId, userId) {
+async function calcularEstadoFinanceiro(creditoId, userId) {
   /*
-    Buscar todos os desembolsos do pedido
+    Buscar o crédito
   */
-  const desembolsos = await Desembolso.findAll({
-    where: { pedidoId },
-  });
+  const credito = await Credito.findByPk(creditoId);
 
-  /*
-    Buscar todos os reembolsos do pedido
-  */
-  const reembolsos = await Reembolso.findAll({
-    where: { pedidoId },
-  });
+  if (!credito) return;
 
   /*
-    Soma o total desembolsado
+    Se o crédito foi liquidado pelo CreditoService,
+    registar evento de auditoria
   */
-  const totalDesembolsado = desembolsos.reduce((total, item) => {
-    return total + Number(item.valorDesembolsado || 0);
-  }, 0);
-
-  /*
-    Soma o total reembolsado
-  */
-  const totalReembolsado = reembolsos.reduce((total, item) => {
-    return total + Number(item.valorReembolsado || 0);
-  }, 0);
-
-  const pedido = await PedidoCredito.findByPk(pedidoId);
-
-  if (!pedido) return;
-
-  /*
-    Se o pedido tiver sido totalmente reembolsado,
-    fecha automaticamente
-  */
-  if (
-    totalDesembolsado > 0 &&
-    totalReembolsado >= totalDesembolsado &&
-    pedido.status !== STATUS_PEDIDO.ENCERRADO
-  ) {
-    await pedido.update({
-      status: STATUS_PEDIDO.ENCERRADO,
-    });
-
+  if (credito.estado === "LIQUIDADO") {
     await registrarLogAuditoria({
       userId,
-      acao: "ENCERRAR_PEDIDO_AUTOMATICAMENTE",
-      entidade: "PedidoCredito",
-      entidadeId: pedidoId,
-      descricao: `Pedido ${pedido.numeroPedido} encerrado automaticamente após reembolso total.`,
+      acao: "CREDITO_LIQUIDADO_POR_REEMBOLSO",
+      entidade: "Credito",
+      entidadeId: creditoId,
+      descricao: `Crédito ${credito.numeroContrato} foi liquidado automaticamente após reembolso total.`,
     });
   }
 }
 
 /*
     ==========================================================
-    CONTROLADOR DE REEMBOLSO
+    CRIAR REEMBOLSO
+    
+    FLUXO:
+    1. Validar entrada e permissões
+    2. Gerar referência
+    3. Criar registro Reembolso
+    4. Chamar CreditoService.registarReembolso() para orquestrar atualizações:
+       - Atualizar parcela (PAGO)
+       - Atualizar saldo do crédito
+       - Se saldo <= 0, marcar como LIQUIDADO
+    5. Registar auditoria
+    6. Retornar resultado
     ==========================================================
 */
 async function createReembolso(req, res) {
   try {
     const {
-      pedidoId,
+      creditoId,
+      parcelaId,
       valorReembolsado,
       dataReembolso,
       meioPagamento,
@@ -84,9 +66,10 @@ async function createReembolso(req, res) {
       observacoes,
     } = req.body;
 
-    if (!pedidoId || !valorReembolsado) {
+    // Validações básicas
+    if (!creditoId || !valorReembolsado) {
       return res.status(400).json({
-        message: "pedidoId e valorReembolsado são obrigatórios.",
+        message: "creditoId e valorReembolsado são obrigatórios.",
       });
     }
 
@@ -96,29 +79,31 @@ async function createReembolso(req, res) {
       });
     }
 
-    const pedido = await PedidoCredito.findByPk(pedidoId);
+    // Buscar crédito
+    const credito = await Credito.findByPk(creditoId);
 
-    if (!pedido) {
+    if (!credito) {
       return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
+        message: "Crédito não encontrado.",
       });
     }
 
     /*
-      Regra forte:
-      valida perfil + status permitido para reembolso
+      Regra forte: validar perfil + status permitido para reembolso
     */
-    if (!podeRegistrarReembolso(req.user, pedido)) {
+    if (!podeRegistrarReembolso(req.user, credito)) {
       return res.status(403).json({
         message:
-          "Não tens permissão para registar reembolso neste pedido ou o status atual não permite.",
+          "Não tens permissão para registar reembolso neste crédito ou o status atual não permite.",
       });
     }
 
-    const referencia = await generateReferencia();
-
+    // ================================================================
+    // PASSO 1: Criar registro de Reembolso
+    // ================================================================
     const reembolso = await Reembolso.create({
-      pedidoId,
+      creditoId,
+      parcelaId: parcelaId || null,
       valorReembolsado,
       dataReembolso: dataReembolso || new Date(),
       meioPagamento: meioPagamento || "TRANSFERENCIA",
@@ -128,25 +113,58 @@ async function createReembolso(req, res) {
       createdBy: req.user.id,
     });
 
+    // ================================================================
+    // PASSO 2: Orquestrar as atualizações financeiras
+    // ================================================================
+    // Chamar CreditoService para:
+    // - Atualizar a parcela (PAGO)
+    // - Atualizar saldo do crédito (totalPago, saldoAtual)
+    // - Se saldo <= 0, marcar como LIQUIDADO
+    const resultado = await CreditoService.registarReembolso(
+      creditoId,
+      parcelaId || null,
+      valorReembolsado,
+      dataReembolso ? new Date(dataReembolso) : new Date()
+    );
+
+    // ================================================================
+    // PASSO 3: Registar auditoria
+    // ================================================================
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "CRIAR_REEMBOLSO",
       entidade: "Reembolso",
       entidadeId: reembolso.id,
-      descricao: `Reembolso de ${valorReembolsado} criado para pedido ${pedido.numeroPedido}.`,
+      descricao: `Reembolso de ${valorReembolsado} criado para crédito ${credito.numeroContrato}.`,
     });
 
-    /*
-      Recalcula e encerra o pedido se tiver sido totalmente reembolsado
-    */
-    await calcularEstadoFinanceiro(pedidoId, req.user.id);
+    // ================================================================
+    // PASSO 4: Calcular estado financeiro (verifica se foi liquidado)
+    // ================================================================
+    await calcularEstadoFinanceiro(creditoId, req.user.id);
 
-    const pedidoAtualizado = await PedidoCredito.findByPk(pedidoId);
+    // ================================================================
+    // PASSO 5: Retornar resposta com dados atualizados
+    // ================================================================
+    const creditoAtualizado = await Credito.findByPk(creditoId);
 
     return res.status(201).json({
       message: "Reembolso criado com sucesso.",
       reembolso,
-      pedido: pedidoAtualizado,
+      credito: {
+        id: creditoAtualizado.id,
+        numeroContrato: creditoAtualizado.numeroContrato,
+        estado: creditoAtualizado.estado,
+        saldoAtual: creditoAtualizado.saldoAtual,
+        totalPago: creditoAtualizado.totalPago,
+        montanteTotal: creditoAtualizado.montanteTotal,
+      },
+      parcela: resultado.parcela ? {
+        id: resultado.parcela.id,
+        numeroParcela: resultado.parcela.numeroParcela,
+        estado: resultado.parcela.estado,
+        dataPagamento: resultado.parcela.dataPagamento,
+      } : null,
     });
   } catch (error) {
     console.error("Erro ao criar reembolso:", error);
@@ -168,8 +186,12 @@ async function getAllReembolsos(req, res) {
     const reembolsos = await Reembolso.findAll({
       include: [
         {
-          model: PedidoCredito,
-          as: "pedido",
+          model: Credito,
+          as: "credito",
+        },
+        {
+          model: ParcelaPagamento,
+          as: "parcela",
         },
         {
           model: User,
@@ -193,19 +215,19 @@ async function getAllReembolsos(req, res) {
 
 /*
     ==========================================================
-    LISTAR REEMBOLSOS POR PEDIDO
+    LISTAR REEMBOLSOS POR CRÉDITO
     ==========================================================
 */
-async function getReembolsoByPedido(req, res) {
+async function getReembolsoByCredito(req, res) {
   try {
-    const { pedidoId } = req.params;
+    const { creditoId } = req.params;
 
     const reembolsos = await Reembolso.findAll({
-      where: { pedidoId },
+      where: { creditoId },
       include: [
         {
-          model: PedidoCredito,
-          as: "pedido",
+          model: Credito,
+          as: "credito",
         },
         {
           model: User,
@@ -213,15 +235,59 @@ async function getReembolsoByPedido(req, res) {
           attributes: ["id", "nome", "email", "role"],
         },
       ],
-      order: [["id", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
 
     return res.status(200).json(reembolsos);
   } catch (error) {
-    console.error("Erro ao listar reembolsos por pedido:", error);
+    console.error("Erro ao listar reembolsos por crédito:", error);
 
     return res.status(500).json({
-      message: "Erro interno ao listar reembolsos por pedido.",
+      message: "Erro interno ao listar reembolsos por crédito.",
+      error: error.message,
+    });
+  }
+}
+
+/*
+    ==========================================================
+    OBTER DETALHES DE UM REEMBOLSO
+    ==========================================================
+*/
+async function obterReembolso(req, res) {
+  try {
+    const { reembolsoId } = req.params;
+
+    const reembolso = await Reembolso.findByPk(reembolsoId, {
+      include: [
+        {
+          model: Credito,
+          as: "credito",
+        },
+        {
+          model: ParcelaPagamento,
+          as: "parcela",
+        },
+        {
+          model: User,
+          as: "criador",
+          attributes: ["id", "nome", "email"],
+        },
+      ],
+    });
+
+    if (!reembolso) {
+      return res.status(404).json({
+        message: "Reembolso não encontrado.",
+      });
+    }
+
+    return res.status(200).json(reembolso);
+  } catch (error) {
+    console.error("Erro ao obter reembolso:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao obter reembolso.",
       error: error.message,
     });
   }
@@ -230,5 +296,6 @@ async function getReembolsoByPedido(req, res) {
 module.exports = {
   createReembolso,
   getAllReembolsos,
-  getReembolsoByPedido,
+  getReembolsoByCredito,
+  obterReembolso,
 };

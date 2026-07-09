@@ -6,8 +6,9 @@ const authorizeRoles = require("../middleware/role.middleware");
 
 const {
   createReembolso,
-  getReembolsoByPedido,
   getAllReembolsos,
+  getReembolsoByCredito,
+  obterReembolso,
 } = require("../controllers/reembolso.controller"); 
 
 router.post(
@@ -18,15 +19,24 @@ router.post(
 );
 
 router.get(
-    "/pedido/:pedidoId",
+    "/pedido/:creditoId",
     authMiddleware,
-    getReembolsoByPedido
+    authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+    getReembolsoByCredito,
 );
 
 router.get(
     "/",
     authMiddleware,
+    authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
     getAllReembolsos
+);
+
+router.get(
+    "/:reembolsoId",
+     authMiddleware,
+     authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+     obterReembolso
 );
 
 module.exports = router;

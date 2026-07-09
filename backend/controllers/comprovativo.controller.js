@@ -1,7 +1,7 @@
 const path = require("path");
 const { Comprovativo, PedidoCredito, Reembolso, User } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-const generateReferencia = require("../utils/generateReferencia");
+const { generateReferencia } = require("../utils/generateCode");
 const { podeRegistrarReembolso, STATUS_PEDIDO } = require("../utils/regrasPedido");
 
 /*

@@ -42,7 +42,6 @@ app.use(performanceMetricsMiddleware); // ✅ Performance Metrics
 */
 const healthRoutes = require("./routes/health.routes");
 const monitoringRoutes = require("./routes/monitoring.routes");
-const alertsRoutes = require("./routes/alerts.routes");
 const authRoutes = require("./routes/auth.routes");
 const pedidoCreditoRoutes = require("./routes/pedidoCredito.routes");
 const mutuarioRoutes = require("./routes/mutuario.routes");
@@ -64,6 +63,7 @@ const alertaPagamentoRoutes = require("./routes/alertaPagamento.routes");
 const anexoRoutes = require("./routes/anexo.routes");
 const simulacaoRoutes = require("./routes/simulacao.routes");
 const comprovativoRoutes = require("./routes/comprovativo.routes");
+const creditoRoutes = require("./routes/credito.routes");
 
 /*
   ==========================================================
@@ -73,7 +73,6 @@ const comprovativoRoutes = require("./routes/comprovativo.routes");
 */
 app.use("/api/health", healthRoutes);
 app.use("/api/monitoring", monitoringRoutes);
-app.use("/api/alerts", alertsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/pedidos-credito", pedidoCreditoRoutes);
 app.use("/api/mutuarios", mutuarioRoutes);
@@ -82,6 +81,7 @@ app.use("/api/notificacoes", notificacaoRoutes);
 app.use("/api/logs-auditoria", logAuditoriaRoutes);
 app.use("/api/desembolsos", desembolsoRoutes);
 app.use("/api/reembolsos", reembolsoRoutes);
+app.use("/api/creditos", creditoRoutes);
 app.use("/api/extrato", extratoRoutes);
 app.use("/api/relatorios", relatorioRoutes);
 app.use("/api/alertas-prazo", alertaPrazoRoutes);

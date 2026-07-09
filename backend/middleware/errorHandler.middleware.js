@@ -1,21 +1,9 @@
 /**
- * Error Handler Middleware com Stack Trace Completo
- * Captura todos os erros, registra contexto completo e formata resposta
+ * Error Handler Middleware
+ * Captures all errors, logs context, and formats response
  */
 
 const logger = require('../utils/logger');
-
-/**
- * Converte erro em objeto estruturado
- */
-function formatError(error) {
-  return {
-    message: error.message || 'Erro desconhecido',
-    code: error.code || 'UNKNOWN_ERROR',
-    stack: error.stack || '',
-    name: error.name || 'Error',
-  };
-}
 
 /**
  * Middleware de tratamento de erros (DEVE ser o último middleware)
@@ -25,8 +13,6 @@ function errorHandlerMiddleware(err, req, res, next) {
   const requestId = req.requestId || 'UNKNOWN';
   const duration = req.startTime ? Date.now() - req.startTime : null;
 
-  const errorData = formatError(err);
-
   // Log estruturado do erro
   logger.error(`${err.message}`, {
     requestId,
@@ -35,11 +21,11 @@ function errorHandlerMiddleware(err, req, res, next) {
     method: req.method,
     statusCode,
     duration,
-    error: errorData.message,
-    stack: errorData.stack,
+    error: err.message,
+    stack: err.stack,
     context: {
-      errorCode: errorData.code,
-      errorName: errorData.name,
+      errorCode: err.code || 'UNKNOWN_ERROR',
+      errorName: err.name || 'Error',
       url: req.originalUrl,
       query: req.query,
       body: req.body ? { ...req.body, password: '***' } : null,
@@ -51,11 +37,11 @@ function errorHandlerMiddleware(err, req, res, next) {
     success: false,
     message: process.env.NODE_ENV === 'production' 
       ? 'Erro interno do servidor' 
-      : errorData.message,
+      : err.message,
     requestId,
     error: process.env.NODE_ENV === 'development' ? {
-      code: errorData.code,
-      stack: errorData.stack,
+      code: err.code || 'UNKNOWN_ERROR',
+      stack: err.stack,
     } : null,
   });
 }

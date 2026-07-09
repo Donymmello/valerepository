@@ -29,6 +29,7 @@ const STATUS_PEDIDO = {
   ENCERRADO: "ENCERRADO",
 };
 
+
 /*
   ===========================================================
   MATRIZ DE PERFIS POR AÇÃO
@@ -297,13 +298,6 @@ function podeDesembolsarPedido(user, pedido) {
   );
 }
 
-function podeRegistrarReembolso(user, pedido) {
-  return (
-    userTemPermissaoParaAcao(user, "REGISTAR_REEMBOLSO") &&
-    statusPermiteAcao(pedido, "REGISTAR_REEMBOLSO")
-  );
-}
-
 function podeEncerrarPedido(user, pedido) {
   return (
     userTemPermissaoParaAcao(user, "ENCERRAR_PEDIDO") &&
@@ -325,6 +319,5 @@ module.exports = {
   podeRejeitarPedido,
   podeValidarRequisito,
   podeDesembolsarPedido,
-  podeRegistrarReembolso,
   podeEncerrarPedido,
 };

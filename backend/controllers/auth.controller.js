@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
 const { User, Mutuario, PasswordResetToken, EmailVerificationToken } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-const generateCodigoMutuario = require("../utils/generateCodigoMutuario");
+const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const { sendVerificationEmail } = require("../utils/emailService");
 

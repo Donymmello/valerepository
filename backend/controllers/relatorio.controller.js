@@ -1,314 +1,404 @@
-const { Op } = require("sequelize");
-const { PedidoCredito, Mutuario, Desembolso, Reembolso } = require("../models");
+const { Op, fn, col } = require("sequelize");
 
-/*
-    ==========================================================
-    RESUMO GERAL DO SISTEMA
-    ==========================================================
-    Devolve:
-    - Total de pedidos
-    - Total por status
-    - Total desembolsado
-    - Total reembolsado
-    - Saldo global
-*/
-async function getResumoGeral(req, res) {
+const {
+  PedidoCredito,
+  Credito,
+  Mutuario,
+  ParcelaPagamento,
+  Desembolso,
+  Reembolso,
+} = require("../models");
+
+const PENDING_PEDIDO_STATUS = [
+  "RASCUNHO",
+  "SUBMETIDO",
+  "EM_ANALISE",
+  "EM_VALIDACAO",
+];
+
+const APPROVED_PEDIDO_STATUS = ["APROVADO", "DESEMBOLSADO"];
+
+function parseDate(value, endOfDay = false) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999);
+  } else {
+    date.setHours(0, 0, 0, 0);
+  }
+
+  return date;
+}
+
+function buildDateRangeFilter(field, query = {}) {
+  const filter = {};
+  const start = parseDate(query.dataInicial);
+  const end = parseDate(query.dataFinal, true);
+
+  if (start) filter[Op.gte] = start;
+  if (end) filter[Op.lte] = end;
+
+  return Object.keys(filter).length ? { [field]: filter } : {};
+}
+
+function buildPedidoFilters(query = {}) {
+  const where = {};
+
+  if (query.status) {
+    where.status = query.status;
+  }
+
+  const createdAtFilter = buildDateRangeFilter("createdAt", query);
+  if (Object.keys(createdAtFilter).length) {
+    Object.assign(where, createdAtFilter);
+  }
+
+  return where;
+}
+
+async function dashboardFinanceiro(req, res) {
   try {
-    const pedidos = await PedidoCredito.findAll({
-      attributes: ["id", "status"],
-    });
+    const hoje = new Date();
+    const hojeString = hoje.toISOString().slice(0, 10);
 
-    const desembolsos = await Desembolso.findAll({
-      attributes: ["valorDesembolsado"],
-    });
+    const [creditosPorEstado, totalParcelas, parcelasPendentes, parcelasPagas, parcelasVencidas, valorDesembolsado, valorRecebido, saldoCarteira] =
+      await Promise.all([
+        Credito.findAll({
+          attributes: [
+            "estado",
+            [fn("COUNT", col("id")), "count"],
+          ],
+          group: ["estado"],
+        }),
+        ParcelaPagamento.count(),
+        ParcelaPagamento.count({ where: { estado: "PENDENTE" } }),
+        ParcelaPagamento.count({ where: { estado: "PAGO" } }),
+        ParcelaPagamento.count({
+          where: {
+            estado: "PENDENTE",
+            dataVencimento: { [Op.lt]: hojeString },
+          },
+        }),
+        Desembolso.sum("valorDesembolsado"),
+        Reembolso.sum("valorReembolsado"),
+        Credito.sum("saldoAtual"),
+      ]);
 
-    const reembolsos = await Reembolso.findAll({
-      attributes: ["valorReembolsado"],
-    });
-
-    const totalPedidos = pedidos.length;
-
-    const pedidosPorStatus = pedidos.reduce((acc, pedido) => {
-      const status = pedido.status || "SEM_STATUS";
-      acc[status] = (acc[status] || 0) + 1;
+    const estadoMap = creditosPorEstado.reduce((acc, item) => {
+      acc[item.estado] = Number(item.get("count")) || 0;
       return acc;
     }, {});
 
-    const totalDesembolsado = desembolsos.reduce((acc, item) => {
-      return acc + Number(item.valorDesembolsado || 0);
-    }, 0);
+    const resumo = {
+      totalCreditos: Object.values(estadoMap).reduce((acc, value) => acc + value, 0),
+      creditosAtivos: estadoMap["ATIVO"] || 0,
+      creditosLiquidados: estadoMap["LIQUIDADO"] || 0,
+      creditosIncumprimento: estadoMap["INCUMPRIMENTO"] || 0,
+      creditosReestruturados: estadoMap["REESTRUTURADO"] || 0,
+    };
 
-    const totalReembolsado = reembolsos.reduce((acc, item) => {
-      return acc + Number(item.valorReembolsado || 0);
-    }, 0);
+    const financeiro = {
+      valorDesembolsado: Number(valorDesembolsado || 0),
+      valorRecebido: Number(valorRecebido || 0),
+      saldoCarteira: Number(saldoCarteira || 0),
+    };
 
-    const saldoGlobal = totalDesembolsado - totalReembolsado;
+    const infoParcelas = {
+      totalParcelas: Number(totalParcelas || 0),
+      parcelasPendentes: Number(parcelasPendentes || 0),
+      parcelasPagas: Number(parcelasPagas || 0),
+      parcelasVencidas: Number(parcelasVencidas || 0),
+    };
 
     return res.status(200).json({
-      totalPedidos,
-      pedidosPorStatus,
-      totalDesembolsado,
-      totalReembolsado,
-      saldoGlobal,
+      resumo,
+      financeiro,
+      parcelas: infoParcelas,
     });
   } catch (error) {
-    console.error("Erro ao obter resumo geral:", error);
-
+    console.error(error);
     return res.status(500).json({
-      message: "Erro ao obter resumo geral.",
+      message: "Erro ao gerar dashboard financeiro.",
       error: error.message,
     });
   }
 }
 
-/*
-    ==========================================================
-    RELATÓRIO DE PEDIDOS
-    ==========================================================
-    Permite filtrar por:
-    - status
-    - data de criação (dataInicial, dataFinal)
+async function getResumoGeral(req, res) {
+  try {
+    const [
+      totalPedidos,
+      pedidosPendentes,
+      pedidosAprovados,
+      totalMutuarios,
+      totalDesembolsado,
+      totalReembolsado,
+      saldoGlobal,
+      pedidosPorStatusRows,
+    ] = await Promise.all([
+      PedidoCredito.count(),
+      PedidoCredito.count({ where: { status: { [Op.in]: PENDING_PEDIDO_STATUS } } }),
+      PedidoCredito.count({ where: { status: { [Op.in]: APPROVED_PEDIDO_STATUS } } }),
+      Mutuario.count(),
+      Desembolso.sum("valorDesembolsado"),
+      Reembolso.sum("valorReembolsado"),
+      Credito.sum("saldoAtual"),
+      PedidoCredito.findAll({
+        attributes: [
+          "status",
+          [fn("COUNT", col("id")), "count"],
+        ],
+        group: ["status"],
+      }),
+    ]);
 
-    Ex:
-    /api/relatorios/pedidos?status=APROVADO
-    /api/relatorios/pedidos?dataInicial=2024-01-01&dataFinal=2024-12-31
-*/
+    const pedidosPorStatus = pedidosPorStatusRows.reduce((acc, row) => {
+      acc[row.status] = Number(row.get("count")) || 0;
+      return acc;
+    }, {});
+
+    return res.status(200).json({
+      totalPedidos: Number(totalPedidos || 0),
+      pedidosPendentes: Number(pedidosPendentes || 0),
+      pedidosAprovados: Number(pedidosAprovados || 0),
+      totalMutuarios: Number(totalMutuarios || 0),
+      totalDesembolsado: Number(totalDesembolsado || 0),
+      totalReembolsado: Number(totalReembolsado || 0),
+      saldoGlobal: Number(saldoGlobal || 0),
+      pedidosPorStatus,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Erro ao buscar o resumo geral.",
+      error: error.message,
+    });
+  }
+}
+
 async function getRelatorioPedidos(req, res) {
   try {
-    const { status, dataInicial, dataFinal } = req.query;
-
-    const where = {};
-
-    if (status) {
-      where.status = status;
-    }
-
-    if (dataInicial || dataFinal) {
-      where.created_at = {};
-
-      if (dataInicial) {
-        where.created_at[Op.gte] = new Date(`${dataInicial}T00:00:00Z`);
-      }
-
-      if (dataFinal) {
-        where.created_at[Op.lte] = new Date(`${dataFinal}T23:59:59Z`);
-      }
-    }
+    const where = buildPedidoFilters(req.query);
 
     const pedidos = await PedidoCredito.findAll({
       where,
+      attributes: [
+        "id",
+        "numeroPedido",
+        "status",
+        "valorSolicitado",
+        "finalidade",
+        "createdAt",
+      ],
       include: [
         {
           model: Mutuario,
           as: "mutuario",
+          attributes: ["id", "nomeCompleto"],
         },
       ],
-      order: [["id", "DESC"]],
+      order: [["createdAt", "DESC"]],
     });
 
     return res.status(200).json(pedidos);
   } catch (error) {
-    console.error("Erro ao gerar relatório de pedidos:", error);
-
+    console.error(error);
     return res.status(500).json({
-      message: "Erro interno ao gerar relatório de pedidos.",
+      message: "Erro ao buscar o relatório de pedidos.",
       error: error.message,
     });
   }
 }
 
-/*
-    ==========================================================
-    RELATÓRIO FINANCEIRO POR PEDIDO
-    ==========================================================
-    Lista cada pedido com:
-    - valor solicitado
-    - total reembolsado
-    - total desembolsado
-    - saldo
-*/
 async function getRelatorioFinanceiroPedidos(req, res) {
   try {
+    const where = buildPedidoFilters(req.query);
+
     const pedidos = await PedidoCredito.findAll({
+      where,
+      attributes: [
+        "id",
+        "numeroPedido",
+        "status",
+        "valorSolicitado",
+      ],
       include: [
         {
           model: Mutuario,
           as: "mutuario",
-        },
-        {
-          model: Desembolso,
-          as: "desembolsos",
-          required: false,
-        },
-        {
-          model: Reembolso,
-          as: "reembolsos",
-          required: false,
+          attributes: ["id", "nomeCompleto"],
         },
       ],
-      order: [["id", "DESC"]],
+      order: [["createdAt", "DESC"]],
     });
 
-    const relatorio = pedidos.map((pedido) => {
-      const totalDesembolsado = pedido.desembolsos.reduce((acc, item) => {
-        return acc + Number(item.valorDesembolsado || 0);
-      }, 0);
+    const pedidoIds = pedidos.map((pedido) => pedido.id);
 
-      const totalReembolsado = pedido.reembolsos.reduce((acc, item) => {
-        return acc + Number(item.valorReembolsado || 0);
-      }, 0);
+    const [desembolsoRows, reembolsoRows, saldoRows] = await Promise.all([
+      Desembolso.findAll({
+        attributes: [
+          "pedidoId",
+          [fn("SUM", col("valorDesembolsado")), "totalDesembolsado"],
+        ],
+        where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
+        group: ["pedidoId"],
+      }),
+      Reembolso.findAll({
+        attributes: [
+          "pedidoId",
+          [fn("SUM", col("valorReembolsado")), "totalReembolsado"],
+        ],
+        where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
+        group: ["pedidoId"],
+      }),
+      Credito.findAll({
+        attributes: [
+          "pedidoId",
+          [fn("SUM", col("saldoAtual")), "saldo"],
+        ],
+        where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
+        group: ["pedidoId"],
+      }),
+    ]);
 
-      const saldo = totalDesembolsado - totalReembolsado;
+    const desembolsosPorPedido = desembolsoRows.reduce((acc, item) => {
+      acc[item.pedidoId] = Number(item.get("totalDesembolsado")) || 0;
+      return acc;
+    }, {});
 
-      return {
-        pedidoId: pedido.id,
-        numeroPedido: pedido.numeroPedido,
-        status: pedido.status,
-        etapaAtual: pedido.etapaAtual,
-        valorSolicitado: pedido.valorSolicitado || 0,
-        mutuario: pedido.mutuario
-          ? {
-              id: pedido.mutuario.id,
-              codigoMutuario: pedido.mutuario.codigoMutuario,
-              nomeCompleto: pedido.mutuario.nomeCompleto,
-            }
-          : null,
-        totalDesembolsado,
-        totalReembolsado,
-        saldo,
-      };
-    });
+    const reembolsosPorPedido = reembolsoRows.reduce((acc, item) => {
+      acc[item.pedidoId] = Number(item.get("totalReembolsado")) || 0;
+      return acc;
+    }, {});
 
-    return res.status(200).json(relatorio);
+    const saldosPorPedido = saldoRows.reduce((acc, item) => {
+      acc[item.pedidoId] = Number(item.get("saldo")) || 0;
+      return acc;
+    }, {});
+
+    const resultado = pedidos.map((pedido) => ({
+      pedidoId: pedido.id,
+      numeroPedido: pedido.numeroPedido,
+      status: pedido.status,
+      valorSolicitado: Number(pedido.valorSolicitado || 0),
+      mutuario: pedido.mutuario,
+      totalDesembolsado: desembolsosPorPedido[pedido.id] || 0,
+      totalReembolsado: reembolsosPorPedido[pedido.id] || 0,
+      saldo: saldosPorPedido[pedido.id] || 0,
+    }));
+
+    return res.status(200).json(resultado);
   } catch (error) {
-    console.error("Erro ao gerar relatório financeiro:", error);
-
+    console.error(error);
     return res.status(500).json({
-      message: "Erro interno ao gerar relatório financeiro.",
+      message: "Erro ao buscar o relatório financeiro de pedidos.",
       error: error.message,
     });
   }
 }
 
-/*
-    ==========================================================
-    RELATÓRIO DE DESEMBOLSOS POR PERÍODO
-    ==========================================================
-*/
 async function getRelatorioDesembolsos(req, res) {
   try {
-    const { dataInicial, dataFinal } = req.query;
+    const where = buildDateRangeFilter("dataDesembolso", req.query);
 
-    const where = {};
-
-    if (dataInicial || dataFinal) {
-      where.dataDesembolso = {};
-
-      if (dataInicial) {
-        where.dataDesembolso[Op.gte] = new Date(`${dataInicial}T00:00:00Z`);
-      }
-
-      if (dataFinal) {
-        where.dataDesembolso[Op.lte] = new Date(`${dataFinal}T23:59:59Z`);
-      }
-    }
-
-    const desembolsos = await Desembolso.findAll({
-      where,
-      include: [
-        {
-          model: PedidoCredito,
-          as: "pedido",
-          include: [
-            {
-              model: Mutuario,
-              as: "mutuario",
-            },
-          ],
-        },
-      ],
-      order: [["id", "DESC"]],
-    });
-
-    const total = desembolsos.reduce((acc, item) => {
-      return acc + Number(item.valorDesembolsado || 0);
-    }, 0);
+    const [desembolsos, quantidade, totalDesembolsado] = await Promise.all([
+      Desembolso.findAll({
+        where,
+        attributes: [
+          "id",
+          "valorDesembolsado",
+          "dataDesembolso",
+          "meioPagamento",
+          "numeroTransacao",
+          "referencia",
+        ],
+        include: [
+          {
+            model: PedidoCredito,
+            as: "pedido",
+            attributes: ["id", "numeroPedido"],
+            include: [
+              {
+                model: Mutuario,
+                as: "mutuario",
+                attributes: ["id", "nomeCompleto"],
+              },
+            ],
+          },
+        ],
+        order: [["dataDesembolso", "DESC"]],
+      }),
+      Desembolso.count({ where }),
+      Desembolso.sum("valorDesembolsado", { where }),
+    ]);
 
     return res.status(200).json({
-      totalDesembolsado: total,
-      quantidade: desembolsos.length,
+      quantidade: Number(quantidade || 0),
+      totalDesembolsado: Number(totalDesembolsado || 0),
       desembolsos,
     });
   } catch (error) {
-    console.error("Erro ao gerar relatório de desembolsos:", error);
-
+    console.error(error);
     return res.status(500).json({
-      message: "Erro interno ao gerar relatório de desembolsos.",
+      message: "Erro ao buscar o relatório de desembolsos.",
       error: error.message,
     });
   }
 }
 
-/*
-    ==========================================================
-    RELATÓRIO DE REEMBOLSOS POR PERÍODO
-    ==========================================================
-*/
 async function getRelatorioReembolsos(req, res) {
   try {
-    const { dataInicial, dataFinal } = req.query;
+    const where = buildDateRangeFilter("dataReembolso", req.query);
 
-    const where = {};
-
-    if (dataInicial || dataFinal) {
-      where.dataReembolso = {};
-
-      if (dataInicial) {
-        where.dataReembolso[Op.gte] = new Date(`${dataInicial}T00:00:00Z`);
-      }
-
-      if (dataFinal) {
-        where.dataReembolso[Op.lte] = new Date(`${dataFinal}T23:59:59Z`);
-      }
-    }
-
-    const reembolsos = await Reembolso.findAll({
-      where,
-      include: [
-        {
-          model: PedidoCredito,
-          as: "pedido",
-          include: [
-            {
-              model: Mutuario,
-              as: "mutuario",
-            },
-          ],
-        },
-      ],
-      order: [["id", "DESC"]],
-    });
-
-    const total = reembolsos.reduce((acc, item) => {
-      return acc + Number(item.valorReembolsado || 0);
-    }, 0);
+    const [reembolsos, quantidade, totalReembolsado] = await Promise.all([
+      Reembolso.findAll({
+        where,
+        attributes: [
+          "id",
+          "valorReembolsado",
+          "dataReembolso",
+          "meioPagamento",
+          "numeroTransacao",
+          "referencia",
+        ],
+        include: [
+          {
+            model: PedidoCredito,
+            as: "pedido",
+            attributes: ["id", "numeroPedido"],
+            include: [
+              {
+                model: Mutuario,
+                as: "mutuario",
+                attributes: ["id", "nomeCompleto"],
+              },
+            ],
+          },
+        ],
+        order: [["dataReembolso", "DESC"]],
+      }),
+      Reembolso.count({ where }),
+      Reembolso.sum("valorReembolsado", { where }),
+    ]);
 
     return res.status(200).json({
-      totalReembolsado: total,
-      quantidade: reembolsos.length,
+      quantidade: Number(quantidade || 0),
+      totalReembolsado: Number(totalReembolsado || 0),
       reembolsos,
     });
   } catch (error) {
-    console.error("Erro ao gerar relatório de reembolsos:", error);
-
+    console.error(error);
     return res.status(500).json({
-      message: "Erro interno ao gerar relatório de reembolsos.",
+      message: "Erro ao buscar o relatório de reembolsos.",
       error: error.message,
     });
   }
 }
 
 module.exports = {
+  dashboardFinanceiro,
   getResumoGeral,
   getRelatorioPedidos,
   getRelatorioFinanceiroPedidos,

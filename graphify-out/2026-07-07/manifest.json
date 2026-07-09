@@ -1,0 +1,747 @@
+{
+  "backend/__tests__/criticalFlows.test.js": {
+    "mtime": 1782914228.2608702,
+    "ast_hash": "30387671a4e81ec1ff649965fc297708",
+    "semantic_hash": "30387671a4e81ec1ff649965fc297708"
+  },
+  "backend/config/databaseSync.js": {
+    "mtime": 1782940854.8911629,
+    "ast_hash": "d06b93b4f73f1e677e478062ffaeb137",
+    "semantic_hash": "d06b93b4f73f1e677e478062ffaeb137"
+  },
+  "backend/config/db.js": {
+    "mtime": 1780846290.643969,
+    "ast_hash": "5c8c5029f6aa712e5810207fe05fc254",
+    "semantic_hash": "5c8c5029f6aa712e5810207fe05fc254"
+  },
+  "backend/controllers/alertaPagamento.controller.js": {
+    "mtime": 1778601435.5269873,
+    "ast_hash": "549495ae4aa1d7fb1a204e51ee8bcffc",
+    "semantic_hash": "549495ae4aa1d7fb1a204e51ee8bcffc"
+  },
+  "backend/controllers/alertaPrazo.controller.js": {
+    "mtime": 1778772065.9275515,
+    "ast_hash": "d9f29e15b0ef420e0504324f219f44b0",
+    "semantic_hash": "d9f29e15b0ef420e0504324f219f44b0"
+  },
+  "backend/controllers/alerts.controller.js": {
+    "mtime": 1782914227.2136233,
+    "ast_hash": "c32f3bdf2181425fdcaab94da8372d98",
+    "semantic_hash": "c32f3bdf2181425fdcaab94da8372d98"
+  },
+  "backend/controllers/anexo.controller.js": {
+    "mtime": 1782404537.900445,
+    "ast_hash": "a65e6d9d8d741ed2b7e2d123b1b656f9",
+    "semantic_hash": "a65e6d9d8d741ed2b7e2d123b1b656f9"
+  },
+  "backend/controllers/aprovacaoPedido.controller.js": {
+    "mtime": 1776946965.8173354,
+    "ast_hash": "4ec8e9e7d10a1537c9049dc7aa7045c7",
+    "semantic_hash": "4ec8e9e7d10a1537c9049dc7aa7045c7"
+  },
+  "backend/controllers/auth.controller.js": {
+    "mtime": 1782940470.2059028,
+    "ast_hash": "7d796d35ea2213b760dd1022a2dca214",
+    "semantic_hash": "7d796d35ea2213b760dd1022a2dca214"
+  },
+  "backend/controllers/comprovativo.controller.js": {
+    "mtime": 1782503358.5076509,
+    "ast_hash": "341284d59d728a9e3a2659124c0d1791",
+    "semantic_hash": "341284d59d728a9e3a2659124c0d1791"
+  },
+  "backend/controllers/credito.controller.js": {
+    "mtime": 1782680868.620276,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/controllers/desembolso.controller.js": {
+    "mtime": 1782828902.4105392,
+    "ast_hash": "2108cde187c494357ed6934c91f768cf",
+    "semantic_hash": "2108cde187c494357ed6934c91f768cf"
+  },
+  "backend/controllers/excell.controller.js": {
+    "mtime": 1782828885.3881426,
+    "ast_hash": "11634200bdf254a936e3e0ea43cd1c6c",
+    "semantic_hash": "11634200bdf254a936e3e0ea43cd1c6c"
+  },
+  "backend/controllers/extrato.controller.js": {
+    "mtime": 1777040836.9306066,
+    "ast_hash": "2b58667607b50c2660fbe18e5f79f412",
+    "semantic_hash": "2b58667607b50c2660fbe18e5f79f412"
+  },
+  "backend/controllers/health.controller.js": {
+    "mtime": 1782914226.7401931,
+    "ast_hash": "24d5d93bf11a2c4910683475496d38dc",
+    "semantic_hash": "24d5d93bf11a2c4910683475496d38dc"
+  },
+  "backend/controllers/logAuditoria.controller.js": {
+    "mtime": 1775041670.848554,
+    "ast_hash": "fdeaad399218eb4502af9123bc9dddb8",
+    "semantic_hash": "fdeaad399218eb4502af9123bc9dddb8"
+  },
+  "backend/controllers/monitoring.controller.js": {
+    "mtime": 1782914227.2136233,
+    "ast_hash": "932a78b67fb2c2eaf6b741aaa5da9388",
+    "semantic_hash": "932a78b67fb2c2eaf6b741aaa5da9388"
+  },
+  "backend/controllers/mutuario.controller.js": {
+    "mtime": 1776775315.577386,
+    "ast_hash": "de716072bc104ff7c3417b4dc7845db4",
+    "semantic_hash": "de716072bc104ff7c3417b4dc7845db4"
+  },
+  "backend/controllers/notificacao.controller.js": {
+    "mtime": 1781777564.2041283,
+    "ast_hash": "a18b2d64d9ffd1381b9bd42bb23465ac",
+    "semantic_hash": "a18b2d64d9ffd1381b9bd42bb23465ac"
+  },
+  "backend/controllers/pedidoCredito.controller.js": {
+    "mtime": 1782565780.9825363,
+    "ast_hash": "02a57f05c502e2733ae2d8cddf2a0c2f",
+    "semantic_hash": "02a57f05c502e2733ae2d8cddf2a0c2f"
+  },
+  "backend/controllers/pedidoRequisito.controller.js": {
+    "mtime": 1781777465.3941755,
+    "ast_hash": "84d7c3bce2f05ee79ca12f2a1ece3428",
+    "semantic_hash": "84d7c3bce2f05ee79ca12f2a1ece3428"
+  },
+  "backend/controllers/portalExport.controller.js": {
+    "mtime": 1777116049.949339,
+    "ast_hash": "92bc94f3b5194579f2071c7f7fa8a026",
+    "semantic_hash": "92bc94f3b5194579f2071c7f7fa8a026"
+  },
+  "backend/controllers/portalMutuario.controller.js": {
+    "mtime": 1782915895.5134213,
+    "ast_hash": "cce054e2d757f74f647c31e4deace4a7",
+    "semantic_hash": "cce054e2d757f74f647c31e4deace4a7"
+  },
+  "backend/controllers/reembolso.controller.js": {
+    "mtime": 1783345732.3949387,
+    "ast_hash": "335510bdfd94f33b4eede37c2910d788",
+    "semantic_hash": "335510bdfd94f33b4eede37c2910d788"
+  },
+  "backend/controllers/relatorio.controller.js": {
+    "mtime": 1783364577.4157279,
+    "ast_hash": "54542765c7ffc9c6f9891ba0e3940367",
+    "semantic_hash": "54542765c7ffc9c6f9891ba0e3940367"
+  },
+  "backend/controllers/requisitoCredito.controller.js": {
+    "mtime": 1775821799.5178828,
+    "ast_hash": "061a214dc7c67ea035bef7ba3d3c3bcd",
+    "semantic_hash": "061a214dc7c67ea035bef7ba3d3c3bcd"
+  },
+  "backend/controllers/simulacao.controller.js": {
+    "mtime": 1782676066.2267425,
+    "ast_hash": "e5a0323b8ac918e37f8cb1de37c00687",
+    "semantic_hash": "e5a0323b8ac918e37f8cb1de37c00687"
+  },
+  "backend/controllers/vincularMutuario.controller.js": {
+    "mtime": 1776769538.7600515,
+    "ast_hash": "81c8814fdd4daf643f327ff4cebb12d5",
+    "semantic_hash": "81c8814fdd4daf643f327ff4cebb12d5"
+  },
+  "backend/middleware/auth.middleware.js": {
+    "mtime": 1774957907.739188,
+    "ast_hash": "5fdeca73364430ea0ba4e2d9c2cfc58e",
+    "semantic_hash": "5fdeca73364430ea0ba4e2d9c2cfc58e"
+  },
+  "backend/middleware/errorHandler.middleware.js": {
+    "mtime": 1782914226.5592866,
+    "ast_hash": "9989a7f7787267e0974f104aca9c83be",
+    "semantic_hash": "9989a7f7787267e0974f104aca9c83be"
+  },
+  "backend/middleware/optionalAuth.middleware.js": {
+    "mtime": 1782063708.235425,
+    "ast_hash": "7e7ac0f5a9a3771dee8dd7718b7a388c",
+    "semantic_hash": "7e7ac0f5a9a3771dee8dd7718b7a388c"
+  },
+  "backend/middleware/performanceMetrics.middleware.js": {
+    "mtime": 1782911471.6329541,
+    "ast_hash": "3f267d5115a410b9a27f3a35db1974df",
+    "semantic_hash": "3f267d5115a410b9a27f3a35db1974df"
+  },
+  "backend/middleware/requestId.middleware.js": {
+    "mtime": 1782914226.170167,
+    "ast_hash": "4a8f3913c566d49173a3eae4356b0926",
+    "semantic_hash": "4a8f3913c566d49173a3eae4356b0926"
+  },
+  "backend/middleware/role.middleware.js": {
+    "mtime": 1774958055.4436376,
+    "ast_hash": "8f814bf02fffeb5be510fa69323c25d4",
+    "semantic_hash": "8f814bf02fffeb5be510fa69323c25d4"
+  },
+  "backend/middleware/upload.middleware.js": {
+    "mtime": 1781464810.9820304,
+    "ast_hash": "45022d0ee3d7630b2e9b429f8fd6a54f",
+    "semantic_hash": "45022d0ee3d7630b2e9b429f8fd6a54f"
+  },
+  "backend/middleware/uploadComprovativo.middleware.js": {
+    "mtime": 1782680809.287973,
+    "ast_hash": "16531f553fa3328c99b09fb356a74565",
+    "semantic_hash": "16531f553fa3328c99b09fb356a74565"
+  },
+  "backend/models/anexo.model.js": {
+    "mtime": 1781817950.0008612,
+    "ast_hash": "253bf5d933cb79782122c5499dfe0474",
+    "semantic_hash": "253bf5d933cb79782122c5499dfe0474"
+  },
+  "backend/models/aprovacaoPedido.model.js": {
+    "mtime": 1774959773.549865,
+    "ast_hash": "a13f6974af0fb8748fddc4c7c0930b67",
+    "semantic_hash": "a13f6974af0fb8748fddc4c7c0930b67"
+  },
+  "backend/models/comprovativo.model.js": {
+    "mtime": 1782333359.457786,
+    "ast_hash": "f255c476c2730d0a2bd81248827bfaee",
+    "semantic_hash": "f255c476c2730d0a2bd81248827bfaee"
+  },
+  "backend/models/credito.model.js": {
+    "mtime": 1782910156.6454723,
+    "ast_hash": "57ed5c608aa5479b0431f3705c13a523",
+    "semantic_hash": "57ed5c608aa5479b0431f3705c13a523"
+  },
+  "backend/models/desembolso.model.js": {
+    "mtime": 1776956389.9134674,
+    "ast_hash": "91e3e217ccc77f3819b34fd52077a258",
+    "semantic_hash": "91e3e217ccc77f3819b34fd52077a258"
+  },
+  "backend/models/emailVerificationToken.js": {
+    "mtime": 1782914224.557317,
+    "ast_hash": "01cb6d0e41a4dae13d3e536115f1eb17",
+    "semantic_hash": "01cb6d0e41a4dae13d3e536115f1eb17"
+  },
+  "backend/models/index.js": {
+    "mtime": 1783282852.4233816,
+    "ast_hash": "1cf2c71a5b84aa619322d7da369b7a3e",
+    "semantic_hash": "1cf2c71a5b84aa619322d7da369b7a3e"
+  },
+  "backend/models/logAuditoria.model.js": {
+    "mtime": 1774959793.9231176,
+    "ast_hash": "a09d240a065fb4443a574d056c2c75ca",
+    "semantic_hash": "a09d240a065fb4443a574d056c2c75ca"
+  },
+  "backend/models/mutuario.model.js": {
+    "mtime": 1781809428.899599,
+    "ast_hash": "3021d067676d12b34fc5632b38aa2748",
+    "semantic_hash": "3021d067676d12b34fc5632b38aa2748"
+  },
+  "backend/models/notificacao.model.js": {
+    "mtime": 1781777530.7955804,
+    "ast_hash": "ed4b5479339da9961d182fa7c017cca4",
+    "semantic_hash": "ed4b5479339da9961d182fa7c017cca4"
+  },
+  "backend/models/parcelaPagamento.model.js": {
+    "mtime": 1783095676.4597113,
+    "ast_hash": "21c96e29d953eb56a41b8ff748e43ecb",
+    "semantic_hash": "21c96e29d953eb56a41b8ff748e43ecb"
+  },
+  "backend/models/passwordResetToken.js": {
+    "mtime": 1780911927.5441036,
+    "ast_hash": "e0169afb7aac8259d7a80e4428ecbf3e",
+    "semantic_hash": "e0169afb7aac8259d7a80e4428ecbf3e"
+  },
+  "backend/models/pedidoCredito.model.js": {
+    "mtime": 1782508026.3267033,
+    "ast_hash": "99b7157a289bf36208cd1eacee91baf8",
+    "semantic_hash": "99b7157a289bf36208cd1eacee91baf8"
+  },
+  "backend/models/pedidoRequisito.model.js": {
+    "mtime": 1781273850.9478784,
+    "ast_hash": "4f2ad1514948ad697861991ca9e17138",
+    "semantic_hash": "4f2ad1514948ad697861991ca9e17138"
+  },
+  "backend/models/reembolso.model.js": {
+    "mtime": 1782996499.3795729,
+    "ast_hash": "f0d97009b59496169fb372fd599b7cdd",
+    "semantic_hash": "f0d97009b59496169fb372fd599b7cdd"
+  },
+  "backend/models/requisitoCredito.model.js": {
+    "mtime": 1775819825.2006066,
+    "ast_hash": "d53075f55a8659ed1b8072b8ba231424",
+    "semantic_hash": "d53075f55a8659ed1b8072b8ba231424"
+  },
+  "backend/models/simulacao.model.js": {
+    "mtime": 1782507535.6724274,
+    "ast_hash": "ad233a162024ca916472c2864c623a3c",
+    "semantic_hash": "ad233a162024ca916472c2864c623a3c"
+  },
+  "backend/models/user.model.js": {
+    "mtime": 1780871648.2998693,
+    "ast_hash": "be66f6cd58da170c9f472d7fa0e5b139",
+    "semantic_hash": "be66f6cd58da170c9f472d7fa0e5b139"
+  },
+  "backend/package.json": {
+    "mtime": 1782937718.6423283,
+    "ast_hash": "ab53ceb3576101aa5a325ea6978fa681",
+    "semantic_hash": "ab53ceb3576101aa5a325ea6978fa681"
+  },
+  "backend/routes/alertaPagamento.routes.js": {
+    "mtime": 1778601594.971573,
+    "ast_hash": "e8b290ae99a5812a8835acb514729ee1",
+    "semantic_hash": "e8b290ae99a5812a8835acb514729ee1"
+  },
+  "backend/routes/alertaPrazo.routes.js": {
+    "mtime": 1775740135.1896296,
+    "ast_hash": "bf1b34b77fd7d9ff90194d6eb5c1b6bd",
+    "semantic_hash": "bf1b34b77fd7d9ff90194d6eb5c1b6bd"
+  },
+  "backend/routes/alerts.routes.js": {
+    "mtime": 1782914228.2603583,
+    "ast_hash": "295cc2c3c14f441632c3ba9332afd148",
+    "semantic_hash": "295cc2c3c14f441632c3ba9332afd148"
+  },
+  "backend/routes/anexo.routes.js": {
+    "mtime": 1781461438.59429,
+    "ast_hash": "d337c8c8a254683d0bc787bb8ff8544a",
+    "semantic_hash": "d337c8c8a254683d0bc787bb8ff8544a"
+  },
+  "backend/routes/aprovacaoPedido.routes.js": {
+    "mtime": 1776947060.2112553,
+    "ast_hash": "90dbaac7e08f16b8a98d0ea462390d00",
+    "semantic_hash": "90dbaac7e08f16b8a98d0ea462390d00"
+  },
+  "backend/routes/auth.routes.js": {
+    "mtime": 1782914210.6316543,
+    "ast_hash": "68d6086eeffc341c791e226b94338712",
+    "semantic_hash": "68d6086eeffc341c791e226b94338712"
+  },
+  "backend/routes/comprovativo.routes.js": {
+    "mtime": 1782333674.9394019,
+    "ast_hash": "3ba945830dd390ad94e96bc7fe06a6fc",
+    "semantic_hash": "3ba945830dd390ad94e96bc7fe06a6fc"
+  },
+  "backend/routes/credito.routes.js": {
+    "mtime": 1783285417.8554878,
+    "ast_hash": "9c77db655fcf680a04fdab87b9ad6212",
+    "semantic_hash": "9c77db655fcf680a04fdab87b9ad6212"
+  },
+  "backend/routes/desembolso.routes.js": {
+    "mtime": 1775226501.708405,
+    "ast_hash": "68de272b9649bfd9f6dc624b2984fa42",
+    "semantic_hash": "68de272b9649bfd9f6dc624b2984fa42"
+  },
+  "backend/routes/excell.routes.js": {
+    "mtime": 1776335520.9074125,
+    "ast_hash": "d62ed95f209adc4bb97e767914175e6b",
+    "semantic_hash": "d62ed95f209adc4bb97e767914175e6b"
+  },
+  "backend/routes/extrato.routes.js": {
+    "mtime": 1775314516.4344728,
+    "ast_hash": "f492d75e886ff4860333b9eb9e1e6b82",
+    "semantic_hash": "f492d75e886ff4860333b9eb9e1e6b82"
+  },
+  "backend/routes/health.routes.js": {
+    "mtime": 1782914226.741209,
+    "ast_hash": "a2ce83457f899ddb6a82e45ff1dc2a83",
+    "semantic_hash": "a2ce83457f899ddb6a82e45ff1dc2a83"
+  },
+  "backend/routes/logAuditoria.routes.js": {
+    "mtime": 1775041749.704942,
+    "ast_hash": "9ca3ac3ab539cbae48acd20f37d0b6cb",
+    "semantic_hash": "9ca3ac3ab539cbae48acd20f37d0b6cb"
+  },
+  "backend/routes/monitoring.routes.js": {
+    "mtime": 1782914227.2136233,
+    "ast_hash": "672963e8cc50083b0fe11a117452bdf5",
+    "semantic_hash": "672963e8cc50083b0fe11a117452bdf5"
+  },
+  "backend/routes/mutuario.routes.js": {
+    "mtime": 1774968623.9419222,
+    "ast_hash": "4de8247bc73cd0660bb4dd890a382f79",
+    "semantic_hash": "4de8247bc73cd0660bb4dd890a382f79"
+  },
+  "backend/routes/notificacao.routes.js": {
+    "mtime": 1775039958.744439,
+    "ast_hash": "4e6e077d03139a71b30570be689cf203",
+    "semantic_hash": "4e6e077d03139a71b30570be689cf203"
+  },
+  "backend/routes/pedidoCredito.routes.js": {
+    "mtime": 1776960859.0235364,
+    "ast_hash": "570d7d6f776a44612cf32bd6605dfc2b",
+    "semantic_hash": "570d7d6f776a44612cf32bd6605dfc2b"
+  },
+  "backend/routes/pedidoRequisito.routes.js": {
+    "mtime": 1781531653.4237,
+    "ast_hash": "2adfc2852c0931046361ad516fe96384",
+    "semantic_hash": "2adfc2852c0931046361ad516fe96384"
+  },
+  "backend/routes/portalExcel.routes.js": {
+    "mtime": 1780948123.733464,
+    "ast_hash": "c29183ad05e2ebf41cde92e22a71b3bd",
+    "semantic_hash": "c29183ad05e2ebf41cde92e22a71b3bd"
+  },
+  "backend/routes/portalMutuario.routes.js": {
+    "mtime": 1782915679.4663444,
+    "ast_hash": "8bf2253e54efcedec48c623a1e70c7c0",
+    "semantic_hash": "8bf2253e54efcedec48c623a1e70c7c0"
+  },
+  "backend/routes/reembolso.routes.js": {
+    "mtime": 1783336171.542606,
+    "ast_hash": "c3ee828d24ca4ff66ca74d765ad441fd",
+    "semantic_hash": "c3ee828d24ca4ff66ca74d765ad441fd"
+  },
+  "backend/routes/relatorio.routes.js": {
+    "mtime": 1783364671.9594991,
+    "ast_hash": "c846f103996aa4a5c8bad78d5fd765e0",
+    "semantic_hash": "c846f103996aa4a5c8bad78d5fd765e0"
+  },
+  "backend/routes/requisitoCredito.routes.js": {
+    "mtime": 1775826574.5935938,
+    "ast_hash": "41276816fabf478f9daf9aa40d7b553c",
+    "semantic_hash": "41276816fabf478f9daf9aa40d7b553c"
+  },
+  "backend/routes/simulacao.routes.js": {
+    "mtime": 1782676138.241936,
+    "ast_hash": "7001e032162cf5418986a291f9cbb48a",
+    "semantic_hash": "7001e032162cf5418986a291f9cbb48a"
+  },
+  "backend/routes/vincularMutuario.routes.js": {
+    "mtime": 1776769834.593012,
+    "ast_hash": "a3a1fb3692a3e4289dbea9a18863767e",
+    "semantic_hash": "a3a1fb3692a3e4289dbea9a18863767e"
+  },
+  "backend/server.js": {
+    "mtime": 1783199530.4787376,
+    "ast_hash": "4a31c044588a10ac023da71c728053e7",
+    "semantic_hash": "4a31c044588a10ac023da71c728053e7"
+  },
+  "backend/services/credito.service.js": {
+    "mtime": 1783338170.6353638,
+    "ast_hash": "080cb5d93cb1c4ef83274e0639eb7772",
+    "semantic_hash": "080cb5d93cb1c4ef83274e0639eb7772"
+  },
+  "backend/services/excell.service.js": {
+    "mtime": 1777063219.8475747,
+    "ast_hash": "4e3e78542cb49f92e70679548e040f63",
+    "semantic_hash": "4e3e78542cb49f92e70679548e040f63"
+  },
+  "backend/utils/alertManager.js": {
+    "mtime": 1782914227.2136233,
+    "ast_hash": "867857be676983d91903b010c35c8923",
+    "semantic_hash": "867857be676983d91903b010c35c8923"
+  },
+  "backend/utils/cacheManager.js": {
+    "mtime": 1782914227.2136233,
+    "ast_hash": "d4111b4cbcabcc944147461d7af5bdb2",
+    "semantic_hash": "d4111b4cbcabcc944147461d7af5bdb2"
+  },
+  "backend/utils/calCredito.js": {
+    "mtime": 1782067800.4484994,
+    "ast_hash": "f920a76ef3e7d1163c692dd947d44257",
+    "semantic_hash": "f920a76ef3e7d1163c692dd947d44257"
+  },
+  "backend/utils/emailService.js": {
+    "mtime": 1782914224.557317,
+    "ast_hash": "b6f6d52a71fb59d2c25ceb4892ba4d1b",
+    "semantic_hash": "b6f6d52a71fb59d2c25ceb4892ba4d1b"
+  },
+  "backend/utils/generateCodParcela.js": {
+    "mtime": 1783340268.3577707,
+    "ast_hash": "76be159bc5e094461094bab521c4b478",
+    "semantic_hash": "76be159bc5e094461094bab521c4b478"
+  },
+  "backend/utils/generateCodigoMutuario.js": {
+    "mtime": 1776775233.7670012,
+    "ast_hash": "24e2d984013d0f7769a3c13cd0c43cd3",
+    "semantic_hash": "24e2d984013d0f7769a3c13cd0c43cd3"
+  },
+  "backend/utils/generateReferencia.js": {
+    "mtime": 1776955993.192363,
+    "ast_hash": "c9501bdedb377798a41065e6c074f2fa",
+    "semantic_hash": "c9501bdedb377798a41065e6c074f2fa"
+  },
+  "backend/utils/logAuditoria.js": {
+    "mtime": 1775041540.387088,
+    "ast_hash": "39f2187d079be72c70485a674068ba97",
+    "semantic_hash": "39f2187d079be72c70485a674068ba97"
+  },
+  "backend/utils/logger.js": {
+    "mtime": 1782914226.155416,
+    "ast_hash": "09012731a93e0ce91a5e1d0eca7b56c7",
+    "semantic_hash": "09012731a93e0ce91a5e1d0eca7b56c7"
+  },
+  "backend/utils/otpGenerator.js": {
+    "mtime": 1782914224.413141,
+    "ast_hash": "9754aa710cfcc4ac80d41d1b743ecd2c",
+    "semantic_hash": "9754aa710cfcc4ac80d41d1b743ecd2c"
+  },
+  "backend/utils/queryLogger.js": {
+    "mtime": 1782914226.741209,
+    "ast_hash": "636f2cde9d3a31f8737f1c08a75fa0e4",
+    "semantic_hash": "636f2cde9d3a31f8737f1c08a75fa0e4"
+  },
+  "backend/utils/regrasCredito.js": {
+    "mtime": 1783347102.034186,
+    "ast_hash": "f512448293fbd558d0227b4aa05b198b",
+    "semantic_hash": "f512448293fbd558d0227b4aa05b198b"
+  },
+  "backend/utils/regrasPedido.js": {
+    "mtime": 1783346386.7072854,
+    "ast_hash": "86cca4a572e8cb8e42011fa25d4c8c78",
+    "semantic_hash": "86cca4a572e8cb8e42011fa25d4c8c78"
+  },
+  "backend/utils/transaction.js": {
+    "mtime": 1783354787.8890395,
+    "ast_hash": "ab9edc1c9628bf6cb31a105b4825fd74",
+    "semantic_hash": "ab9edc1c9628bf6cb31a105b4825fd74"
+  },
+  "frontend/eslint.config.js": {
+    "mtime": 1776780805.0342388,
+    "ast_hash": "49c8473bcfcec3aef596a5fb04a6df06",
+    "semantic_hash": "49c8473bcfcec3aef596a5fb04a6df06"
+  },
+  "frontend/package.json": {
+    "mtime": 1776806213.3027184,
+    "ast_hash": "2ca2cf90974428eabd0112c95341707e",
+    "semantic_hash": "2ca2cf90974428eabd0112c95341707e"
+  },
+  "frontend/src/App.jsx": {
+    "mtime": 1776801343.0061715,
+    "ast_hash": "89a9b17fbaa4e991e8dc0146895da92d",
+    "semantic_hash": "89a9b17fbaa4e991e8dc0146895da92d"
+  },
+  "frontend/src/api/admin.api.js": {
+    "mtime": 1783257877.5520153,
+    "ast_hash": "0e65d73a3541ee349da14cc82442a101",
+    "semantic_hash": "0e65d73a3541ee349da14cc82442a101"
+  },
+  "frontend/src/api/auth.api.js": {
+    "mtime": 1782914224.6695552,
+    "ast_hash": "58cbf85fc106c1745721dde9a9473856",
+    "semantic_hash": "58cbf85fc106c1745721dde9a9473856"
+  },
+  "frontend/src/api/axios.js": {
+    "mtime": 1776783552.346325,
+    "ast_hash": "92efebaa82b18260ba2f01e7e678c120",
+    "semantic_hash": "92efebaa82b18260ba2f01e7e678c120"
+  },
+  "frontend/src/api/portal.api.js": {
+    "mtime": 1782850890.9370582,
+    "ast_hash": "ab0a9cc06e887164e4f1962175cfcde9",
+    "semantic_hash": "ab0a9cc06e887164e4f1962175cfcde9"
+  },
+  "frontend/src/api/public.api.js": {
+    "mtime": 1782676207.9276302,
+    "ast_hash": "8b2b88617ebcf928b19cc5246cc6b248",
+    "semantic_hash": "8b2b88617ebcf928b19cc5246cc6b248"
+  },
+  "frontend/src/components/ProtectedRoute.jsx": {
+    "mtime": 1776798854.231465,
+    "ast_hash": "e4e53d5840b838fd4ecfab9f11db0c2a",
+    "semantic_hash": "e4e53d5840b838fd4ecfab9f11db0c2a"
+  },
+  "frontend/src/components/layout/BackofficeLayout.jsx": {
+    "mtime": 1782226154.7172623,
+    "ast_hash": "fc8f36d211331fed1e594b11563757be",
+    "semantic_hash": "fc8f36d211331fed1e594b11563757be"
+  },
+  "frontend/src/components/layout/PortalLayout.jsx": {
+    "mtime": 1782680525.5850015,
+    "ast_hash": "a59c49fa299573f799c30d862ae099cb",
+    "semantic_hash": "a59c49fa299573f799c30d862ae099cb"
+  },
+  "frontend/src/context/AuthContext.jsx": {
+    "mtime": 1782161559.5845857,
+    "ast_hash": "10f64a9d37fb48cdbf630490912443c4",
+    "semantic_hash": "10f64a9d37fb48cdbf630490912443c4"
+  },
+  "frontend/src/main.jsx": {
+    "mtime": 1776782593.8100026,
+    "ast_hash": "bc522b3202631df4f248017fa29aca60",
+    "semantic_hash": "bc522b3202631df4f248017fa29aca60"
+  },
+  "frontend/src/pages/admin/ComprovativoBackofficeSection.jsx": {
+    "mtime": 1782335267.4610717,
+    "ast_hash": "31f1e3e1e6cf92aa96c0bff09a45fda6",
+    "semantic_hash": "31f1e3e1e6cf92aa96c0bff09a45fda6"
+  },
+  "frontend/src/pages/admin/DashboardInterno.jsx": {
+    "mtime": 1782223803.337312,
+    "ast_hash": "94ca7f9c780a18fc60e9e39667725313",
+    "semantic_hash": "94ca7f9c780a18fc60e9e39667725313"
+  },
+  "frontend/src/pages/admin/alertas/AlertasPrazo.jsx": {
+    "mtime": 1778771689.5226798,
+    "ast_hash": "e078b6f7c4a7ceaceb7c6532e826daae",
+    "semantic_hash": "e078b6f7c4a7ceaceb7c6532e826daae"
+  },
+  "frontend/src/pages/admin/aprovacoes/AprovacoesList.jsx": {
+    "mtime": 1776947286.7902727,
+    "ast_hash": "f65216202333583b6be0e3d9bb572cbe",
+    "semantic_hash": "f65216202333583b6be0e3d9bb572cbe"
+  },
+  "frontend/src/pages/admin/auditoria/LogsAuditoriaList.jsx": {
+    "mtime": 1780669514.5364249,
+    "ast_hash": "f0aae2e7df7baa7871c827a4305c5311",
+    "semantic_hash": "f0aae2e7df7baa7871c827a4305c5311"
+  },
+  "frontend/src/pages/admin/desembolsos/DesembolsosList.jsx": {
+    "mtime": 1776959269.1861498,
+    "ast_hash": "4687fcadf10d5311725b181096035593",
+    "semantic_hash": "4687fcadf10d5311725b181096035593"
+  },
+  "frontend/src/pages/admin/excel/ExcelImportExport.jsx": {
+    "mtime": 1777044954.0763555,
+    "ast_hash": "f5a5e9211e49d73d344dc3a5e96061a4",
+    "semantic_hash": "f5a5e9211e49d73d344dc3a5e96061a4"
+  },
+  "frontend/src/pages/admin/mutuarios/MutuarioDetalhe.jsx": {
+    "mtime": 1776945179.748839,
+    "ast_hash": "ee562ecb28b51fcdab700ecd48f21c3b",
+    "semantic_hash": "ee562ecb28b51fcdab700ecd48f21c3b"
+  },
+  "frontend/src/pages/admin/mutuarios/MutuariosList.jsx": {
+    "mtime": 1776941472.4138207,
+    "ast_hash": "fa424025be69fd428e2ecddd5149bc99",
+    "semantic_hash": "fa424025be69fd428e2ecddd5149bc99"
+  },
+  "frontend/src/pages/admin/notificacoes/MinhasNotificacoes.jsx": {
+    "mtime": 1778602187.8203504,
+    "ast_hash": "967f5a28979e723792264d931783935e",
+    "semantic_hash": "967f5a28979e723792264d931783935e"
+  },
+  "frontend/src/pages/admin/pedidos/ExtratoPedidoInterno.jsx": {
+    "mtime": 1777043634.9951108,
+    "ast_hash": "f61de9d507c8a79b0af4c6f10d8bf10b",
+    "semantic_hash": "f61de9d507c8a79b0af4c6f10d8bf10b"
+  },
+  "frontend/src/pages/admin/pedidos/PedidoDetalhe.jsx": {
+    "mtime": 1782334961.7836897,
+    "ast_hash": "9692190209e43ed98f3dce2fd4267aa7",
+    "semantic_hash": "9692190209e43ed98f3dce2fd4267aa7"
+  },
+  "frontend/src/pages/admin/pedidos/PedidoRequisitosSection.jsx": {
+    "mtime": 1781902375.755117,
+    "ast_hash": "0d19452277f4e43d516a7d1524cd26e5",
+    "semantic_hash": "0d19452277f4e43d516a7d1524cd26e5"
+  },
+  "frontend/src/pages/admin/pedidos/PedidosList.jsx": {
+    "mtime": 1776868987.9123514,
+    "ast_hash": "59e60800c8141a4e4b73fd9a23a62467",
+    "semantic_hash": "59e60800c8141a4e4b73fd9a23a62467"
+  },
+  "frontend/src/pages/admin/reembolsos/ReembolsosList.jsx": {
+    "mtime": 1783257970.9859698,
+    "ast_hash": "78caed25015cff3444cd087de68bbad1",
+    "semantic_hash": "78caed25015cff3444cd087de68bbad1"
+  },
+  "frontend/src/pages/admin/relatorios/RelatoriosList.jsx": {
+    "mtime": 1776972862.8612435,
+    "ast_hash": "bd696ac8691370aac9b554f7be41f904",
+    "semantic_hash": "bd696ac8691370aac9b554f7be41f904"
+  },
+  "frontend/src/pages/admin/requisitos/RequisitosCreditoList.jsx": {
+    "mtime": 1777031983.448047,
+    "ast_hash": "ea56237f393e507429b23306e4acbbae",
+    "semantic_hash": "ea56237f393e507429b23306e4acbbae"
+  },
+  "frontend/src/pages/auth/ForgotPassword.jsx": {
+    "mtime": 1782165125.6131668,
+    "ast_hash": "abb2aada837a872da84f25f32ccad077",
+    "semantic_hash": "abb2aada837a872da84f25f32ccad077"
+  },
+  "frontend/src/pages/auth/Login.jsx": {
+    "mtime": 1782158149.0171535,
+    "ast_hash": "16b0da686445f9d852e697401a0e629e",
+    "semantic_hash": "16b0da686445f9d852e697401a0e629e"
+  },
+  "frontend/src/pages/auth/RegisterMutuario.jsx": {
+    "mtime": 1782165098.865999,
+    "ast_hash": "d24ae715e5eac1950d650b73321eb532",
+    "semantic_hash": "d24ae715e5eac1950d650b73321eb532"
+  },
+  "frontend/src/pages/auth/RegisterUser.jsx": {
+    "mtime": 1782986322.4238975,
+    "ast_hash": "ef5d4001210b639fcab58b91cf095585",
+    "semantic_hash": "ef5d4001210b639fcab58b91cf095585"
+  },
+  "frontend/src/pages/auth/ResetPassword.jsx": {
+    "mtime": 1782165113.065487,
+    "ast_hash": "438ab34f01c16c15a4f8a855ce290923",
+    "semantic_hash": "438ab34f01c16c15a4f8a855ce290923"
+  },
+  "frontend/src/pages/auth/VerifyOTP.jsx": {
+    "mtime": 1782161930.7929356,
+    "ast_hash": "258d3a02c36a34ab89ade33a69c17d7f",
+    "semantic_hash": "258d3a02c36a34ab89ade33a69c17d7f"
+  },
+  "frontend/src/pages/portal/ComprovativoSection.jsx": {
+    "mtime": 1782334270.9213276,
+    "ast_hash": "831c4bb16b174fbf356677bd3064e658",
+    "semantic_hash": "831c4bb16b174fbf356677bd3064e658"
+  },
+  "frontend/src/pages/portal/CriarPedido.jsx": {
+    "mtime": 1782569629.5054042,
+    "ast_hash": "c9f252a8efdb06c92a82b87691d3d7f9",
+    "semantic_hash": "c9f252a8efdb06c92a82b87691d3d7f9"
+  },
+  "frontend/src/pages/portal/DashboardMutuario.jsx": {
+    "mtime": 1782990478.9166949,
+    "ast_hash": "60589af78e7796f39d382b2084454294",
+    "semantic_hash": "60589af78e7796f39d382b2084454294"
+  },
+  "frontend/src/pages/portal/DetalheCredito.jsx": {
+    "mtime": 1782988934.1505494,
+    "ast_hash": "8fad919fa4ee27fe00e01a4261ebcb68",
+    "semantic_hash": "8fad919fa4ee27fe00e01a4261ebcb68"
+  },
+  "frontend/src/pages/portal/DetalhePedido.jsx": {
+    "mtime": 1782334302.438408,
+    "ast_hash": "ecf5a3bcf281311873f641c01b91b316",
+    "semantic_hash": "ecf5a3bcf281311873f641c01b91b316"
+  },
+  "frontend/src/pages/portal/ExtratoPedido.jsx": {
+    "mtime": 1777118026.7005918,
+    "ast_hash": "ef84b9f4fc522de161b50d301184f475",
+    "semantic_hash": "ef84b9f4fc522de161b50d301184f475"
+  },
+  "frontend/src/pages/portal/MeuMutuario.jsx": {
+    "mtime": 1781014802.3677793,
+    "ast_hash": "9fc59fa19c6b33220c0fb51349641982",
+    "semantic_hash": "9fc59fa19c6b33220c0fb51349641982"
+  },
+  "frontend/src/pages/portal/MeuMutuarioEditar.jsx": {
+    "mtime": 1781014802.3637586,
+    "ast_hash": "2a02248d552f3c0c7fea734e160b8950",
+    "semantic_hash": "2a02248d552f3c0c7fea734e160b8950"
+  },
+  "frontend/src/pages/portal/MeusCreditos.jsx": {
+    "mtime": 1782988673.7544992,
+    "ast_hash": "567fb63be0875c32e83764a63df1a3a6",
+    "semantic_hash": "567fb63be0875c32e83764a63df1a3a6"
+  },
+  "frontend/src/pages/portal/MeusPedidos.jsx": {
+    "mtime": 1777118082.4193406,
+    "ast_hash": "f17c233f9e55ed94b4d575f20d1dbb0f",
+    "semantic_hash": "f17c233f9e55ed94b4d575f20d1dbb0f"
+  },
+  "frontend/src/pages/portal/Notificacoes.jsx": {
+    "mtime": 1778602134.5047543,
+    "ast_hash": "2b67d3ce45cc95a3367643e2eabdafb5",
+    "semantic_hash": "2b67d3ce45cc95a3367643e2eabdafb5"
+  },
+  "frontend/src/pages/portal/Simulacoes.jsx": {
+    "mtime": 1782330117.0149846,
+    "ast_hash": "4ddcaba8251c5a0db7f9a542cc93b8c5",
+    "semantic_hash": "4ddcaba8251c5a0db7f9a542cc93b8c5"
+  },
+  "frontend/src/pages/public/LandingPage.jsx": {
+    "mtime": 1782680495.1661983,
+    "ast_hash": "e4541688087b2db031e0119627d4d8ec",
+    "semantic_hash": "e4541688087b2db031e0119627d4d8ec"
+  },
+  "frontend/src/routes/AppRoutes.jsx": {
+    "mtime": 1782939566.6289537,
+    "ast_hash": "9883e2be5bf33bd8d5b27af39755ab5e",
+    "semantic_hash": "9883e2be5bf33bd8d5b27af39755ab5e"
+  },
+  "frontend/src/utils/formatters.js": {
+    "mtime": 1776860380.0876062,
+    "ast_hash": "3036796bbe358a874fc4b4038c8a3890",
+    "semantic_hash": "3036796bbe358a874fc4b4038c8a3890"
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1776780805.0978107,
+    "ast_hash": "88439104b3c207f17d33ef3160e3b080",
+    "semantic_hash": "88439104b3c207f17d33ef3160e3b080"
+  }
+}

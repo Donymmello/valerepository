@@ -1,6 +1,6 @@
 const { Desembolso, PedidoCredito, User, ParcelaPagamento } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
-const generateReferencia = require("../utils/generateReferencia");
+const { generateReferencia } = require("../utils/generateCode");
 const creditoService = require("../services/credito.service");
 const {
   podeDesembolsarPedido,

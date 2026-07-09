@@ -64,7 +64,7 @@ export default function RelatoriosList() {
       ] = await Promise.all([
         getResumoGeralRequest(),
         getRelatorioPedidosRequest(paramsPedidos),
-        getRelatorioFinanceiroPedidosRequest(),
+        getRelatorioFinanceiroPedidosRequest(paramsPedidos),
         getRelatorioDesembolsosRequest(paramsFinanceiros),
         getRelatorioReembolsosRequest(paramsFinanceiros),
       ]);

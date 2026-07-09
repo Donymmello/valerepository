@@ -168,6 +168,11 @@ Reembolso.belongsTo(User, {
   as: "criador",
 });
 
+Reembolso.belongsTo(ParcelaPagamento, {
+  foreignKey: "parcelaId",
+  as: "parcela",
+});
+
 /*
   Um pedido pode ter vários requisitos.
 */
@@ -222,12 +227,32 @@ Credito.belongsTo(PedidoCredito, {
   as: "pedido",
 });
 
+Mutuario.hasMany(Credito, {
+  foreignKey: "mutuarioId",
+  as: "creditos",
+});
+
+Credito.belongsTo(Mutuario, {
+  foreignKey: "mutuarioId",
+  as: "mutuario",
+});
+
 Credito.hasMany(ParcelaPagamento, {
   foreignKey: "creditoId",
   as: "parcelas",
 });
 
+Credito.hasMany(Reembolso, {
+  foreignKey: "creditoId",
+  as: "reembolsos",
+});
+
 ParcelaPagamento.belongsTo(Credito, {
+  foreignKey: "creditoId",
+  as: "credito",
+});
+
+Reembolso.belongsTo(Credito, {
   foreignKey: "creditoId",
   as: "credito",
 });
@@ -238,19 +263,6 @@ PedidoCredito.hasMany(Desembolso, {
 });
 
 Desembolso.belongsTo(PedidoCredito, {
-  foreignKey: "pedidoId",
-  as: "pedido",
-});
-
-/*
-  Um pedido pode ter várias parcelas de pagamento.
-*/
-PedidoCredito.hasMany(ParcelaPagamento, {
-  foreignKey: "pedidoId",
-  as: "parcelas",
-});
-
-ParcelaPagamento.belongsTo(PedidoCredito, {
   foreignKey: "pedidoId",
   as: "pedido",
 });

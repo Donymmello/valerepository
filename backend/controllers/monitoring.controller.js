@@ -1,11 +1,10 @@
 /**
  * Monitoring Dashboard Controller
- * Agregador de métricas: Performance, Cache, Health
+ * Agregador de métricas: Performance, Health
  */
 
 const logger = require('../utils/logger');
 const { getMetricsStats } = require('../middleware/performanceMetrics.middleware');
-const cacheManager = require('../utils/cacheManager');
 const { sequelize } = require('../models');
 
 /**
@@ -14,7 +13,6 @@ const { sequelize } = require('../models');
 async function getMonitoringDashboard(req, res) {
   try {
     const performanceMetrics = getMetricsStats();
-    const cacheMetrics = cacheManager.getStats();
 
     // Verificar DB connection
     let dbStatus = 'unknown';
@@ -31,11 +29,9 @@ async function getMonitoringDashboard(req, res) {
       summary: {
         apiStatus: Object.keys(performanceMetrics).length > 0 ? 'UP' : 'NO_TRAFFIC',
         databaseStatus: dbStatus,
-        cacheStatus: 'healthy',
       },
       metrics: {
         performance: performanceMetrics,
-        cache: cacheMetrics,
       },
       system: {
         memory: process.memoryUsage(),

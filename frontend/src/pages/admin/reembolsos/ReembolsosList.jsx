@@ -16,7 +16,7 @@ import {
 import {
   createReembolsoRequest,
   getAllReembolsosRequest,
-  getPedidosElegiveisReembolsoRequest,
+  getCreditosElegiveisReembolsoRequest,
 } from "../../../api/admin.api";
 import {
   formatCurrency,
@@ -27,7 +27,7 @@ import {
 
 export default function ReembolsosList() {
   const [reembolsos, setReembolsos] = useState([]);
-  const [pedidosElegiveis, setPedidosElegiveis] = useState([]);
+  const [creditosElegiveis, setCreditosElegiveis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +35,8 @@ export default function ReembolsosList() {
   const [search, setSearch] = useState("");
 
   const [form, setForm] = useState({
-    pedidoId: "",
+    creditoId: "",
+    parcelaId: "",
     valorReembolsado: "",
     dataReembolso: "",
     meioPagamento: "TRANSFERENCIA",
@@ -48,15 +49,13 @@ export default function ReembolsosList() {
       setLoading(true);
       setError("");
 
-      const [reembolsosData, pedidosElegiveisData] = await Promise.all([
+      const [reembolsosData, creditosData] = await Promise.all([
         getAllReembolsosRequest(),
-        getPedidosElegiveisReembolsoRequest(),
+        getCreditosElegiveisReembolsoRequest(),
       ]);
 
       setReembolsos(Array.isArray(reembolsosData) ? reembolsosData : []);
-      setPedidosElegiveis(
-        Array.isArray(pedidosElegiveisData) ? pedidosElegiveisData : []
-      );
+      setCreditosElegiveis(Array.isArray(creditosData) ? creditosData : []);
     } catch (err) {
       console.error(err);
       setError(
@@ -80,39 +79,61 @@ export default function ReembolsosList() {
     }));
   };
 
-  const handleSelecionarPedido = (event) => {
-    const pedidoId = event.target.value;
+  const handleSelecionarCredito = (event) => {
+    const creditoId = event.target.value;
 
-    const pedidoSelecionado = pedidosElegiveis.find(
-      (pedido) => String(pedido.id) === String(pedidoId)
+    const creditoSelecionado = creditosElegiveis.find(
+      (credito) => String(credito.id) === String(creditoId)
     );
 
-    const totalDesembolsado = Array.isArray(pedidoSelecionado?.desembolsos)
-      ? pedidoSelecionado.desembolsos.reduce(
-          (total, item) => total + Number(item.valorDesembolsado || 0),
-          0
-        )
-      : 0;
+    if (!creditoSelecionado) {
+      setForm((prev) => ({
+        ...prev,
+        creditoId,
+        parcelaId: "",
+        valorReembolsado: "",
+      }));
+      return;
+    }
 
-    const totalReembolsado = Array.isArray(pedidoSelecionado?.reembolsos)
-      ? pedidoSelecionado.reembolsos.reduce(
-          (total, item) => total + Number(item.valorReembolsado || 0),
-          0
-        )
-      : 0;
+    // Atualizar form com dados do crédito
+    setForm((prev) => ({
+      ...prev,
+      creditoId,
+      parcelaId: "", // Usuário vai selecionar a parcela depois
+      valorReembolsado: "", // Será preenchido quando selecionar parcela
+    }));
+  };
 
-    const saldoEmAberto = totalDesembolsado - totalReembolsado;
+  const handleSelecionarParcela = (event) => {
+    const parcelaId = event.target.value;
+
+    const creditoSelecionado = creditosElegiveis.find(
+      (credito) => String(credito.id) === String(form.creditoId)
+    );
+
+    if (!creditoSelecionado) return;
+
+    const parcelaSelecionada = creditoSelecionado.parcelas?.find(
+      (parcela) => String(parcela.id) === String(parcelaId)
+    );
+
+    if (!parcelaSelecionada) return;
+
+    // Preencher valor com o saldo da parcela
+    const valorParaReembolsar = Number(parcelaSelecionada.saldoParcela || 0);
 
     setForm((prev) => ({
       ...prev,
-      pedidoId,
-      valorReembolsado: saldoEmAberto > 0 ? String(saldoEmAberto) : "",
+      parcelaId,
+      valorReembolsado: valorParaReembolsar > 0 ? String(valorParaReembolsar) : "",
     }));
   };
 
   const limparFormulario = () => {
     setForm({
-      pedidoId: "",
+      creditoId: "",
+      parcelaId: "",
       valorReembolsado: "",
       dataReembolso: "",
       meioPagamento: "TRANSFERENCIA",
@@ -122,8 +143,13 @@ export default function ReembolsosList() {
   };
 
   const handleRegistarReembolso = async () => {
-    if (!form.pedidoId) {
-      setError("Selecione um pedido elegível.");
+    if (!form.creditoId) {
+      setError("Selecione um crédito elegível.");
+      return;
+    }
+
+    if (!form.parcelaId) {
+      setError("Selecione uma parcela.");
       return;
     }
 
@@ -132,35 +158,26 @@ export default function ReembolsosList() {
       return;
     }
 
-    const pedidoSelecionado = pedidosElegiveis.find(
-      (pedido) => String(pedido.id) === String(form.pedidoId)
+    const creditoSelecionado = creditosElegiveis.find(
+      (credito) => String(credito.id) === String(form.creditoId)
     );
 
-    if (pedidoSelecionado) {
-      const totalDesembolsado = Array.isArray(pedidoSelecionado.desembolsos)
-        ? pedidoSelecionado.desembolsos.reduce(
-            (total, item) => total + Number(item.valorDesembolsado || 0),
-            0
-          )
-        : 0;
+    const parcelaSelecionada = creditoSelecionado?.parcelas?.find(
+      (parcela) => String(parcela.id) === String(form.parcelaId)
+    );
 
-      const totalReembolsado = Array.isArray(pedidoSelecionado.reembolsos)
-        ? pedidoSelecionado.reembolsos.reduce(
-            (total, item) => total + Number(item.valorReembolsado || 0),
-            0
-          )
-        : 0;
+    if (!parcelaSelecionada) {
+      setError("Parcela não encontrada.");
+      return;
+    }
 
-      const saldoEmAberto = totalDesembolsado - totalReembolsado;
-
-      if (Number(form.valorReembolsado) > saldoEmAberto) {
-        setError(
-          `O valor do reembolso não pode ser maior que o saldo em aberto (${formatCurrency(
-            saldoEmAberto
-          )}).`
-        );
-        return;
-      }
+    if (Number(form.valorReembolsado) > Number(parcelaSelecionada.saldoParcela)) {
+      setError(
+        `O valor do reembolso não pode ser maior que o saldo da parcela (${formatCurrency(
+          parcelaSelecionada.saldoParcela
+        )}).`
+      );
+      return;
     }
 
     try {
@@ -168,9 +185,10 @@ export default function ReembolsosList() {
       setError("");
 
       await createReembolsoRequest({
-        pedidoId: Number(form.pedidoId),
+        creditoId: Number(form.creditoId),
+        parcelaId: Number(form.parcelaId),
         valorReembolsado: Number(form.valorReembolsado),
-        dataReembolso: form.dataReembolso || null,
+        dataReembolso: form.dataReembolso || new Date().toISOString().split("T")[0],
         meioPagamento: form.meioPagamento || "TRANSFERENCIA",
         numeroTransacao: form.numeroTransacao || null,
         observacoes: form.observacoes || null,
@@ -193,12 +211,12 @@ export default function ReembolsosList() {
     if (!term) return reembolsos;
 
     return reembolsos.filter((reembolso) => {
-      const pedidoNumero = String(
-        reembolso.pedido?.numeroPedido || ""
+      const numeroContrato = String(
+        reembolso.credito?.numeroContrato || ""
       ).toLowerCase();
 
-      const statusPedido = String(
-        reembolso.pedido?.status || reembolso.pedido?.estado || ""
+      const estadoCredito = String(
+        reembolso.credito?.estado || ""
       ).toLowerCase();
 
       const criadorNome = String(
@@ -222,8 +240,8 @@ export default function ReembolsosList() {
       ).toLowerCase();
 
       return (
-        pedidoNumero.includes(term) ||
-        statusPedido.includes(term) ||
+        numeroContrato.includes(term) ||
+        estadoCredito.includes(term) ||
         criadorNome.includes(term) ||
         meioPagamento.includes(term) ||
         numeroTransacao.includes(term) ||
@@ -251,102 +269,76 @@ export default function ReembolsosList() {
         mb={3}
       >
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
             Reembolsos
           </Typography>
-
           <Typography variant="body2" color="text.secondary">
-            Registe e consulte os reembolsos do sistema.
+            Registar e gerir reembolsos de créditos
           </Typography>
         </Box>
       </Stack>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
-          Registar Reembolso
-        </Typography>
-
         <Stack spacing={2}>
           <TextField
             select
             fullWidth
-            label="Pedido Elegível"
-            name="pedidoId"
-            value={form.pedidoId}
-            onChange={handleSelecionarPedido}
-            helperText="Apenas pedidos desembolsados com saldo em aberto aparecem aqui."
+            label="Crédito Elegível"
+            name="creditoId"
+            value={form.creditoId}
+            onChange={handleSelecionarCredito}
+            helperText="Apenas créditos ATIVO com parcelas PENDENTE/ATRASADO aparecem aqui."
           >
             <MenuItem value="">Selecionar</MenuItem>
-            {pedidosElegiveis.map((pedido) => (
-              <MenuItem key={pedido.id} value={pedido.id}>
-                {pedido.numeroPedido} — {pedido.mutuario?.nomeCompleto || "Sem mutuário"}
+            {creditosElegiveis.map((credito) => (
+              <MenuItem key={credito.id} value={credito.id}>
+                {credito.numeroContrato} — {credito.mutuario?.nomeCompleto || "Sem mutuário"}
               </MenuItem>
             ))}
           </TextField>
 
-          {form.pedidoId && (
+          {form.creditoId && (
             <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
               {(() => {
-                const pedidoSelecionado = pedidosElegiveis.find(
-                  (pedido) => String(pedido.id) === String(form.pedidoId)
+                const creditoSelecionado = creditosElegiveis.find(
+                  (credito) => String(credito.id) === String(form.creditoId)
                 );
 
-                if (!pedidoSelecionado) return null;
-
-                const totalDesembolsado = Array.isArray(pedidoSelecionado.desembolsos)
-                  ? pedidoSelecionado.desembolsos.reduce(
-                      (total, item) => total + Number(item.valorDesembolsado || 0),
-                      0
-                    )
-                  : 0;
-
-                const totalReembolsado = Array.isArray(pedidoSelecionado.reembolsos)
-                  ? pedidoSelecionado.reembolsos.reduce(
-                      (total, item) => total + Number(item.valorReembolsado || 0),
-                      0
-                    )
-                  : 0;
-
-                const saldoEmAberto = totalDesembolsado - totalReembolsado;
-                const status = pedidoSelecionado.status || pedidoSelecionado.estado;
+                if (!creditoSelecionado) return null;
 
                 return (
                   <Stack spacing={1}>
                     <Typography variant="body2">
-                      <strong>Pedido:</strong> {pedidoSelecionado.numeroPedido || "-"}
+                      <strong>Contrato:</strong> {creditoSelecionado.numeroContrato || "-"}
                     </Typography>
 
                     <Typography variant="body2">
                       <strong>Mutuário:</strong>{" "}
-                      {pedidoSelecionado.mutuario?.nomeCompleto || "-"}
+                      {creditoSelecionado.mutuario?.nomeCompleto || "-"}
                     </Typography>
 
                     <Typography variant="body2">
-                      <strong>Total desembolsado:</strong>{" "}
-                      {formatCurrency(totalDesembolsado)}
+                      <strong>Valor Original:</strong>{" "}
+                      {formatCurrency(creditoSelecionado.valorOriginal)}
                     </Typography>
 
                     <Typography variant="body2">
-                      <strong>Total reembolsado:</strong>{" "}
-                      {formatCurrency(totalReembolsado)}
+                      <strong>Saldo Atual:</strong>{" "}
+                      {formatCurrency(creditoSelecionado.saldoAtual)}
                     </Typography>
 
                     <Typography variant="body2">
-                      <strong>Saldo em aberto:</strong>{" "}
-                      {formatCurrency(saldoEmAberto)}
+                      <strong>Total Pago:</strong>{" "}
+                      {formatCurrency(creditoSelecionado.totalPago)}
                     </Typography>
 
                     <Box>
                       <Chip
                         size="small"
-                        label={getStatusLabel(status)}
-                        color={getStatusColor(status)}
+                        label={creditoSelecionado.estado}
+                        color={creditoSelecionado.estado === "ATIVO" ? "success" : "default"}
                       />
                     </Box>
                   </Stack>
@@ -355,14 +347,38 @@ export default function ReembolsosList() {
             </Paper>
           )}
 
+          {form.creditoId && (
+            <TextField
+              select
+              fullWidth
+              label="Parcela"
+              name="parcelaId"
+              value={form.parcelaId}
+              onChange={handleSelecionarParcela}
+              helperText="Selecione a parcela a reembolsar."
+            >
+              <MenuItem value="">Selecionar</MenuItem>
+              {creditosElegiveis
+                .find((c) => String(c.id) === String(form.creditoId))
+                ?.parcelas?.map((parcela) => (
+                  <MenuItem key={parcela.id} value={parcela.id}>
+                    Parcela #{parcela.numeroParcela} — Vencimento:{" "}
+                    {formatDate(parcela.dataVencimento)} — Saldo:{" "}
+                    {formatCurrency(parcela.saldoParcela)}
+                  </MenuItem>
+                ))}
+            </TextField>
+          )}
+
           <TextField
             fullWidth
             label="Valor Reembolsado"
             name="valorReembolsado"
             type="number"
+            inputProps={{ step: "0.01" }}
             value={form.valorReembolsado}
             onChange={handleChange}
-            helperText="Ao selecionar o pedido, este campo é preenchido com o saldo em aberto, mas pode ser ajustado."
+            helperText="Ao selecionar a parcela, este campo é preenchido com o saldo, mas pode ser ajustado."
           />
 
           <TextField
@@ -411,7 +427,7 @@ export default function ReembolsosList() {
             <Button
               variant="contained"
               onClick={handleRegistarReembolso}
-              disabled={saving}
+              disabled={saving || !form.creditoId || !form.parcelaId}
             >
               {saving ? "A registar..." : "Registar Reembolso"}
             </Button>
@@ -422,7 +438,7 @@ export default function ReembolsosList() {
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <TextField
           fullWidth
-          label="Pesquisar por pedido, status, criador, meio de pagamento, transação, referência ou observações"
+          label="Pesquisar por contrato, estado, criador, meio de pagamento, transação, referência ou observações"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -436,8 +452,7 @@ export default function ReembolsosList() {
 
       <Stack spacing={2}>
         {reembolsosFiltrados.map((reembolso) => {
-          const statusPedido =
-            reembolso.pedido?.status || reembolso.pedido?.estado;
+          const estadoCredito = reembolso.credito?.estado;
 
           return (
             <Paper key={reembolso.id} sx={{ p: 3, borderRadius: 3 }}>
@@ -454,17 +469,21 @@ export default function ReembolsosList() {
                     mb={1}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      {reembolso.pedido?.numeroPedido || `Reembolso #${reembolso.id}`}
+                      {reembolso.credito?.numeroContrato || `Reembolso #${reembolso.id}`}
                     </Typography>
 
-                    {statusPedido && (
+                    {estadoCredito && (
                       <Chip
-                        label={getStatusLabel(statusPedido)}
-                        color={getStatusColor(statusPedido)}
+                        label={estadoCredito}
+                        color={estadoCredito === "ATIVO" ? "success" : "default"}
                         size="small"
                       />
                     )}
                   </Stack>
+
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Parcela:</strong> #{reembolso.parcela?.numeroParcela || "-"}
+                  </Typography>
 
                   <Typography variant="body2" color="text.secondary">
                     <strong>Valor reembolsado:</strong>{" "}
@@ -503,13 +522,13 @@ export default function ReembolsosList() {
                   spacing={1}
                   alignItems={{ xs: "stretch", sm: "center" }}
                 >
-                  {reembolso.pedido?.id && (
+                  {reembolso.credito?.id && (
                     <Button
                       component={RouterLink}
-                      to={`/interno/pedidos/${reembolso.pedido.id}`}
+                      to={`/backoffice/creditos/${reembolso.credito.id}`}
                       variant="outlined"
                     >
-                      Ver Pedido
+                      Ver Crédito
                     </Button>
                   )}
                 </Stack>

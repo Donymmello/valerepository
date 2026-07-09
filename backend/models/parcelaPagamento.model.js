@@ -35,6 +35,11 @@ const ParcelaPagamento = sequelize.define(
             allowNull: true,
             defaultValue: 0,
         },
+
+        saldoParcela: {
+            type: DataTypes.DECIMAL(15,2),
+            allowNull: false
+        },
         dataPagamento: {
             type: DataTypes.DATE,
             allowNull: true,

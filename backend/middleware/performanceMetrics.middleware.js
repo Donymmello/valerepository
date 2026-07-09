@@ -1,11 +1,10 @@
 /**
  * Performance Metrics Middleware
- * Rastreia tempo de resposta, memória e CPU por endpoint
- * Integrado com Alert Manager para monitorar anomalias
+ * Tracks response time, memory and CPU per endpoint
+ * ponytail: Removed alertManager integration - use logs only
  */
 
 const logger = require('../utils/logger');
-const alertManager = require('../utils/alertManager');
 const os = require('os');
 
 // Armazenar métricas (em produção usar Redis/prometheus)
@@ -95,21 +94,6 @@ function performanceMetricsMiddleware(req, res, next) {
       statusCode: res.statusCode,
       duration,
       memory: `${memDelta > 0 ? '+' : ''}${memDelta.toFixed(2)}MB`,
-    });
-
-    // Monitorar com Alert Manager
-    alertManager.monitor('endpoint_response_time', duration, {
-      endpoint,
-      method: req.method,
-      statusCode: res.statusCode,
-      requestId: req.requestId,
-    });
-
-    // Monitorar uso de memória
-    const memUsagePercent = (getMemoryUsage().heapUsed / getMemoryUsage().heapTotal) * 100;
-    alertManager.monitor('memory_usage', memUsagePercent, {
-      endpoint,
-      requestId: req.requestId,
     });
 
     return originalJson.call(this, data);

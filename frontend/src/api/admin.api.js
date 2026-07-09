@@ -24,7 +24,7 @@ export const getPedidosElegiveisDesembolsoRequest = async () => {
 export const getPedidosElegiveisReembolsoRequest = async () => {
   const response = await api.get("/pedidos-credito/elegiveis-reembolso");
   return response.data;
-}
+};
 
 /*
   ==========================================================
@@ -131,8 +131,8 @@ export const getRelatorioPedidosRequest = async (params = {}) => {
   return response.data;
 };
 
-export const getRelatorioFinanceiroPedidosRequest = async () => {
-  const response = await api.get("/relatorios/financeiro-pedidos");
+export const getRelatorioFinanceiroPedidosRequest = async (params = {}) => {
+  const response = await api.get("/relatorios/financeiro-pedidos", { params });
   return response.data;
 };
 
@@ -389,3 +389,13 @@ export const downloadComprovatioRequest = async (id, nome) => {
   link.remove();
   window.URL.revokeObjectURL(url);
 };
+
+export const getCreditosElegiveisReembolsoRequest = async () => {
+  const response = await api.get("/creditos/elegiveis-reembolso");
+  return response.data;
+}
+
+export const getCreditosComReembolsoRequest = async (creditoId) => {
+  const response = await api.get(`/creditos/${creditoId}`);
+  return response.data;
+}
