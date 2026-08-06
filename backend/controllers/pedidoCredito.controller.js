@@ -1,454 +1,264 @@
-const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso, Notificacao } = require("../models");
+const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso, Notificacao, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { Op } = require("sequelize");
-const {
-  podeCriarPedido,
-  podeEditarPedido,
-  podeTransitarStatus,
-  STATUS_PEDIDO,
-} = require("../utils/regrasPedido");
+const { podeCriarPedido, podeEditarPedido, podeTransitarStatus, STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
 
-
-/*
-  ==========================================================
-  FUNÇÃO AUXILIAR PARA GERAR NÚMERO DO PEDIDO
-  ==========================================================
-*/
+// =========================================================================
+// HELPERS / UTILS
+// =========================================================================
 function generateNumeroPedido() {
   const now = new Date();
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  const random = Math.floor(100000 + Math.random() * 900000);
-
-  return `PED-${year}${month}${day}-${random}`;
+  const format = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  return `PED-${format}-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
-/*
-  ==========================================================
-  FUNÇÃO AUXILIAR: CRIAR ALERTAS AUTOMÁTICOS AO CRIAR PEDIDO
-  ==========================================================
-  Notifica todos os backoffice internos (ADMIN, GESTOR, ANALISTA, DIRETOR)
-  quando um novo pedido é criado.
-*/
-async function criarAlertasPedidoCriado(pedido) {
+/**
+ * OPTIMIZAÇÃO DE PERFORMANCE: Criação em lote (Bulk Insert)
+ * Executa apenas 1 query na BD em vez de fazer um loop bloqueante.
+ */
+async function criarAlertasPedidoCriado(pedido, transaction) {
   try {
-    // Obter todos os utilizadores internos ativos
     const usuariosInternos = await User.findAll({
-      where: {
-        ativo: true,
-        role: {
-          [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"],
-        },
-      },
+      where: { ativo: true, role: { [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"] } },
+      attributes: ['id'],
+      transaction
     });
 
-    // Criar notificações para cada utilizador interno
-    for (const usuario of usuariosInternos) {
-      await Notificacao.create({
-        userId: usuario.id,
-        pedidoId: pedido.id,
-        titulo: "Novo Pedido de Crédito Criado",
-        mensagem: `Novo pedido de crédito ${pedido.numeroPedido} foi criado. Prazo de avaliação: 7 dias.`,
-        tipo: "PEDIDO_CRIADO",
-        lida: false,
-      });
-    }
+    if (!usuariosInternos.length) return;
 
-    console.log(`✅ Alertas criados para ${usuariosInternos.length} utilizadores internos`);
+    const notificacoes = usuariosInternos.map(usuario => ({
+      userId: usuario.id,
+      pedidoId: pedido.id,
+      titulo: "Novo Pedido de Crédito Criado",
+      mensagem: `Novo pedido de crédito ${pedido.numeroPedido} foi criado. Prazo de avaliação: 7 dias.`,
+      tipo: "PEDIDO_CRIADO",
+      lida: false,
+    }));
+
+    // Inserção em massa numa única viagem à BD
+    await Notificacao.bulkCreate(notificacoes, { transaction });
   } catch (error) {
-    console.error("Erro ao criar alertas automáticos:", error);
+    console.error("[Alertas Error]: Falha ao gerar notificações em lote:", error);
   }
 }
 
-/*
-  ==========================================================
-  CRIAR PEDIDO DE CRÉDITO
-  ==========================================================
-*/
+// =========================================================================
+// CONTROLLERS
+// =========================================================================
+
+/**
+ * CRIAR PEDIDO DE CRÉDITO
+ */
 async function createPedidoCredito(req, res) {
   try {
-    const {
-      mutuarioId,
-      valorSolicitado,
-      prazo,
-      finalidade,
-      pacoteFinanciamento,
-      observacoes,
-    } = req.body;
+    const { mutuarioId, valorSolicitado, prazo, finalidade, pacoteFinanciamento, observacoes } = req.body;
 
-    /*
-      Regra de perfil
-    */
     if (!podeCriarPedido(req.user)) {
-      return res.status(403).json({
-        message: "Não tens permissão para criar pedido de crédito.",
-      });
+      return res.status(403).json({ message: "Não tens permissão para criar pedido de crédito." });
     }
 
-    if (!mutuarioId || !valorSolicitado || !finalidade) {
-      return res.status(400).json({
-        message: "mutuarioId, valorSolicitado e finalidade são obrigatórios.",
-      });
+    // Guard Clause única unificada
+    if (!mutuarioId || !valorSolicitado || !prazo || !finalidade) {
+      return res.status(400).json({ message: "mutuarioId, valorSolicitado, prazo e finalidade são obrigatórios." });
     }
 
-    if (Number(valorSolicitado) <= 0) {
-      return res.status(400).json({
-        message: "valorSolicitado deve ser maior que zero.",
-      });
+    const vSoli = Number(valorSolicitado);
+    const pMeses = Number(prazo);
+
+    if (vSoli <= 0 || pMeses <= 0) {
+      return res.status(400).json({ message: "Valor solicitado e prazo devem ser maiores que zero." });
     }
 
-    const mutuario = await Mutuario.findByPk(mutuarioId);
-
+    const mutuario = await Mutuario.findByPk(mutuarioId, { attributes: ['id'] });
     if (!mutuario) {
-      return res.status(404).json({
-        message: "Mutuário não encontrado.",
-      });
+      return res.status(404).json({ message: "Mutuário não encontrado." });
     }
 
-    if (!valorSolicitado || !prazo) {
-      return res.status(400).json({
-        message: "Os campos valor e prazo são obrigatórios.",
-      });
-    }
-
-    if (Number(valorSolicitado) <= 0 || Number(prazo) <= 0) {
-      return res.status(400).json({
-        message: "valor e prazo devem ser maiores que zero.",
-      });
-    }
-
+    // Cálculos Financeiros Lógicos
     const dataSubmissao = new Date();
-
-    // Prazos padrão: 7 dias (não podem ser alterados)
-    const prazoAvaliacaoDate = new Date(dataSubmissao);
-    prazoAvaliacaoDate.setDate(prazoAvaliacaoDate.getDate() + 7);
-
-    const prazoValidacaoDate = new Date(dataSubmissao);
-    prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 7);
-
+    const prazoAvaliacao = new Date(dataSubmissao.getTime() + 7 * 24 * 60 * 60 * 1000);
     const taxa = 18;
+    const prestacao = calcularPrestacao(vSoli, taxa, pMeses);
+    const montanteTotal = prestacao * pMeses;
 
-    const prestacao = calcularPrestacao(Number(valorSolicitado), taxa, Number(prazo));
-    const montanteTotal = prestacao * Number(prazo);
-    const jurosTotal = montanteTotal - Number(valorSolicitado);
+    // Execução Atómica controlada por Transação
+    const pedido = await sequelize.transaction(async (t) => {
+      const novoPedido = await PedidoCredito.create({
+        numeroPedido: generateNumeroPedido(),
+        mutuarioId,
+        valorSolicitado: vSoli,
+        finalidade,
+        pacoteFinanciamento: pacoteFinanciamento || null,
+        status: STATUS_PEDIDO.SUBMETIDO,
+        etapaAtual: 1,
+        dataSubmissao,
+        prazoAvaliacao,
+        prazoValidacao: prazoAvaliacao,
+        prazo: pMeses,
+        taxa,
+        prestacao,
+        jurosTotal: montanteTotal - vSoli,
+        montanteTotal,
+        observacoes: observacoes || null,
+        createdBy: req.user.id,
+      }, { transaction: t });
 
-    const pedido = await PedidoCredito.create({
-      numeroPedido: generateNumeroPedido(),
-      mutuarioId,
-      valorSolicitado,
-      finalidade,
-      pacoteFinanciamento: pacoteFinanciamento || null,
-      status: STATUS_PEDIDO.SUBMETIDO,
-      etapaAtual: 1,
-      dataSubmissao,
-      prazoAvaliacao: prazoAvaliacaoDate,
-      prazoValidacao: prazoValidacaoDate,
-      prazo,
-      taxa,
-      prestacao,
-      jurosTotal,
-      montanteTotal,
-      observacoes: observacoes || null,
-      createdBy: req.user.id,
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "CRIAR_PEDIDO_CREDITO",
+        entidade: "PedidoCredito",
+        entidadeId: novoPedido.id,
+        descricao: `Pedido ${novoPedido.numeroPedido} criado para o mutuário ID ${novoPedido.mutuarioId}.`,
+      }, { transaction: t });
+
+      await criarAlertasPedidoCriado(novoPedido, t);
+      return novoPedido;
     });
 
-    await registrarLogAuditoria({
-      userId: req.user.id,
-      acao: "CRIAR_PEDIDO_CREDITO",
-      entidade: "PedidoCredito",
-      entidadeId: pedido.id,
-      descricao: `Pedido ${pedido.numeroPedido} criado para o mutuário ID ${pedido.mutuarioId}.`,
-    });
-
-    // Criar alertas automáticos para backoffice
-    await criarAlertasPedidoCriado(pedido);
-
-    return res.status(201).json({
-      message: "Pedido de crédito criado com sucesso.",
-      pedido,
-    });
+    return res.status(201).json({ message: "Pedido de crédito criado com sucesso.", pedido });
   } catch (error) {
-    console.error("Erro ao criar pedido de crédito:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao criar pedido de crédito.",
-      error: error.message,
-    });
+    console.error("[CreatePedido Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao criar pedido de crédito." });
   }
 }
 
-/*
-  ==========================================================
-  LISTAR TODOS OS PEDIDOS
-  ==========================================================
-*/
+/**
+ * LISTAR TODOS OS PEDIDOS
+ */
 async function getAllPedidosCredito(req, res) {
   try {
     const pedidos = await PedidoCredito.findAll({
       include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-        },
-        {
-          model: User,
-          as: "criador",
-          attributes: ["id", "nome", "email", "role", "ativo"],
-        },
+        { model: Mutuario, as: "mutuario" },
+        { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
       ],
       order: [["id", "DESC"]],
     });
-
     return res.status(200).json(pedidos);
   } catch (error) {
-    console.error("Erro ao listar pedidos:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao listar pedidos.",
-      error: error.message,
-    });
+    console.error("[GetAllPedidos Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao listar pedidos." });
   }
 }
 
-/*
-  ==========================================================
-  BUSCAR PEDIDO POR ID
-  ==========================================================
-*/
+/**
+ * BUSCAR PEDIDO POR ID
+ */
 async function getPedidoCreditoById(req, res) {
   try {
-    const { id } = req.params;
-
-    const pedido = await PedidoCredito.findByPk(id, {
+    const pedido = await PedidoCredito.findByPk(req.params.id, {
       include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-        },
-        {
-          model: User,
-          as: "criador",
-          attributes: ["id", "nome", "email", "role", "ativo"],
-        },
-        {
-          model: AprovacaoPedido,
-          as: "aprovacoes",
-          required: false,
-        },
+        { model: Mutuario, as: "mutuario" },
+        { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
+        { model: AprovacaoPedido, as: "aprovacoes", required: false },
       ],
     });
 
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
-
+    if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
     return res.status(200).json(pedido);
   } catch (error) {
-    console.error("Erro ao buscar pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao buscar pedido.",
-      error: error.message,
-    });
+    console.error("[GetPedidoById Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao buscar pedido." });
   }
 }
 
-/*
-  ==========================================================
-  LISTAR PEDIDOS DE UM MUTUÁRIO
-  ==========================================================
-*/
+/**
+ * LISTAR PEDIDOS DE UM MUTUÁRIO
+ */
 async function getPedidosByMutuario(req, res) {
   try {
     const { mutuarioId } = req.params;
-
-    const mutuario = await Mutuario.findByPk(mutuarioId);
-
-    if (!mutuario) {
-      return res.status(404).json({
-        message: "Mutuário não encontrado.",
-      });
-    }
+    const mutuario = await Mutuario.findByPk(mutuarioId, { attributes: ['id'] });
+    if (!mutuario) return res.status(404).json({ message: "Mutuário não encontrado." });
 
     const pedidos = await PedidoCredito.findAll({
       where: { mutuarioId },
-      include: [
-        {
-          model: User,
-          as: "criador",
-          attributes: ["id", "nome", "email", "role", "ativo"],
-        },
-      ],
+      include: [{ model: User, as: "criador", attributes: ["id", "nome", "email", "role"] }],
       order: [["id", "DESC"]],
     });
 
     return res.status(200).json(pedidos);
   } catch (error) {
-    console.error("Erro ao listar pedidos do mutuário:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao listar pedidos do mutuário.",
-      error: error.message,
-    });
+    console.error("[GetPedidosByMutuario Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao listar pedidos do mutuário." });
   }
 }
 
+/**
+ * LISTAR PEDIDOS ELEGÍVEIS PARA DESEMBOLSO
+ */
 async function getPedidosElegiveisDesembolso(req, res) {
   try {
-    const pedidos = await PedidoCredito.findAll({
-      where: {
-        status: STATUS_PEDIDO.APROVADO,
-      },
+    const elegiveis = await PedidoCredito.findAll({
+      where: { status: STATUS_PEDIDO.APROVADO },
       include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-          required: false,
-        },
-        {
-          model: Desembolso,
-          as: "desembolsos",
-          required: false,
-        },
+        { model: Mutuario, as: "mutuario", required: false },
+        { model: Desembolso, as: "desembolsos", required: false }
       ],
       order: [["id", "DESC"]],
     });
 
-    const elegiveis = pedidos.filter(
-      (pedido) =>
-        !Array.isArray(pedido.desembolsos) || pedido.desembolsos.length === 0
-    );
-
-    return res.status(200).json(elegiveis);
+    // Filtro JS limpo direto no retorno
+    const result = elegiveis.filter(p => !p.desembolsos?.length);
+    return res.status(200).json(result);
   } catch (error) {
-    console.error("Erro ao listar pedidos elegíveis para desembolso:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao listar pedidos elegíveis para desembolso.",
-      error: error.message,
-    });
+    console.error("[GetElegiveisDesembolso Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao listar pedidos elegíveis para desembolso." });
   }
 }
 
+/**
+ * LISTAR PEDIDOS ELEGÍVEIS PARA REEMBOLSO
+ */
 async function getPedidosElegiveisReembolso(req, res) {
   try {
     const pedidos = await PedidoCredito.findAll({
-      where: {
-        status: STATUS_PEDIDO.DESEMBOLSADO,
-      },
+      where: { status: STATUS_PEDIDO.DESEMBOLSADO },
       include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-          required: false,
-        },
-        {
-          model: Desembolso,
-          as: "desembolsos",
-          required: false,
-        },
-        {
-          model: Reembolso,
-          as: "reembolsos",
-          required: false,
-        },
+        { model: Mutuario, as: "mutuario", required: false },
+        { model: Desembolso, as: "desembolsos", required: false },
+        { model: Reembolso, as: "reembolsos", required: false },
       ],
       order: [["id", "DESC"]],
     });
 
     const elegiveis = pedidos.filter((pedido) => {
-      const totalDesembolsado = Array.isArray(pedido.desembolsos)
-        ? pedido.desembolsos.reduce(
-            (total, item) => total + Number(item.valorDesembolsado || 0),
-            0
-          )
-        : 0;
-
-      const totalReembolsado = Array.isArray(pedido.reembolsos)
-        ? pedido.reembolsos.reduce(
-            (total, item) => total + Number(item.valorReembolsado || 0),
-            0
-          )
-        : 0;
-
+      const totalDesembolsado = (pedido.desembolsos || []).reduce((acc, item) => acc + Number(item.valorDesembolsado || 0), 0);
+      const totalReembolsado = (pedido.reembolsos || []).reduce((acc, item) => acc + Number(item.valorReembolsado || 0), 0);
       return totalDesembolsado > 0 && totalReembolsado < totalDesembolsado;
     });
 
     return res.status(200).json(elegiveis);
   } catch (error) {
-    console.error("Erro ao listar pedidos elegíveis para reembolso:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao listar pedidos elegíveis para reembolso.",
-      error: error.message,
-    });
+    console.error("[GetElegiveisReembolso Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao listar pedidos elegíveis para reembolso." });
   }
 }
 
-/*
-  ==========================================================
-  ATUALIZAR PEDIDO DE CRÉDITO
-  ==========================================================
-*/
+/**
+ * ATUALIZAR PEDIDO DE CRÉDITO
+ */
 async function updatePedidoCredito(req, res) {
   try {
-    const { id } = req.params;
+    const pedido = await PedidoCredito.findByPk(req.params.id);
+    if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
-    const pedido = await PedidoCredito.findByPk(id);
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
-
-    /*
-      Regra forte:
-      só pode editar se o perfil permitir
-      e se o status atual do pedido permitir
-    */
     if (!podeEditarPedido(req.user, pedido)) {
-      return res.status(403).json({
-        message: `Não tens permissão para editar este pedido ou o status ${pedido.status} não permite edição.`,
-      });
+      return res.status(403).json({ message: `Sem permissão para editar ou o status ${pedido.status} bloqueia alterações.` });
     }
 
-    const {
-      valorSolicitado,
-      finalidade,
-      pacoteFinanciamento,
-      observacoes,
-      etapaAtual,
-    } = req.body;
-
+    const { valorSolicitado, finalidade, pacoteFinanciamento, observacoes, etapaAtual } = req.body;
     if (valorSolicitado !== undefined && Number(valorSolicitado) <= 0) {
-      return res.status(400).json({
-        message: "valorSolicitado deve ser maior que zero.",
-      });
+      return res.status(400).json({ message: "valorSolicitado deve ser maior que zero." });
     }
 
-    // ⚠️ PROTEÇÃO FORTE: Prazos NÃO podem ser alterados
-    // São definidos automaticamente com 7 dias ao criar o pedido
-    // Qualquer tentativa de alterar é IGNORADA por razões de segurança
-    
     await pedido.update({
-      valorSolicitado:
-        valorSolicitado !== undefined ? valorSolicitado : pedido.valorSolicitado,
-      finalidade: finalidade !== undefined ? finalidade : pedido.finalidade,
-      pacoteFinanciamento:
-        pacoteFinanciamento !== undefined
-          ? pacoteFinanciamento
-          : pedido.pacoteFinanciamento,
-      // ❌ prazoAvaliacao NÃO pode ser alterado (PROTEGIDO)
-      // ❌ prazoValidacao NÃO pode ser alterado (PROTEGIDO)
-      observacoes: observacoes !== undefined ? observacoes : pedido.observacoes,
-      etapaAtual: etapaAtual !== undefined ? etapaAtual : pedido.etapaAtual,
+      valorSolicitado: valorSolicitado ?? pedido.valorSolicitado,
+      finalidade: finalidade ?? pedido.finalidade,
+      pacoteFinanciamento: pacoteFinanciamento ?? pedido.pacoteFinanciamento,
+      observacoes: observacoes ?? pedido.observacoes,
+      etapaAtual: etapaAtual ?? pedido.etapaAtual,
     });
 
     await registrarLogAuditoria({
@@ -456,79 +266,33 @@ async function updatePedidoCredito(req, res) {
       acao: "ATUALIZAR_PEDIDO_CREDITO",
       entidade: "PedidoCredito",
       entidadeId: pedido.id,
-      descricao: `Pedido ${pedido.numeroPedido} atualizado para o mutuário ID ${pedido.mutuarioId}.`,
+      descricao: `Pedido ${pedido.numeroPedido} atualizado.`,
     });
 
-    return res.status(200).json({
-      message: "Pedido de crédito atualizado com sucesso.",
-      pedido,
-    });
+    return res.status(200).json({ message: "Pedido de crédito updated.", pedido });
   } catch (error) {
-    console.error("Erro ao atualizar pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao atualizar pedido.",
-      error: error.message,
-    });
+    console.error("[UpdatePedido Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao atualizar pedido." });
   }
 }
 
-/*
-  ==========================================================
-  ATUALIZAR STATUS DO PEDIDO
-  ==========================================================
-  Regra forte:
-  - mudança manual de status é sensível
-  - só ADMIN e GESTOR devem fazer isso
-  - a transição deve ser válida
-*/
+/**
+ * ATUALIZAR STATUS DO PEDIDO
+ */
 async function updateStatusPedidoCredito(req, res) {
   try {
-    const { id } = req.params;
     const { status } = req.body;
-
-    const allowedStatus = [
-      STATUS_PEDIDO.RASCUNHO,
-      STATUS_PEDIDO.SUBMETIDO,
-      STATUS_PEDIDO.EM_ANALISE,
-      STATUS_PEDIDO.EM_VALIDACAO,
-      STATUS_PEDIDO.APROVADO,
-      STATUS_PEDIDO.REJEITADO,
-      STATUS_PEDIDO.DESEMBOLSADO,
-      STATUS_PEDIDO.ENCERRADO,
-    ];
-
-    if (!status) {
-      return res.status(400).json({
-        message: "O campo status é obrigatório.",
-      });
-    }
-
-    if (!allowedStatus.includes(status)) {
-      return res.status(400).json({
-        message: "Status inválido.",
-        allowedStatus,
-      });
-    }
+    if (!status) return res.status(400).json({ message: "O campo status é obrigatório." });
 
     if (!["ADMIN", "GESTOR"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Não tens permissão para alterar manualmente o status do pedido.",
-      });
+      return res.status(403).json({ message: "Não tens permissão para alterar manualmente o status." });
     }
 
-    const pedido = await PedidoCredito.findByPk(id);
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
+    const pedido = await PedidoCredito.findByPk(req.params.id);
+    if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     if (!podeTransitarStatus(pedido.status, status)) {
-      return res.status(400).json({
-        message: `Transição inválida de status: ${pedido.status} -> ${status}.`,
-      });
+      return res.status(400).json({ message: `Transição inválida: ${pedido.status} -> ${status}.` });
     }
 
     await pedido.update({ status });
@@ -538,53 +302,30 @@ async function updateStatusPedidoCredito(req, res) {
       acao: "ATUALIZAR_STATUS_PEDIDO_CREDITO",
       entidade: "PedidoCredito",
       entidadeId: pedido.id,
-      descricao: `Status do pedido ${pedido.numeroPedido} alterado de ${pedido.status} para ${status}.`,
+      descricao: `Status do pedido ${pedido.numeroPedido} alterado para ${status}.`,
     });
 
-    return res.status(200).json({
-      message: "Status do pedido atualizado com sucesso.",
-      pedido,
-    });
+    return res.status(200).json({ message: "Status atualizado com sucesso.", pedido });
   } catch (error) {
-    console.error("Erro ao atualizar status do pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao atualizar status do pedido.",
-      error: error.message,
-    });
+    console.error("[UpdateStatus Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao atualizar status." });
   }
 }
 
-/*
-  ==========================================================
-  REMOVER PEDIDO DE CRÉDITO
-  ==========================================================
-  Regra:
-  - só ADMIN ou GESTOR
-  - idealmente apenas em estados iniciais
-*/
+/**
+ * REMOVER PEDIDO DE CRÉDITO
+ */
 async function deletePedidoCredito(req, res) {
   try {
-    const { id } = req.params;
-
     if (!["ADMIN", "GESTOR"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Não tens permissão para remover pedido de crédito.",
-      });
+      return res.status(403).json({ message: "Não tens permissão para remover o pedido." });
     }
 
-    const pedido = await PedidoCredito.findByPk(id);
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
+    const pedido = await PedidoCredito.findByPk(req.params.id);
+    if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     if (![STATUS_PEDIDO.RASCUNHO, STATUS_PEDIDO.SUBMETIDO].includes(pedido.status)) {
-      return res.status(400).json({
-        message: `Só é permitido remover pedidos em status ${STATUS_PEDIDO.RASCUNHO} ou ${STATUS_PEDIDO.SUBMETIDO}.`,
-      });
+      return res.status(400).json({ message: `Apenas permitido remover em estado RASCUNHO ou SUBMETIDO.` });
     }
 
     await pedido.destroy();
@@ -594,19 +335,13 @@ async function deletePedidoCredito(req, res) {
       acao: "REMOVER_PEDIDO_CREDITO",
       entidade: "PedidoCredito",
       entidadeId: pedido.id,
-      descricao: `Pedido ${pedido.numeroPedido} removido para o mutuário ID ${pedido.mutuarioId}.`,
+      descricao: `Pedido ${pedido.numeroPedido} deletado por ID ${req.user.id}.`,
     });
 
-    return res.status(200).json({
-      message: "Pedido de crédito removido com sucesso.",
-    });
+    return res.status(200).json({ message: "Pedido de crédito removido com sucesso." });
   } catch (error) {
-    console.error("Erro ao remover pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao remover pedido.",
-      error: error.message,
-    });
+    console.error("[DeletePedido Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao remover pedido." });
   }
 }
 

@@ -49,16 +49,21 @@ export default function DesembolsosList() {
       setLoading(true);
       setError("");
 
-      const [desembolsosData, pedidosData] = await Promise.all([
+      const [resDesembolsos, resPedidos] = await Promise.all([
         getAllDesembolsosRequest(),
         getAllPedidosRequest(),
       ]);
 
+      // CORREÇÃO: Garante a extração correta caso a API retorne { data: [...] } ou direto o array
+      const desembolsosData = resDesembolsos?.data ?? resDesembolsos;
+      const pedidosData = resPedidos?.data ?? resPedidos;
+
       const listaDesembolsos = Array.isArray(desembolsosData) ? desembolsosData : [];
       const listaPedidos = Array.isArray(pedidosData) ? pedidosData : [];
 
+      // CORREÇÃO: Mapeia de forma tolerante a 'status' ou 'estado' do pedido
       const elegiveis = listaPedidos.filter((pedido) => {
-        const status = pedido.status || pedido.estado;
+        const status = pedido?.status || pedido?.estado;
         return status === "APROVADO";
       });
 
@@ -80,16 +85,11 @@ export default function DesembolsosList() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSelecionarPedido = (event) => {
     const pedidoId = event.target.value;
-
     const pedidoSelecionado = pedidosElegiveis.find(
       (pedido) => String(pedido.id) === String(pedidoId)
     );
@@ -153,37 +153,17 @@ export default function DesembolsosList() {
 
   const desembolsosFiltrados = useMemo(() => {
     const term = search.trim().toLowerCase();
-
     if (!term) return desembolsos;
 
     return desembolsos.filter((desembolso) => {
-      const pedidoNumero = String(
-        desembolso.pedido?.numeroPedido || ""
-      ).toLowerCase();
-
-      const statusPedido = String(
-        desembolso.pedido?.status || desembolso.pedido?.estado || ""
-      ).toLowerCase();
-
-      const criadorNome = String(
-        desembolso.criador?.nome || ""
-      ).toLowerCase();
-
-      const meioPagamento = String(
-        desembolso.meioPagamento || ""
-      ).toLowerCase();
-
-      const numeroTransacao = String(
-        desembolso.numeroTransacao || ""
-      ).toLowerCase();
-
-      const referencia = String(
-        desembolso.referencia || ""
-      ).toLowerCase();
-
-      const observacoes = String(
-        desembolso.observacoes || ""
-      ).toLowerCase();
+      // CORREÇÃO: Optional chaining preventivo para evitar crash por campos nulos
+      const pedidoNumero = String(desembolso?.pedido?.numeroPedido || "").toLowerCase();
+      const statusPedido = String(desembolso?.pedido?.status || desembolso?.pedido?.estado || "").toLowerCase();
+      const criadorNome = String(desembolso?.criador?.nome || "").toLowerCase();
+      const meioPagamento = String(desembolso?.meioPagamento || "").toLowerCase();
+      const numeroTransacao = String(desembolso?.numeroTransacao || "").toLowerCase();
+      const referencia = String(desembolso?.referencia || "").toLowerCase();
+      const observacoes = String(desembolso?.observacoes || "").toLowerCase();
 
       return (
         pedidoNumero.includes(term) ||
@@ -218,7 +198,6 @@ export default function DesembolsosList() {
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Desembolsos
           </Typography>
-
           <Typography variant="body2" color="text.secondary">
             Registe e consulte os desembolsos do sistema.
           </Typography>
@@ -249,7 +228,7 @@ export default function DesembolsosList() {
             <MenuItem value="">Selecionar</MenuItem>
             {pedidosElegiveis.map((pedido) => (
               <MenuItem key={pedido.id} value={pedido.id}>
-                {pedido.numeroPedido} — {pedido.mutuario?.nomeCompleto || "Sem mutuário"}
+                {pedido?.numeroPedido} — {pedido?.mutuario?.nomeCompleto || "Sem mutuário"}
               </MenuItem>
             ))}
           </TextField>
@@ -262,24 +241,23 @@ export default function DesembolsosList() {
                 );
 
                 if (!pedidoSelecionado) return null;
-
                 const status = pedidoSelecionado.status || pedidoSelecionado.estado;
 
                 return (
                   <Stack spacing={1}>
                     <Typography variant="body2">
-                      <strong>Pedido:</strong> {pedidoSelecionado.numeroPedido || "-"}
+                      <strong>Pedido:</strong> {pedidoSelecionado?.numeroPedido || "-"}
                     </Typography>
                     <Typography variant="body2">
                       <strong>Mutuário:</strong>{" "}
-                      {pedidoSelecionado.mutuario?.nomeCompleto || "-"}
+                      {pedidoSelecionado?.mutuario?.nomeCompleto || "-"}
                     </Typography>
                     <Typography variant="body2">
                       <strong>Valor solicitado:</strong>{" "}
-                      {formatCurrency(pedidoSelecionado.valorSolicitado)}
+                      {formatCurrency(pedidoSelecionado?.valorSolicitado)}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Finalidade:</strong> {pedidoSelecionado.finalidade || "-"}
+                      <strong>Finalidade:</strong> {pedidoSelecionado?.finalidade || "-"}
                     </Typography>
                     <Box>
                       <Chip
@@ -374,8 +352,7 @@ export default function DesembolsosList() {
 
       <Stack spacing={2}>
         {desembolsosFiltrados.map((desembolso) => {
-          const statusPedido =
-            desembolso.pedido?.status || desembolso.pedido?.estado;
+          const statusPedido = desembolso?.pedido?.status || desembolso?.pedido?.estado;
 
           return (
             <Paper key={desembolso.id} sx={{ p: 3, borderRadius: 3 }}>
@@ -392,7 +369,7 @@ export default function DesembolsosList() {
                     mb={1}
                   >
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      {desembolso.pedido?.numeroPedido || `Desembolso #${desembolso.id}`}
+                      {desembolso?.pedido?.numeroPedido || `Desembolso #${desembolso.id}`}
                     </Typography>
 
                     {statusPedido && (
@@ -406,33 +383,33 @@ export default function DesembolsosList() {
 
                   <Typography variant="body2" color="text.secondary">
                     <strong>Valor desembolsado:</strong>{" "}
-                    {formatCurrency(desembolso.valorDesembolsado)}
+                    {formatCurrency(desembolso?.valorDesembolsado)}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
                     <strong>Data do desembolso:</strong>{" "}
-                    {formatDate(desembolso.dataDesembolso)}
+                    {formatDate(desembolso?.dataDesembolso)}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Meio de pagamento:</strong> {desembolso.meioPagamento || "-"}
+                    <strong>Meio de pagamento:</strong> {desembolso?.meioPagamento || "-"}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
                     <strong>Número da transação:</strong>{" "}
-                    {desembolso.numeroTransacao || "-"}
+                    {desembolso?.numeroTransacao || "-"}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Referência:</strong> {desembolso.referencia || "-"}
+                    <strong>Referência:</strong> {desembolso?.referencia || "-"}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Registado por:</strong> {desembolso.criador?.nome || "-"}
+                    <strong>Registado por:</strong> {desembolso?.criador?.nome || "-"}
                   </Typography>
 
                   <Typography variant="body2" color="text.secondary">
-                    <strong>Observações:</strong> {desembolso.observacoes || "-"}
+                    <strong>Observações:</strong> {desembolso?.observacoes || "-"}
                   </Typography>
                 </Box>
 
@@ -441,7 +418,7 @@ export default function DesembolsosList() {
                   spacing={1}
                   alignItems={{ xs: "stretch", sm: "center" }}
                 >
-                  {desembolso.pedido?.id && (
+                  {desembolso?.pedido?.id && (
                     <Button
                       component={RouterLink}
                       to={`/interno/pedidos/${desembolso.pedido.id}`}

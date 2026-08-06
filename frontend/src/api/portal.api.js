@@ -113,12 +113,12 @@ export const uploadRequisitoDocumentoRequest = async (pedidoRequisitoId, file) =
  * Envia comprovativo de pagamento para um pedido.
  * Só funciona para pedidos com status DESEMBOLSADO.
  */
-export const enviarComprovatioRequest = async (pedidoId, file) => {
+export const enviarComprovativoRequest = async (creditoId, parcelaId, file) => {
   const formData = new FormData();
   formData.append("comprovativo", file);
 
   const response = await api.post(
-    `/comprovativos/portal/pedido/${pedidoId}/enviar`,
+    `/comprovativos/portal/credito/${creditoId}/parcela/${parcelaId}/enviar`,
     formData,
     { headers: { "Content-Type": "multipart/form-data" } }
   );
@@ -129,15 +129,15 @@ export const enviarComprovatioRequest = async (pedidoId, file) => {
 /**
  * Lista os comprovativos enviados pelo mutuário para um pedido.
  */
-export const getMeusComprovatioRequest = async (pedidoId) => {
-  const response = await api.get(`/comprovativos/portal/pedido/${pedidoId}`);
+export const getMeusComprovativosRequest = async (creditoId) => {
+  const response = await api.get(`/comprovativos/portal/credito/${creditoId}`);
   return response.data;
 };
 
 /**
  * Baixa um comprovativo (via blob, tal como os anexos).
  */
-export const downloadComprovatioRequest = async (id, nome) => {
+export const downloadComprovativoRequest = async (id, nome) => {
   const response = await api.get(`/comprovativos/${id}/download`, {
     responseType: "blob",
   });

@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db');  
+const sequelize = require('../config/db');
 
 /*
   Modelo Reembolso:
@@ -7,12 +7,12 @@ const sequelize = require('../config/db');
 */
 
 const Reembolso = sequelize.define(
-  'Reembolso',  
-    {
+  'Reembolso',
+  {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
-        primaryKey: true,
+      primaryKey: true,
     },
 
     creditoId: {
@@ -26,45 +26,52 @@ const Reembolso = sequelize.define(
       allowNull: false,
       field: 'parcela_id'
     },
+    empresaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "empresa_id",
+    },
     valorReembolsado: {
       type: DataTypes.DECIMAL(12, 2),
-        allowNull: false,
-        field: 'valor_reembolsado',
+      allowNull: false,
+      field: 'valor_reembolsado',
     },
     dataReembolso: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        field: 'data_reembolso',
+      type: DataTypes.DATE,
+      allowNull: false,
+      field: 'data_reembolso',
     },
     meioPagamento: {
-        type: DataTypes.ENUM('TRANSFERENCIA', 'CHEQUE', 'DINHEIRO'),
-        allowNull: false,
-        field: 'meio_pagamento',
+      type: DataTypes.ENUM('TRANSFERENCIA', 'CHEQUE', 'DINHEIRO'),
+      allowNull: false,
+      field: 'meio_pagamento',
     },
     numeroTransacao: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        field: 'numero_transacao',
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'numero_transacao',
     },
     referencia: {
-        type: DataTypes.STRING(50),
-        unique: true,
-        allowNull: true,
-        field: "referencia",
+      type: DataTypes.STRING(50),
+      unique: true,
+      allowNull: true,
+      field: "referencia",
     },
     observacoes: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-    },  
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     createdBy: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        field: 'created_by',    
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: 'created_by',
     },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: 'reembolsos',
-    timestamps: true,
     createdAt: 'created_at',
     updatedAt: false,
   }

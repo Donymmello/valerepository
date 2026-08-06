@@ -3,7 +3,7 @@ const sequelize = require('../config/db');
 
 const ParcelaPagamento = sequelize.define(
     "ParcelaPagamento",
-     {
+    {
         id: {
             type: DataTypes.INTEGER,
             autoIncrement: true,
@@ -12,6 +12,11 @@ const ParcelaPagamento = sequelize.define(
         creditoId: {
             type: DataTypes.INTEGER,
             allowNull: false,
+        },
+        empresaId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            field: "empresa_id",
         },
         numeroParcela: {
             type: DataTypes.INTEGER,
@@ -37,7 +42,7 @@ const ParcelaPagamento = sequelize.define(
         },
 
         saldoParcela: {
-            type: DataTypes.DECIMAL(15,2),
+            type: DataTypes.DECIMAL(15, 2),
             allowNull: false
         },
         dataPagamento: {

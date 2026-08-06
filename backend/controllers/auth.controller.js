@@ -2,48 +2,59 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { User, Mutuario, PasswordResetToken, EmailVerificationToken } = require("../models");
+const { User, Mutuario, Empresa, PasswordResetToken, EmailVerificationToken, sequelize } = require("../models"); // Importou a instância do sequelize para transações
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const { sendVerificationEmail } = require("../utils/emailService");
 
-/*
-  ==========================================================
-  BOOTSTRAP DO PRIMEIRO ADMIN
-  ==========================================================
-  Regras:
-  - só funciona se ainda não existir nenhum ADMIN
-  - cria o primeiro administrador do sistema
-*/
+// =========================================================================
+// HELPERS / UTILS (Padrão de Resposta Interno)
+// =========================================================================
+const generateToken = (user) => {
+  return jwt.sign(
+    { id: user.id, nome: user.nome, email: user.email, role: user.role, empresaId: user.empresaId, },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" }
+  );
+};
+
+const mapUserResponse = (user) => ({
+  id: user.id,
+  nome: user.nome,
+  email: user.email,
+  role: user.role,
+  empresaId: user.empresaId,
+  ativo: user.ativo,
+});
+
+// =========================================================================
+// CONTROLLERS
+// =========================================================================
+
+/**
+ * BOOTSTRAP DO PRIMEIRO ADMIN
+ */
 const bootstrapAdmin = async (req, res) => {
   try {
     const { nome, email, password } = req.body;
 
     if (!nome || !email || !password) {
-      return res.status(400).json({
-        message: "nome, email e password são obrigatórios.",
-      });
+      return res.status(400).json({ message: "Nome, email e password são obrigatórios." });
     }
 
-    const adminExistente = await User.findOne({
-      where: { role: "ADMIN" },
-    });
+    // Otimização: Procura simultaneamente se há admin e se o email atual já existe
+    const [adminExistente, existingUser] = await Promise.all([
+      User.findOne({ where: { role: "ADMIN" }, attributes: ['id'] }),
+      User.findOne({ where: { email }, attributes: ['id'] })
+    ]);
 
     if (adminExistente) {
-      return res.status(403).json({
-        message: "Já existe pelo menos um ADMIN no sistema. Bootstrap não permitido.",
-      });
+      return res.status(403).json({ message: "Bootstrap não permitido. Já existe um ADMIN no sistema." });
     }
 
-    const existingUser = await User.findOne({
-      where: { email },
-    });
-
     if (existingUser) {
-      return res.status(409).json({
-        message: "Já existe um utilizador com este email.",
-      });
+      return res.status(409).json({ message: "Já existe um utilizador com este email." });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -66,354 +77,220 @@ const bootstrapAdmin = async (req, res) => {
 
     return res.status(201).json({
       message: "Administrador inicial criado com sucesso.",
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        ativo: user.ativo,
-      },
+      user: mapUserResponse(user),
     });
   } catch (error) {
-    console.error("Erro ao criar administrador inicial:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao criar administrador inicial.",
-      error: error.message,
-    });
+    console.error("[BootstrapAdmin Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao criar administrador inicial." });
   }
 };
 
-/*
-  ==========================================================
-  GERAR TOKEN JWT
-  ==========================================================
-*/
-const generateToken = (user) => {
-  return jwt.sign(
-    {
-      id: user.id,
-      nome: user.nome,
-      email: user.email,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "1d",
-    }
-  );
-};
-
-/*
-  ==========================================================
-  REGISTO INTERNO DE UTILIZADORES
-  ==========================================================
-  Regras:
-  - só ADMIN pode criar
-  - só cria perfis internos
-  - não cria Mutuario
-*/
+/**
+ * REGISTO INTERNO DE UTILIZADORES
+ */
 const registerInterno = async (req, res) => {
   try {
     const {
-      nome,
-      email,
-      password,
-      role,
-
-      nomeCompleto,
-      documentoTipo,
-      documentoNumero,
-      dataNascimento,
-      provincia,
-      distrito,
-      localResidencia,
-      telefone,
+      nome, email, password, role, nomeCompleto,
+      documentoTipo, documentoNumero, dataNascimento,
+      provincia, distrito, localResidencia, telefone,
     } = req.body;
 
     if (!req.user || req.user.role !== "ADMIN") {
-      return res.status(403).json({
-        message: "Apenas ADMIN pode registar utilizadores internos.",
-      });
+      return res.status(403).json({ message: "Apenas ADMIN pode registar utilizadores internos." });
     }
 
     if (!nome || !email || !password || !role) {
-      return res.status(400).json({
-        message: "Nome, email, password e role são obrigatórios.",
-      });
+      return res.status(400).json({ message: "Nome, email, password e role são obrigatórios." });
     }
 
     const rolesPermitidos = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
-
     if (!rolesPermitidos.includes(role)) {
-      return res.status(400).json({
-        message: "Role inválido para registo interno.",
-        rolesPermitidos,
-      });
+      return res.status(400).json({ message: "Role inválido para registo interno.", rolesPermitidos });
     }
 
-    const existingUser = await User.findOne({
-      where: { email }
-    });
+    // Validação concorrente de Email e Documentos
+    const [existingUser, existingMutuario] = await Promise.all([
+      User.findOne({ where: { email }, attributes: ['id'] }),
+      role === "MUTUARIO" ? Mutuario.findOne({
+        where: {
+          [Op.or]: [
+            { email },
+            ...(documentoNumero ? [{ documentoNumero }] : [])
+          ]
+        },
+        attributes: ['id', 'email', 'documentoNumero']
+      }) : null
+    ]);
 
     if (existingUser) {
-      return res.status(409).json({
-        message: "Já existe um utilizador com este email.",
-      });
+      return res.status(409).json({ message: "Já existe um utilizador com este email." });
     }
 
-    if (role === "MUTUARIO") {
-      const existingMutuarioByEmail = await Mutuario.findOne({
-        where: { email},
-      });
-
-      if (existingMutuarioByEmail) {
-        return res.status(409).json({
-          message: "mutuario com este email ja existe.",
-        });
+    if (existingMutuario) {
+      if (existingMutuario.email === email) {
+        return res.status(409).json({ message: "Já existe um mutuário com este email." });
       }
-
-      if (documentoNumero) {
-        const existingMutuarioPordocumentoNumero =
-         await Mutuario.findOne({
-          where: {
-             documentoNumero,
-          },
-        });
-
-      if (existingMutuarioPordocumentoNumero) {
-        return res.status(409).json({
-          message: "mutuario com este documento ja existe.",
-        });
-      }
+      return res.status(409).json({ message: "Já existe um mutuário com este documento." });
     }
-  }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      nome,
-      email,
-      passwordHash,
-      role,
-      ativo: true,
-    });
+    // Bloco Atómico com Transação Relacional
+    const result = await sequelize.transaction(async (t) => {
+      const user = await User.create({
+        nome, email, passwordHash, role, ativo: true,
+      }, { transaction: t });
 
-    let mutuario = null;
+      let mutuario = null;
 
-    if (role === "MUTUARIO") {
-      const codigoMutuario = await generateCodigoMutuario();
+      if (role === "MUTUARIO") {
+        const codigoMutuario = await generateCodigoMutuario();
+        mutuario = await Mutuario.create({
+          codigoMutuario, nomeCompleto, documentoTipo, documentoNumero,
+          dataNascimento, provincia, distrito, localResidencia, telefone,
+          email, userId: user.id,
+        }, { transaction: t });
+      }
 
-      mutuario = await Mutuario.create({
-      codigoMutuario,
-      nomeCompleto,
-      documentoTipo: documentoTipo || null,
-      documentoNumero: documentoNumero || null,
-      dataNascimento: dataNascimento || null,
-      provincia: provincia || null,
-      distrito: distrito || null,
-      localResidencia: localResidencia || null,
-      telefone: telefone || null,
-      email: email || null,
-      userId: user.id,
-      });
-    }
+      await registrarLogAuditoria({
+        userId: req.user.id,
+        acao: "CRIAR_UTILIZADOR",
+        entidade: "User",
+        entidadeId: user.id,
+        descricao: `Utilizador ${user.email} criado com perfil ${user.role}.`,
+      }, { transaction: t });
 
-    await registrarLogAuditoria({
-      userId: req.user.id,
-      acao: "CRIAR_UTILIZADOR",
-      entidade: "User",
-      entidadeId: user.id,
-      descricao: `Utilizador  ${user.email} criado com perfil ${user.role}.`,
+      return { user, mutuario };
     });
 
     return res.status(201).json({
       message: "Utilizador interno criado com sucesso.",
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        ativo: user.ativo,
-      },
-      mutuario,
+      user: mapUserResponse(result.user),
+      mutuario: result.mutuario,
     });
   } catch (error) {
-    console.error("Erro ao registar utilizador interno:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao registar utilizador interno.",
-      error: error.message,
-    });
+    console.error("[RegisterInterno Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao registar utilizador interno." });
   }
 };
 
-/*
-  ==========================================================
-  REGISTO AUTÓNOMO DE MUTUÁRIO
-  ==========================================================
-  Regras:
-  - cria sempre User com role USER
-  - cria automaticamente o Mutuario associado
-*/
+/**
+ * REGISTO AUTÓNOMO DE MUTUÁRIO
+ */
 const registerMutuario = async (req, res) => {
   try {
     const {
-      nome,
-      email,
-      password,
-      nomeCompleto,
-      documentoTipo,
-      documentoNumero,
-      nuit,
-      dataNascimento,
-      provincia,
-      distrito,
-      localResidencia,
-      telefone,
+      nome, email, password, nomeCompleto, documentoTipo,
+      documentoNumero, nuit, dataNascimento, provincia,
+      distrito, localResidencia, telefone,
     } = req.body;
 
     if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
-      return res.status(400).json({
-        message: "preencher campos obrigatórios.",
-      });
+      return res.status(400).json({ message: "Preencher campos obrigatórios." });
     }
 
-    const existingUser = await User.findOne({
-      where: { email },
-    });
+    // Procura por conflitos numa única viagem à Base de Dados
+    const [existingUser, existingMutuario] = await Promise.all([
+      User.findOne({ where: { email }, attributes: ['id'] }),
+      Mutuario.findOne({
+        where: { [Op.or]: [{ nuit }, { documentoNumero }] },
+        attributes: ['id', 'nuit', 'documentoNumero']
+      })
+    ]);
 
-    if (existingUser) {
-      return res.status(409).json({
-        message: "Já existe um utilizador com este email.",
-      });
+    if (existingUser) return res.status(409).json({ message: "Já existe um utilizador com este email." });
+    if (existingMutuario) {
+      const msg = existingMutuario.nuit === nuit
+        ? "Já existe um mutuário com este NUIT."
+        : "Já existe um mutuário com este número de documento.";
+      return res.status(409).json({ message: msg });
     }
-
-    if (nuit) {
-      const mutuarioExistentePorNuit = await Mutuario.findOne({
-        where: { nuit },
-      });
-
-      if (mutuarioExistentePorNuit) {
-        return res.status(409).json({
-          message: "Já existe um mutuário com este nuit.",
-        });
-      }
-
-    if (documentoNumero) {
-      const mutuarioExistentePorDocumento = await Mutuario.findOne({
-        where: { documentoNumero },
-      });
-
-      if (mutuarioExistentePorDocumento) {
-        return res.status(409).json({
-          message: "Já existe um mutuário com este número de documento.",
-        });
-      }
-    }
-  }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      nome,
-      email,
-      passwordHash,
-      role: "USER",
-      ativo: true,
-    });
+    const result = await sequelize.transaction(async (t) => {
+      const user = await User.create({
+        nome, email, passwordHash, role: "USER", ativo: true,
+      }, { transaction: t });
 
-    const codigoMutuario = await generateCodigoMutuario();
+      const codigoMutuario = await generateCodigoMutuario();
 
-    const mutuario = await Mutuario.create({
-      codigoMutuario,
-      nomeCompleto,
-      documentoTipo: documentoTipo || null,
-      documentoNumero: documentoNumero || null,
-      nuit: nuit || null,
-      dataNascimento: dataNascimento || null,
-      provincia: provincia || null,
-      distrito: distrito || null,
-      localResidencia: localResidencia || null,
-      telefone: telefone || null,
-      email: email || null,
-      userId: user.id,
-    });
+      const mutuario = await Mutuario.create({
+        codigoMutuario, nomeCompleto, documentoTipo, documentoNumero, nuit,
+        dataNascimento: dataNascimento || null,
+        provincia: provincia || null,
+        distrito: distrito || null,
+        localResidencia: localResidencia || null,
+        telefone: telefone || null,
+        email, userId: user.id,
+      }, { transaction: t });
 
-    const token = generateToken(user);
+      await registrarLogAuditoria({
+        userId: user.id,
+        acao: "REGISTAR_MUTUARIO_AUTONOMO",
+        entidade: "Mutuario",
+        entidadeId: mutuario.id,
+        descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}.`,
+      }, { transaction: t });
 
-    await registrarLogAuditoria({
-      userId: user.id,
-      acao: "REGISTAR_MUTUARIO_AUTONOMO",
-      entidade: "Mutuario",
-      entidadeId: mutuario.id,
-      descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}.`,
+      return { user, mutuario };
     });
 
     return res.status(201).json({
       message: "Mutuário registado com sucesso.",
-      token,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        ativo: user.ativo,
-      },
+      token: generateToken(result.user),
+      user: mapUserResponse(result.user),
       mutuario: {
-        id: mutuario.id,
-        codigoMutuario: mutuario.codigoMutuario,
-        nomeCompleto: mutuario.nomeCompleto,
-        userId: mutuario.userId,
+        id: result.mutuario.id,
+        codigoMutuario: result.mutuario.codigoMutuario,
+        nomeCompleto: result.mutuario.nomeCompleto,
+        userId: result.mutuario.userId,
       },
     });
   } catch (error) {
-    console.error("Erro ao registar mutuário autónomo:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao registar mutuário autónomo.",
-      error: error.message,
-    });
+    console.error("[RegisterMutuario Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao registar mutuário autónomo." });
   }
 };
 
-/*
-  ==========================================================
-  LOGIN
-  ==========================================================
-*/
+/**
+ * LOGIN
+ */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({
-        message: "Email e password são obrigatórios.",
-      });
+      return res.status(400).json({ message: "Email e password são obrigatórios." });
     }
 
     const user = await User.findOne({
       where: { email },
+      include: [{
+        model: Empresa,
+        as: "empresa",
+        attributes: [
+          "id",
+          "nome",
+          "slug",
+          "plano",
+          "estado"
+        ]
+      }]
     });
-
+    
     if (!user) {
-      return res.status(404).json({
-        message: "Utilizador não encontrado.",
-      });
+      return res.status(404).json({ message: "Utilizador não encontrado." });
     }
 
     if (!user.ativo) {
-      return res.status(403).json({
-        message: "Utilizador inativo. Contacte o administrador.",
-      });
+      return res.status(403).json({ message: "Utilizador inativo. Contacte o administrador." });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
     if (!isPasswordValid) {
-      return res.status(401).json({
-        message: "Password inválida.",
-      });
+      return res.status(401).json({ message: "Password inválida." });
     }
 
     const token = generateToken(user);
@@ -429,260 +306,140 @@ const login = async (req, res) => {
     return res.status(200).json({
       message: "Login realizado com sucesso.",
       token,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        ativo: user.ativo,
-      },
+      user: mapUserResponse(user),
     });
   } catch (error) {
-    console.error("Erro no login:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao fazer login.",
-      error: error.message,
-    });
+    console.error("[Login Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao fazer login." });
   }
 };
 
-/*
-  ==========================================================
-  PERFIL DO UTILIZADOR AUTENTICADO
-  ==========================================================
-*/
+/**
+ * PERFIL AUTENTICADO
+ */
 const getMe = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
       attributes: ["id", "nome", "email", "role", "ativo", "created_at", "updated_at"],
     });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "Utilizador não encontrado.",
-      });
-    }
-
+    if (!user) return res.status(404).json({ message: "Utilizador não encontrado." });
     return res.status(200).json(user);
   } catch (error) {
-    console.error("Erro ao buscar perfil:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao buscar perfil.",
-      error: error.message,
-    });
+    console.error("[GetMe Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao buscar perfil." });
   }
 };
 
+/**
+ * FORGOT PASSWORD
+ */
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email é obrigatório." });
 
-    if (!email) {
-      return res.status(400).json({
-        message: "Email é obrigatório.",
-      });
-    }
+    const user = await User.findOne({ where: { email }, attributes: ['id'] });
 
-    const user = await User.findOne({
-      where: { email },
-    });
-
+    // Mitigação de Enumeração de Contas: Mantém mensagem genérica mesmo se o user não existir
     if (!user) {
-      return res.status(404).json({
-        message: "Se o email existir receberá instruções para redefinição de password.",
-      });
+      return res.status(200).json({ message: "Se o email existir, receberá instruções para redefinição." });
     }
 
     const token = crypto.randomBytes(20).toString("hex");
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 Minutos limpo
 
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    await PasswordResetToken.create({ userId: user.id, token, expiresAt });
 
-    await PasswordResetToken.create({
-      userId: user.id,
-      token,
-      expiresAt,
-    });
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    console.log(`[DEV ONLY] Link de Reset: ${resetLink}`);
 
-    const resetLink =
-      `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-
-    console.log("RESET PASSWORD LINK");
-    console.log(resetLink);
-
-    return res.status(200).json({
-      message:
-        "Se o email existir receberá instruções para redefinição.",
-    });
+    return res.status(200).json({ message: "Se o email existir, receberá instruções para redefinição." });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro interno.",
-    });
+    console.error("[ForgotPassword Error]:", error);
+    return res.status(500).json({ message: "Erro interno." });
   }
-}
+};
 
+/**
+ * RESET PASSWORD
+ */
 const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ message: "Token e password são obrigatórios" });
 
-    if (!token || !password) {
-      return res.status(400).json({
-        message: "Token e password sao obrigatorios",
-      });
+    const resetToken = await PasswordResetToken.findOne({ where: { token, used: false } });
+
+    if (!resetToken || new Date() > resetToken.expiresAt) {
+      return res.status(400).json({ message: "Token inválido ou expirado." });
     }
 
-    const resetToken =
-      await PasswordResetToken.findOne({
-        where: {
-          token,
-          used: false,
-        },
-      });
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!resetToken) {
-      return res.status(400).json({
-        message: "Token invalido.",
-      });
-    }
-
-    if (new Date() > resetToken.expiresAt) {
-      return res.status(400).json({
-        message: "Token expirado.",
-      });
-    }
-
-    const user = await User.findByPk(
-      resetToken.userId
-    );
-
-    const hashedPassword =
-      await bcrypt.hash(password, 10);
-
-    user.passwordHash = hashedPassword;
-
-    await user.save();
-
-    resetToken.used = true;
-
-    await resetToken.save();
-
-    return res.status(200).json({
-      message: "Password redifinida com sucesso.",
+    await sequelize.transaction(async (t) => {
+      await User.update({ passwordHash: hashedPassword }, { where: { id: resetToken.userId }, transaction: t });
+      resetToken.used = true;
+      await resetToken.save({ transaction: t });
     });
+
+    return res.status(200).json({ message: "Password redefinida com sucesso." });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro interno.",
-    });
+    console.error("[ResetPassword Error]:", error);
+    return res.status(500).json({ message: "Erro interno." });
   }
-}
+};
 
-/*
-  ==========================================================
-  REGISTO COM OTP (NOVO)
-  ==========================================================
-  Etapa 1: Utilizador preenche formulário e recebe OTP por email
-*/
+/**
+ * SOLICITAR OTP (ETAPA 1)
+ */
 const registerMutuarioRequestOTP = async (req, res) => {
   try {
     const {
-      nome,
-      email,
-      password,
-      nomeCompleto,
-      documentoTipo,
-      documentoNumero,
-      nuit,
-      dataNascimento,
-      provincia,
-      distrito,
-      localResidencia,
-      telefone,
+      nome, email, password, nomeCompleto, documentoTipo,
+      documentoNumero, nuit, dataNascimento, provincia,
+      distrito, localResidencia, telefone,
     } = req.body;
 
     if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
-      return res.status(400).json({
-        message: "preencher campos obrigatórios.",
-      });
+      return res.status(400).json({ message: "Preencher campos obrigatórios." });
     }
 
-    // Validar email
-    const existingUser = await User.findOne({
-      where: { email },
-    });
+    // Pesquisa simultânea de duplicações para travar antes do OTP
+    const [existingUser, existingMutuario] = await Promise.all([
+      User.findOne({ where: { email }, attributes: ['id'] }),
+      Mutuario.findOne({
+        where: { [Op.or]: [{ nuit }, { documentoNumero }] },
+        attributes: ['id', 'nuit', 'documentoNumero']
+      })
+    ]);
 
-    if (existingUser) {
-      return res.status(409).json({
-        message: "Já existe um utilizador com este email.",
-      });
+    if (existingUser) return res.status(409).json({ message: "Já existe um utilizador com este email." });
+    if (existingMutuario) {
+      const msg = existingMutuario.nuit === nuit
+        ? "Já existe um mutuário com este nuit."
+        : "Já existe um mutuário com este número de documento.";
+      return res.status(409).json({ message: msg });
     }
 
-    if (nuit) {
-      const mutuarioExistentePorNuit = await Mutuario.findOne({
-        where: { nuit },
-      });
+    // Limpar OTPs expirados em background
+    EmailVerificationToken.destroy({
+      where: { email, expiresAt: { [Op.lt]: new Date() } },
+    }).catch(err => console.error("Erro ao limpar tokens expirados:", err));
 
-      if (mutuarioExistentePorNuit) {
-        return res.status(409).json({
-          message: "Já existe um mutuário com este nuit.",
-        });
-      }
-
-    // Validar documento
-    if (documentoNumero) {
-      const mutuarioExistentePorDocumento = await Mutuario.findOne({
-        where: { documentoNumero },
-      });
-
-      if (mutuarioExistentePorDocumento) {
-        return res.status(409).json({
-          message: "Já existe um mutuário com este número de documento.",
-        });
-      }
-    }
-  }
-
-    // Limpar OTPs expirados deste email
-    await EmailVerificationToken.destroy({
-      where: {
-        email,
-        expiresAt: { [Op.lt]: new Date() },
-      },
-    });
-
-    // Gerar OTP
     const otp = generateOTP();
     const expiresAt = getExpirationTime(10);
-
-    // Hash da password para armazenar temporariamente
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Armazenar dados temporários
     await EmailVerificationToken.create({
-      email,
-      otp,
-      expiresAt,
+      email, otp, expiresAt,
       temporaryData: {
-        nome,
-        passwordHash,
-        nomeCompleto,
-        documentoTipo,
-        nuit,
-        documentoNumero,
-        dataNascimento,
-        provincia,
-        distrito,
-        localResidencia,
-        telefone,
+        nome, passwordHash, nomeCompleto, documentoTipo,
+        nuit, documentoNumero, dataNascimento, provincia,
+        distrito, localResidencia, telefone,
       },
     });
 
-    // Enviar OTP por email (em dev mostra no console)
     await sendVerificationEmail(email, otp, nomeCompleto);
 
     return res.status(200).json({
@@ -690,137 +447,73 @@ const registerMutuarioRequestOTP = async (req, res) => {
       email,
     });
   } catch (error) {
-    console.error("Erro ao solicitar OTP:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao solicitar OTP.",
-      error: error.message,
-    });
+    console.error("[RequestOTP Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao solicitar OTP." });
   }
 };
 
-/*
-  ==========================================================
-  VERIFICAR OTP E COMPLETAR REGISTO
-  ==========================================================
-  Etapa 2: Utilizador verifica OTP e a conta é criada
-*/
+/**
+ * VERIFICAR OTP E EFETUAR REGISTO (ETAPA 2)
+ */
 const verifyOTPAndRegister = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: "Email e OTP são obrigatórios." });
 
-    if (!email || !otp) {
-      return res.status(400).json({
-        message: "Email e OTP são obrigatórios.",
-      });
-    }
-
-    // Procurar token de verificação
     const verificationToken = await EmailVerificationToken.findOne({
-      where: {
-        email,
-        otp,
-        verified: false,
-      },
+      where: { email, otp, verified: false },
     });
 
-    if (!verificationToken) {
-      return res.status(400).json({
-        message: "OTP inválido.",
-      });
+    if (!verificationToken || new Date() > verificationToken.expiresAt) {
+      return res.status(400).json({ message: "OTP inválido ou expirado." });
     }
 
-    // Verificar expiração
-    if (new Date() > verificationToken.expiresAt) {
-      return res.status(400).json({
-        message: "OTP expirado. Solicite um novo.",
-      });
-    }
+    const data = verificationToken.temporaryData;
 
-    // Extrair dados temporários
-    const {
-      nome,
-      passwordHash,
-      nomeCompleto,
-      documentoTipo,
-      documentoNumero,
-      nuit,
-      dataNascimento,
-      provincia,
-      distrito,
-      localResidencia,
-      telefone,
-    } = verificationToken.temporaryData;
+    // Transação ACID ao materializar dados temporários na BD
+    const result = await sequelize.transaction(async (t) => {
+      const user = await User.create({
+        nome: data.nome, email, passwordHash: data.passwordHash, role: "USER", ativo: true,
+      }, { transaction: t });
 
-    // Criar utilizador
-    const user = await User.create({
-      nome,
-      email,
-      passwordHash,
-      role: "USER",
-      ativo: true,
-    });
+      const codigoMutuario = await generateCodigoMutuario();
 
-    // Criar mutuário
-    const codigoMutuario = await generateCodigoMutuario();
+      const mutuario = await Mutuario.create({
+        codigoMutuario, nomeCompleto: data.nomeCompleto, documentoTipo: data.documentoTipo,
+        documentoNumero: data.documentoNumero, nuit: data.nuit, dataNascimento: data.dataNascimento,
+        provincia: data.provincia, distrito: data.distrito, localResidencia: data.localResidencia,
+        telefone: data.telefone, email, userId: user.id,
+      }, { transaction: t });
 
-    const mutuario = await Mutuario.create({
-      codigoMutuario,
-      nomeCompleto,
-      documentoTipo: documentoTipo || null,
-      documentoNumero: documentoNumero || null,
-      dataNascimento: dataNascimento || null,
-      nuit: nuit || null,
-      provincia: provincia || null,
-      distrito: distrito || null,
-      localResidencia: localResidencia || null,
-      telefone: telefone || null,
-      email: email || null,
-      userId: user.id,
-    });
+      verificationToken.verified = true;
+      await verificationToken.save({ transaction: t });
 
-    // Marcar OTP como verificado
-    verificationToken.verified = true;
-    await verificationToken.save();
+      await registrarLogAuditoria({
+        userId: user.id,
+        acao: "REGISTAR_MUTUARIO_COM_OTP",
+        entidade: "Mutuario",
+        entidadeId: mutuario.id,
+        descricao: `Mutuário registado com verificação de email. User ID ${user.id}, Mutuário ID ${mutuario.id}.`,
+      }, { transaction: t });
 
-    // Gerar JWT
-    const token = generateToken(user);
-
-    // Log de auditoria
-    await registrarLogAuditoria({
-      userId: user.id,
-      acao: "REGISTAR_MUTUARIO_COM_OTP",
-      entidade: "Mutuario",
-      entidadeId: mutuario.id,
-      descricao: `Mutuário registado com verificação de email. User ID ${user.id}, Mutuário ID ${mutuario.id}.`,
+      return { user, mutuario };
     });
 
     return res.status(201).json({
       message: "Registo completado com sucesso.",
-      token,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        role: user.role,
-        ativo: user.ativo,
-      },
+      token: generateToken(result.user),
+      user: mapUserResponse(result.user),
       mutuario: {
-        id: mutuario.id,
-        codigoMutuario: mutuario.codigoMutuario,
-        nomeCompleto: mutuario.nomeCompleto,
+        id: result.mutuario.id,
+        codigoMutuario: result.mutuario.codigoMutuario,
+        nomeCompleto: result.mutuario.nomeCompleto,
       },
     });
   } catch (error) {
-    console.error("Erro ao verificar OTP:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao verificar OTP.",
-      error: error.message,
-    });
+    console.error("[VerifyOTP Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao verificar OTP." });
   }
 };
-
 
 module.exports = {
   bootstrapAdmin,

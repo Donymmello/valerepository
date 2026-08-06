@@ -1,115 +1,107 @@
 const { Simulacao } = require("../models");
 const calcularPrestacao = require("../utils/calCredito");
 
-/*
-  ==========================================================
-  SIMULAR CRÉDITO
-  ==========================================================
-  Regra:
-  - Funciona com ou sem autenticação (rota pública).
-  - Se o user estiver autenticado (req.user existe), a
-    simulação já fica associada a ele.
-  - Se for anónimo, a simulação é guardada com userId null,
-    e o id devolvido pode ser usado depois em
-    "reclamarSimulacao" quando a pessoa se registar.
-*/
+// =========================================================================
+// HELPERS / ENGINE MATEMÁTICO (Evita duplicar lógica na API)
+// =========================================================================
+const TAXA_PADRAO = 18;
+
+function processarValoresSimulacao(valor, prazoMeses) {
+  const valorSolicitado = Number(valor);
+  const prazo = Number(prazoMeses);
+
+  if (!valor || !prazo || valorSolicitado <= 0 || prazo <= 0) {
+    throw new Error("INVALID_INPUTS");
+  }
+
+  const prestacao = calcularPrestacao(valorSolicitado, TAXA_PADRAO, prazo);
+  const montanteTotal = prestacao * prazo;
+  const jurosTotal = montanteTotal - valorSolicitado;
+
+  return { valorSolicitado, prazo, taxa: TAXA_PADRAO, prestacao, jurosTotal, montanteTotal };
+}
+
+// =========================================================================
+// CONTROLLERS
+// =========================================================================
+
+/**
+ * SIMULAR CRÉDITO (Persiste os dados)
+ */
 async function simular(req, res) {
   try {
     const { valorSolicitado, prazo } = req.body;
+    
+    // Delega validação e matemática para o helper único
+    const dadosCalculados = processarValoresSimulacao(valorSolicitado, prazo);
 
-    if (!valorSolicitado || !prazo) {
-      return res.status(400).json({
-        message: "Os campos valor e prazo são obrigatórios.",
-      });
-    }
-
-    if (Number(valorSolicitado) <= 0 || Number(prazo) <= 0) {
-      return res.status(400).json({
-        message: "valor e prazo devem ser maiores que zero.",
-      });
-    }
-
-    const taxa = 18;
-
-    const prestacao = calcularPrestacao(Number(valorSolicitado), taxa, Number(prazo));
-    const montanteTotal = prestacao * Number(prazo);
-    const jurosTotal = montanteTotal - Number(valorSolicitado);
-
-    // req.user só existe se a rota passar por authMiddleware (user autenticado).
-    // Para visitantes anónimos, authMiddleware não corre nesta rota, e req.user fica undefined.
+    // Identifica contexto de autenticação de forma limpa
     const userId = req.user?.id || null;
 
     const simulacao = await Simulacao.create({
       userId,
-      valorSolicitado,
-      prazo,
-      taxa,
-      prestacao,
-      jurosTotal,
-      montanteTotal,
+      ...dadosCalculados
     });
 
     return res.status(201).json(simulacao);
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao simular crédito.",
-    });
+    if (error.message === "INVALID_INPUTS") {
+      return res.status(400).json({ message: "Os campos valor e prazo são obrigatórios e devem ser maiores que zero." });
+    }
+    console.error("[Simular Error]:", error);
+    return res.status(500).json({ message: "Erro ao simular crédito." });
   }
 }
 
-/*
-  ==========================================================
-  LISTAR MINHAS SIMULAÇÕES
-  ==========================================================
-  Regra:
-  - Rota protegida (precisa de authMiddleware).
-  - Devolve só as simulações do user autenticado.
-*/
+/**
+ * CALCULAR CRÉDITO (Apenas memória / Volátil)
+ */
+async function calcular(req, res) {
+  try {
+    const { valorSolicitado, prazo } = req.body;
+    const dadosCalculados = processarValoresSimulacao(valorSolicitado, prazo);
+    
+    return res.status(200).json(dadosCalculados);
+  } catch (error) {
+    if (error.message === "INVALID_INPUTS") {
+      return res.status(400).json({ message: "Os campos valor e prazo são obrigatórios e devem ser maiores que zero." });
+    }
+    console.error("[Calcular Error]:", error);
+    return res.status(500).json({ message: "Erro ao calcular crédito." });
+  }
+}
+
+/**
+ * LISTAR MINHAS SIMULAÇÕES
+ */
 async function listarMinhasSimulacoes(req, res) {
   try {
     const simulacoes = await Simulacao.findAll({
       where: { userId: req.user.id },
-      order: [["created_at", "DESC"]],
+      // Ajustado para o padrão idiomático do Sequelize (created_at)
+      order: [["created_at", "DESC"]], 
     });
 
     return res.status(200).json(simulacoes);
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao listar simulações.",
-    });
+    console.error("[ListarSimulacoes Error]:", error);
+    return res.status(500).json({ message: "Erro ao listar simulações." });
   }
 }
 
-/*
-  ==========================================================
-  RECLAMAR SIMULAÇÃO ANÓNIMA
-  ==========================================================
-  Regra:
-  - Rota protegida (precisa de authMiddleware, user já logado/registado).
-  - Associa uma simulação feita antes do login/registo ao user actual.
-  - Só reclama se a simulação ainda não tiver dono (userId null),
-    para evitar que alguém "roube" a simulação de outro user.
-*/
+/**
+ * RECLAMAR SIMULAÇÃO ANÓNIMA
+ */
 async function reclamarSimulacao(req, res) {
   try {
-    const { id } = req.params;
-
-    const simulacao = await Simulacao.findByPk(id);
+    const simulacao = await Simulacao.findByPk(req.params.id);
 
     if (!simulacao) {
-      return res.status(404).json({
-        message: "Simulação não encontrada.",
-      });
+      return res.status(404).json({ message: "Simulação não encontrada." });
     }
 
     if (simulacao.userId) {
-      return res.status(409).json({
-        message: "Esta simulação já está associada a um utilizador.",
-      });
+      return res.status(409).json({ message: "Esta simulação já está associada a um utilizador." });
     }
 
     await simulacao.update({ userId: req.user.id });
@@ -119,51 +111,8 @@ async function reclamarSimulacao(req, res) {
       simulacao,
     });
   } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao associar simulação.",
-    });
-  }
-}
-
-async function calcular(req, res) {
-  try {
-    const { valorSolicitado, prazo } = req.body;
-
-    if (!valorSolicitado || !prazo) {
-      return res.status(400).json({
-        message: "Valor e prazo são obrigatórios.",
-      });
-    }
-
-    const taxa = 18;
-
-    const prestacao = calcularPrestacao(
-      Number(valorSolicitado),
-      taxa,
-      Number(prazo)
-    );
-
-    const montanteTotal = prestacao * Number(prazo);
-
-    const jurosTotal =
-      montanteTotal - Number(valorSolicitado);
-
-    return res.json({
-      valorSolicitado,
-      prazo,
-      taxa,
-      prestacao,
-      jurosTotal,
-      montanteTotal,
-    });
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      message: "Erro ao calcular crédito.",
-    });
+    console.error("[ReclamarSimulacao Error]:", error);
+    return res.status(500).json({ message: "Erro ao associar simulação." });
   }
 }
 

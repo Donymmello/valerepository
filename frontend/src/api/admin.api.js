@@ -110,10 +110,6 @@ export const getAllReembolsosRequest = async () => {
   return response.data;
 };
 
-export const createReembolsoRequest = async (payload) => {
-  const response = await api.post("/reembolsos", payload);
-  return response.data;
-};
 
 /*
   ==========================================================
@@ -358,8 +354,13 @@ export const downloadAnexoRequest = async (anexoId) => {
 /**
  * Lista todos os comprovativos de um pedido.
  */
-export const getComprovatiosByPedidoRequest = async (pedidoId) => {
-  const response = await api.get(`/comprovativos/pedido/${pedidoId}`);
+export const getComprovativosRequest = async (params = {}) => {
+  const response = await api.get("/comprovativos", { params });
+  return response.data;
+};
+
+export const getComprovativoRequest = async (id) => {
+  const response = await api.get(`/comprovativos/${id}`);
   return response.data;
 };
 
@@ -367,7 +368,7 @@ export const getComprovatiosByPedidoRequest = async (pedidoId) => {
  * Valida ou rejeita um comprovativo.
  * Se estado === "VALIDADO", cria automaticamente o reembolso.
  */
-export const validarComprovatioRequest = async (id, payload) => {
+export const validarComprovativoRequest = async (id, payload) => {
   const response = await api.patch(`/comprovativos/${id}/validar`, payload);
   return response.data;
 };
@@ -375,7 +376,7 @@ export const validarComprovatioRequest = async (id, payload) => {
 /**
  * Baixa um comprovativo (via blob, com token no header).
  */
-export const downloadComprovatioRequest = async (id, nome) => {
+export const downloadComprovativoRequest = async (id, nome) => {
   const response = await api.get(`/comprovativos/${id}/download`, {
     responseType: "blob",
   });

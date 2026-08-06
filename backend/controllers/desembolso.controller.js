@@ -1,184 +1,133 @@
-const { Desembolso, PedidoCredito, User, ParcelaPagamento } = require("../models");
+const { Desembolso, PedidoCredito, User, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
 const creditoService = require("../services/credito.service");
+const { asyncHandler } = require("../middleware/errorHandler.middleware");
 const {
   podeDesembolsarPedido,
   podeTransitarStatus,
   STATUS_PEDIDO,
 } = require("../utils/regrasPedido");
 
-/*
-    ==========================================================
-    CONTROLADOR DE DESEMBOLSO
-    ==========================================================
-*/
-async function createDesembolso(req, res) {
-  try {
-    const {
-      pedidoId,
-      valorDesembolsado,
-      dataDesembolso,
-      meioPagamento,
-      numeroTransacao,
-      observacoes,
-    } = req.body;
+// =========================================================================
+// CONTROLLERS
+// =========================================================================
 
-    if (!pedidoId || !valorDesembolsado) {
-      return res.status(400).json({
-        message: "pedidoId e valorDesembolsado são obrigatórios.",
-      });
-    }
+/**
+ * CRIAR DESEMBOLSO (EXECUÇÃO ATÓMICA FINANCEIRA)
+ */
+const createDesembolso = asyncHandler(async (req, res) => {
+  const {
+    pedidoId,
+    valorDesembolsado,
+    dataDesembolso,
+    meioPagamento,
+    numeroTransacao,
+    observacoes,
+  } = req.body;
 
-    if (Number(valorDesembolsado) <= 0) {
-      return res.status(400).json({
-        message: "Valor do desembolso deve ser maior que zero.",
-      });
-    }
+  if (!pedidoId || !valorDesembolsado) {
+    return res.status(400).json({ message: "pedidoId e valorDesembolsado são obrigatórios." });
+  }
 
-    const pedido = await PedidoCredito.findByPk(pedidoId);
+  if (Number(valorDesembolsado) <= 0) {
+    return res.status(400).json({ message: "Valor do desembolso deve ser maior que zero." });
+  }
 
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
-    }
+  const pedido = await PedidoCredito.findByPk(pedidoId);
+  if (!pedido) {
+    return res.status(404).json({ message: "Pedido de crédito não encontrado." });
+  }
 
-    /*
-      Regra forte:
-      valida perfil + status permitido para desembolso
-    */
-    if (!podeDesembolsarPedido(req.user, pedido)) {
-      return res.status(403).json({
-        message:
-          "Não tens permissão para desembolsar este pedido ou o status atual não permite.",
-      });
-    }
+  // Validação estrita de permissões e estados do fluxo
+  if (!podeDesembolsarPedido(req.user, pedido)) {
+    return res.status(403).json({
+      message: "Não tens permissão para desembolsar este pedido ou o status atual não permite.",
+    });
+  }
 
-    /*
-      Garante que a transição para DESEMBOLSADO é válida
-    */
-    if (!podeTransitarStatus(pedido.status, STATUS_PEDIDO.DESEMBOLSADO)) {
-      return res.status(400).json({
-        message: `Transição inválida de status: ${pedido.status} -> ${STATUS_PEDIDO.DESEMBOLSADO}.`,
-      });
-    }
+  if (!podeTransitarStatus(pedido.status, STATUS_PEDIDO.DESEMBOLSADO)) {
+    return res.status(400).json({
+      message: `Transição inválida de status: ${pedido.status} -> ${STATUS_PEDIDO.DESEMBOLSADO}.`,
+    });
+  }
 
+  // Bloco Transacional: Garante consistência absoluta
+  const desembolso = await sequelize.transaction(async (t) => {
     const referencia = await generateReferencia();
 
-    const desembolso = await Desembolso.create({
+    const novoDesembolso = await Desembolso.create({
       pedidoId,
       valorDesembolsado,
-      dataDesembolso: dataDesembolso || new Date(),
-      meioPagamento: meioPagamento || "TRANSFERENCIA",
-      numeroTransacao: numeroTransacao || null,
+      dataDesembolso: dataDesembolso ?? new Date(),
+      meioPagamento: meioPagamento ?? "TRANSFERENCIA",
+      numeroTransacao: numeroTransacao ?? null,
       referencia,
-      observacoes: observacoes || null,
+      observacoes: observacoes ?? null,
       createdBy: req.user.id,
-    });
+    }, { transaction: t });
 
+    // Propaga a transação para o serviço de crédito para execução segura
     await creditoService.criarCredito(
       pedido,
-      desembolso,
-      req.user.id
+      novoDesembolso,
+      req.user.id,
+      { transaction: t }
     );
 
-
-    await pedido.update({
-      status: STATUS_PEDIDO.DESEMBOLSADO,
-    });
+    // Atualiza o estado do pedido em memória RAM e na BD de forma atómica
+    await pedido.update({ status: STATUS_PEDIDO.DESEMBOLSADO }, { transaction: t });
 
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "CRIAR_DESEMBOLSO",
       entidade: "Desembolso",
-      entidadeId: desembolso.id,
+      entidadeId: novoDesembolso.id,
       descricao: `Desembolso de ${valorDesembolsado} criado para pedido ${pedido.numeroPedido}.`,
-    });
+    }, { transaction: t });
 
-    return res.status(201).json({
-      message: "Desembolso criado com sucesso.",
-      desembolso,
-      pedido,
-    });
-  } catch (error) {
-    console.error("Erro ao criar desembolso:", error);
+    return novoDesembolso;
+  });
 
-    return res.status(500).json({
-      message: "Erro interno ao criar desembolso.",
-      error: error.message,
-    });
-  }
-}
+  return res.status(201).json({
+    message: "Desembolso criado com sucesso.",
+    desembolso,
+    pedido, // O objeto pedido já foi atualizado em memória pelo método .update()
+  });
+});
 
-/*
-    ==========================================================
-    LISTAR TODOS OS DESEMBOLSOS
-    ==========================================================
-*/
-async function getAllDesembolsos(req, res) {
-  try {
-    const desembolsos = await Desembolso.findAll({
-      include: [
-        {
-          model: PedidoCredito,
-          as: "pedido",
-        },
-        {
-          model: User,
-          as: "criador",
-          attributes: ["id", "nome", "email", "role"],
-        },
-      ],
-      order: [["created_at", "DESC"]],
-    });
+/**
+ * LISTAR TODOS OS DESEMBOLSOS
+ */
+const getAllDesembolsos = asyncHandler(async (req, res) => {
+  const desembolsos = await Desembolso.findAll({
+    include: [
+      { model: PedidoCredito, as: "pedido" },
+      { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
+    ],
+    order: [["created_at", "DESC"]], // ✅ Mantido camelCase nativo do Sequelize
+  });
 
-    return res.status(200).json(desembolsos);
-  } catch (error) {
-    console.error("Erro ao buscar desembolsos:", error);
+  return res.status(200).json(desembolsos);
+});
 
-    return res.status(500).json({
-      message: "Erro interno ao buscar desembolsos.",
-      error: error.message,
-    });
-  }
-}
+/**
+ * LISTAR DESEMBOLSOS POR PEDIDO
+ */
+const getDesembolsoByPedido = asyncHandler(async (req, res) => {
+  const { pedidoId } = req.params;
 
-/*
-    ==========================================================
-    LISTAR DESEMBOLSOS POR PEDIDO
-    ==========================================================
-*/
-async function getDesembolsoByPedido(req, res) {
-  try {
-    const { pedidoId } = req.params;
+  const desembolsos = await Desembolso.findAll({
+    where: { pedidoId },
+    include: [
+      { model: PedidoCredito, as: "pedido" },
+      { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
+    ],
+    order: [["id", "DESC"]],
+  });
 
-    const desembolsos = await Desembolso.findAll({
-      where: { pedidoId },
-      include: [
-        {
-          model: PedidoCredito,
-          as: "pedido",
-        },
-        {
-          model: User,
-          as: "criador",
-          attributes: ["id", "nome", "email", "role"],
-        },
-      ],
-      order: [["id", "DESC"]],
-    });
-
-    return res.status(200).json(desembolsos);
-  } catch (error) {
-    console.error("Erro ao buscar desembolso por pedido:", error);
-
-    return res.status(500).json({
-      message: "Erro interno ao buscar desembolso por pedido.",
-      error: error.message,
-    });
-  }
-}
+  return res.status(200).json(desembolsos);
+});
 
 module.exports = {
   createDesembolso,

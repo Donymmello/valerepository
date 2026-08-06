@@ -18,8 +18,20 @@ const Comprovativo = sequelize.define(
 
     pedidoId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       field: "pedido_id",
+    },
+
+    creditoId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "credito_id",
+    },
+
+    parcelaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "parcela_id",
     },
 
     // Quem enviou (mutuário autenticado)
@@ -85,8 +97,10 @@ const Comprovativo = sequelize.define(
     },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: "comprovativos",
-    timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
   }

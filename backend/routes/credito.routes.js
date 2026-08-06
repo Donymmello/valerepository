@@ -8,7 +8,7 @@ const {
   buscarCreditosElegiveisReembolso,
   buscarCreditoComReembolsos,
   getAllCreditos,
-} = require("../services/credito.service");
+} = require("../controllers/credito.controller");
 
 router.get(
     "/elegiveis-reembolso",

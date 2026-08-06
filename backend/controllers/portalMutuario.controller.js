@@ -6,6 +6,8 @@ const {
   RequisitoCredito,
   Desembolso,
   Reembolso,
+  Credito,
+  ParcelaPagamento,
   User,
   Anexo,
 } = require("../models");
@@ -424,6 +426,31 @@ async function getMeuExtratoPedido(req, res) {
           model: Mutuario,
           as: "mutuario",
         },
+        {
+          model: Desembolso,
+          as: "desembolsos",
+          required: false,
+        },
+        {
+          model: Credito,
+          as: "creditos",
+          required: false,
+          include: [
+            {
+              model: ParcelaPagamento,
+              as: "parcelas",
+              required: false,
+            },
+            {
+              model: Reembolso,
+              as: "reembolsos",
+              required: false,
+            },
+          ],
+        },
+      ],
+      order: [
+        [{ model: Credito, as: "creditos" }, { model: ParcelaPagamento, as: "parcelas" }, "numeroParcela", "ASC"],
       ],
     });
 
@@ -433,38 +460,21 @@ async function getMeuExtratoPedido(req, res) {
       });
     }
 
-    const desembolsos = await Desembolso.findAll({
-      where: { pedidoId: pedido.id },
-      order: [["id", "ASC"]],
-    });
+    const num = (v) => Number(v || 0);
+    const creditos = pedido.creditos || [];
 
-    const reembolsos = await Reembolso.findAll({
-      where: { pedidoId: pedido.id },
-      order: [["id", "ASC"]],
-    });
-
-    const totalDesembolsado = desembolsos.reduce((total, item) => {
-      return total + Number(item.valorDesembolsado || 0);
-    }, 0);
-
-    const totalReembolsado = reembolsos.reduce((total, item) => {
-      return total + Number(item.valorReembolsado || 0);
-    }, 0);
-
-    const saldoEmAberto = totalDesembolsado - totalReembolsado;
+    const totalDesembolsado = (pedido.desembolsos || []).reduce(
+      (total, item) => total + num(item.valorDesembolsado),
+      0
+    );
+    const totalReembolsado = creditos.reduce((t, c) => t + num(c.totalPago), 0);
+    const montanteTotal = creditos.reduce((t, c) => t + num(c.montanteTotal), 0);
+    const saldoEmDivida = creditos.length
+      ? creditos.reduce((t, c) => t + num(c.saldoAtual), 0)
+      : totalDesembolsado - totalReembolsado;
 
     return res.status(200).json({
-      pedido: {
-        id: pedido.id,
-        numeroPedido: pedido.numeroPedido,
-        status: pedido.status,
-        etapaAtual: pedido.etapaAtual,
-        valorSolicitado: pedido.valorSolicitado,
-        finalidade: pedido.finalidade,
-        pacoteFinanciamento: pedido.pacoteFinanciamento,
-        dataSubmissao: pedido.dataSubmissao,
-        observacoes: pedido.observacoes,
-      },
+      pedido,
       mutuario: {
         id: pedido.mutuario?.id,
         codigoMutuario: pedido.mutuario?.codigoMutuario,
@@ -473,10 +483,9 @@ async function getMeuExtratoPedido(req, res) {
       resumoFinanceiro: {
         totalDesembolsado,
         totalReembolsado,
-        saldoEmAberto,
+        montanteTotal,
+        saldoEmDivida,
       },
-      desembolsos,
-      reembolsos,
     });
   } catch (error) {
     console.error("Erro ao gerar extrato do meu pedido:", error);

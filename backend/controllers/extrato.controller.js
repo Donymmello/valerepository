@@ -4,6 +4,8 @@ const {
   User,
   Reembolso,
   Desembolso,
+  Credito,
+  ParcelaPagamento,
   AprovacaoPedido,
 } = require("../models");
 
@@ -11,13 +13,13 @@ const {
   ==========================================================
   EXTRATO FINANCEIRO E PROCESSUAL DO PEDIDO
   ==========================================================
-  Esta função devolve uma visão completa do pedido:
-  - dados gerais
-  - aprovações
-  - desembolsos
-  - reembolsos
-  - totais
-  - saldo atual
+  Nova dinâmica: a vida financeira do pedido vive no Crédito.
+  Após o desembolso é criado um Crédito com parcelas; os
+  reembolsos são registados contra a parcela/crédito (não
+  contra o pedido). O extrato lê os totais reais do crédito:
+  - montante total, total pago, saldo em dívida, estado
+  - parcelas (previsto/pago/saldo/estado/vencimento)
+  - reembolsos (via crédito)
 */
 async function getExtratoPedido(req, res) {
   try {
@@ -59,17 +61,32 @@ async function getExtratoPedido(req, res) {
           ],
         },
         {
-          model: Reembolso,
-          as: "reembolsos",
+          model: Credito,
+          as: "creditos",
           required: false,
           include: [
             {
-              model: User,
-              as: "criador",
-              attributes: ["id", "nome", "email", "role"],
+              model: ParcelaPagamento,
+              as: "parcelas",
+              required: false,
+            },
+            {
+              model: Reembolso,
+              as: "reembolsos",
+              required: false,
+              include: [
+                {
+                  model: User,
+                  as: "criador",
+                  attributes: ["id", "nome", "email", "role"],
+                },
+              ],
             },
           ],
         },
+      ],
+      order: [
+        [{ model: Credito, as: "creditos" }, { model: ParcelaPagamento, as: "parcelas" }, "numeroParcela", "ASC"],
       ],
     });
 
@@ -79,23 +96,11 @@ async function getExtratoPedido(req, res) {
       });
     }
 
-    const totalDesembolsado = (pedido.desembolsos || []).reduce((total, item) => {
-      return total + Number(item.valorDesembolsado || 0);
-    }, 0);
-
-    const totalReembolsado = (pedido.reembolsos || []).reduce((total, item) => {
-      return total + Number(item.valorReembolsado || 0);
-    }, 0);
-
-    const saldoEmDivida = totalDesembolsado - totalReembolsado;
+    const resumoFinanceiro = resumirExtrato(pedido);
 
     return res.status(200).json({
       pedido,
-      resumoFinanceiro: {
-        totalDesembolsado,
-        totalReembolsado,
-        saldoEmDivida,
-      },
+      resumoFinanceiro,
     });
   } catch (error) {
     console.error("Erro ao gerar extrato do pedido:", error);
@@ -105,6 +110,35 @@ async function getExtratoPedido(req, res) {
       error: error.message,
     });
   }
+}
+
+/*
+  Agrega os totais do extrato a partir dos desembolsos do pedido
+  e dos créditos (saldoAtual/totalPago já mantidos pelo serviço).
+  Mantém as chaves antigas (totalDesembolsado/totalReembolsado/
+  saldoEmDivida) para compatibilidade e acrescenta o montante.
+*/
+function resumirExtrato(pedido) {
+  const num = (v) => Number(v || 0);
+
+  const totalDesembolsado = (pedido.desembolsos || []).reduce(
+    (total, item) => total + num(item.valorDesembolsado),
+    0
+  );
+
+  const creditos = pedido.creditos || [];
+
+  const montanteTotal = creditos.reduce((t, c) => t + num(c.montanteTotal), 0);
+  const totalReembolsado = creditos.reduce((t, c) => t + num(c.totalPago), 0);
+  const saldoEmDivida = creditos.reduce((t, c) => t + num(c.saldoAtual), 0);
+
+  return {
+    totalDesembolsado,
+    totalReembolsado,
+    montanteTotal,
+    // saldo em dívida vem do crédito; sem crédito ainda, cai para desembolsado - reembolsado
+    saldoEmDivida: creditos.length ? saldoEmDivida : totalDesembolsado - totalReembolsado,
+  };
 }
 
 module.exports = {

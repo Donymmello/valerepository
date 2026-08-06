@@ -1,65 +1,44 @@
 const jwt = require("jsonwebtoken");
 
-/*
-  ==========================================================
-  MIDDLEWARE DE AUTENTICAÇÃO
-  ==========================================================
-  Este middleware protege rotas privadas.
-
-  O que ele faz:
-  1. Lê o token enviado no header Authorization
-  2. Verifica se o token existe
-  3. Valida o token
-  4. Coloca os dados do utilizador em req.user
-  5. Permite continuar para a próxima função
-*/
+/**
+ * MIDDLEWARE DE AUTENTICAÇÃO
+ * Protege rotas privadas garantindo a integridade do token JWT.
+ */
 const authMiddleware = (req, res, next) => {
   try {
-    // Lê o header Authorization
     const authHeader = req.headers.authorization;
 
-    // Verifica se o token foi enviado
     if (!authHeader) {
-      return res.status(401).json({
-        message: "Token não fornecido.",
-      });
+      return res.status(401).json({ message: "Token não fornecido." });
     }
 
-    /*
-      Normalmente o token vem assim:
-      Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-    */
     const parts = authHeader.split(" ");
-
-    // Verifica se o formato do header está correto
     if (parts.length !== 2) {
-      return res.status(401).json({
-        message: "Formato de token inválido.",
-      });
+      return res.status(401).json({ message: "Formato de token inválido." });
     }
 
     const [scheme, token] = parts;
 
-    // Verifica se começa com Bearer
-    if (scheme !== "Bearer") {
-      return res.status(401).json({
-        message: "Token mal formatado.",
-      });
+    // Validação case-insensitive usando regex para evitar falhas se enviaremos 'bearer'
+    if (!/^Bearer$/i.test(scheme)) {
+      return res.status(401).json({ message: "Token mal formatado." });
     }
 
-    // Verifica e decodifica o token
+    // Verifica e decodifica o token usando a variável de ambiente
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Guarda os dados do token no request
+    // Injeta os dados decodificados (id, role, etc.) no objeto da requisição
     req.user = decoded;
 
-    // Continua para a próxima função
-    next();
+    req.tenant = {
+      id: decoded.empresaId,
+    };
+
+    return next();
   } catch (error) {
-    return res.status(401).json({
-      message: "Token inválido ou expirado.",
-      error: error.message,
-    });
+    // Segurança Senior: Logs internos para a equipa, mensagens genéricas para o cliente
+    console.error("[AuthMiddleware Error]:", error.message);
+    return res.status(401).json({ message: "Token inválido ou expirado." });
   }
 };
 

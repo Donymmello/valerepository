@@ -1,63 +1,17 @@
 const express = require("express");
 const router = express.Router();
-
 const authMiddleware = require("../middleware/auth.middleware");
+const authorizeRoles = require("../middleware/role.middleware");
 const uploadComprovativo = require("../middleware/uploadComprovativo.middleware");
+const controller = require("../controllers/comprovativo.controller");
 
-const {
-  enviarComprovativo,
-  getComprovativos,
-  getMeusComprovativos,
-  downloadComprovativo,
-  validarComprovativo,
-} = require("../controllers/comprovativo.controller");
+router.post("/portal/credito/:creditoId/parcela/:parcelaId/enviar", authMiddleware, uploadComprovativo.single("comprovativo"), controller.enviarComprovativo);
+router.get("/portal/credito/:creditoId", authMiddleware, controller.getMeusComprovativos);
 
-/*
-  ==========================================================
-  ROTAS DO PORTAL (MUTUÁRIO)
-  ==========================================================
-*/
-
-// Enviar comprovativo de pagamento
-router.post(
-  "/portal/pedido/:pedidoId/enviar",
-  authMiddleware,
-  uploadComprovativo.single("comprovativo"),
-  enviarComprovativo
-);
-
-// Listar comprovativos do meu pedido
-router.get(
-  "/portal/pedido/:pedidoId",
-  authMiddleware,
-  getMeusComprovativos
-);
-
-/*
-  ==========================================================
-  ROTAS DO BACKOFFICE
-  ==========================================================
-*/
-
-// Listar comprovativos de um pedido (backoffice)
-router.get(
-  "/pedido/:pedidoId",
-  authMiddleware,
-  getComprovativos
-);
-
-// Download de um comprovativo
-router.get(
-  "/:id/download",
-  authMiddleware,
-  downloadComprovativo
-);
-
-// Validar/rejeitar comprovativo e registar reembolso
-router.patch(
-  "/:id/validar",
-  authMiddleware,
-  validarComprovativo
-);
+router.get("/", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativos);
+router.get("/credito/:creditoId", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativos);
+router.get("/:id/download", authMiddleware, controller.downloadComprovativo);
+router.get("/:id", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.obterComprovativo);
+router.patch("/:id/validar", authMiddleware, authorizeRoles("ADMIN", "GESTOR"), controller.validarComprovativo);
 
 module.exports = router;

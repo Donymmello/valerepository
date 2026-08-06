@@ -39,6 +39,12 @@ const sequelize = require("../config/db");
         allowNull: false,
       },
 
+      empresaId: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            field: "empresa_id",
+          },
+
       valorOriginal: {
         type: DataTypes.DECIMAL(15, 2),
         allowNull: false,

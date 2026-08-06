@@ -52,6 +52,9 @@ export default function ExtratoPedidoInterno() {
     );
   }
 
+  const creditos = dados?.pedido?.creditos || [];
+  const reembolsos = creditos.flatMap((c) => c.reembolsos || []);
+
   return (
     <Box>
       <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
@@ -133,11 +136,79 @@ export default function ExtratoPedidoInterno() {
               </Typography>
 
               <Typography>
+                <strong>Montante Total:</strong>{" "}
+                {formatCurrency(dados.resumoFinanceiro?.montanteTotal)}
+              </Typography>
+
+              <Typography>
                 <strong>Saldo em Dívida:</strong>{" "}
                 {formatCurrency(dados.resumoFinanceiro?.saldoEmDivida)}
               </Typography>
             </Stack>
           </Paper>
+
+          {creditos.map((credito) => (
+            <Paper key={credito.id} sx={{ p: 3, borderRadius: 3 }}>
+              <Stack
+                direction={{ xs: "column", md: "row" }}
+                justifyContent="space-between"
+                spacing={2}
+                mb={2}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Crédito {credito.numeroContrato}
+                </Typography>
+                <Chip label={credito.estado} size="small" />
+              </Stack>
+
+              <Stack spacing={1.2} mb={2}>
+                <Typography>
+                  <strong>Prestação:</strong>{" "}
+                  {formatCurrency(credito.prestacao)} × {credito.prazo}
+                </Typography>
+                <Typography>
+                  <strong>Total Pago:</strong> {formatCurrency(credito.totalPago)}
+                </Typography>
+                <Typography>
+                  <strong>Saldo Atual:</strong>{" "}
+                  {formatCurrency(credito.saldoAtual)}
+                </Typography>
+              </Stack>
+
+              <Divider sx={{ my: 1.5 }} />
+
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1}>
+                Parcelas
+              </Typography>
+
+              {credito.parcelas?.length ? (
+                <Stack spacing={1.5}>
+                  {credito.parcelas.map((p) => (
+                    <Stack
+                      key={p.id}
+                      direction={{ xs: "column", sm: "row" }}
+                      justifyContent="space-between"
+                      spacing={1}
+                    >
+                      <Typography variant="body2">
+                        #{p.numeroParcela} · Venc. {formatDate(p.dataVencimento)}
+                      </Typography>
+                      <Typography variant="body2">
+                        Previsto {formatCurrency(p.valorPrevisto)} · Pago{" "}
+                        {formatCurrency(p.valorPago)} · Saldo{" "}
+                        {formatCurrency(p.saldoParcela)}
+                      </Typography>
+                      <Chip label={p.estado} size="small" />
+                    </Stack>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography color="text.secondary">
+                  Sem parcelas geradas.
+                </Typography>
+              )}
+            </Paper>
+          ))}
 
           <Paper sx={{ p: 3, borderRadius: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
@@ -234,9 +305,9 @@ export default function ExtratoPedidoInterno() {
               Reembolsos
             </Typography>
 
-            {dados.pedido?.reembolsos?.length ? (
+            {reembolsos.length ? (
               <Stack spacing={2}>
-                {dados.pedido.reembolsos.map((item) => (
+                {reembolsos.map((item) => (
                   <Box key={item.id}>
                     <Typography>
                       <strong>Valor:</strong>{" "}

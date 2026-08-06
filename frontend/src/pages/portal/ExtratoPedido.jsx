@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -69,6 +70,10 @@ export default function ExtratoPedido() {
       </Box>
     );
   }
+
+  const creditos = dados?.pedido?.creditos || [];
+  const parcelas = creditos.flatMap((c) => c.parcelas || []);
+  const reembolsos = creditos.flatMap((c) => c.reembolsos || []);
 
   return (
     <Box>

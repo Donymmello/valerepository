@@ -14,6 +14,17 @@ const User = sequelize.define(
       primaryKey: true,
     },
 
+    empresaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "empresa_id",
+
+      references: {
+        model: "empresas", // Nome da tabela referenciada
+        key: "id",
+      },
+    },
+
     nome: {
       type: DataTypes.STRING(150),
       allowNull: false,
@@ -46,8 +57,10 @@ const User = sequelize.define(
     },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: "users",
-    timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
   }

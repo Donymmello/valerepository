@@ -51,8 +51,10 @@ const Notificacao = sequelize.define(
     },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: "notificacoes",
-    timestamps: true,
     createdAt: "created_at",
     updatedAt: false,
   }

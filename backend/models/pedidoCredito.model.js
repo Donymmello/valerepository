@@ -27,6 +27,12 @@ const PedidoCredito = sequelize.define(
       field: "mutuario_id",
     },
 
+    empresaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "empresa_id",
+    },
+
     valorSolicitado: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
@@ -123,8 +129,10 @@ const PedidoCredito = sequelize.define(
     },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: "pedidos_credito",
-    timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
   }

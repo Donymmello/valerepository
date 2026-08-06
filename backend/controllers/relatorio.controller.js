@@ -50,9 +50,9 @@ function buildPedidoFilters(query = {}) {
     where.status = query.status;
   }
 
-  const createdAtFilter = buildDateRangeFilter("createdAt", query);
-  if (Object.keys(createdAtFilter).length) {
-    Object.assign(where, createdAtFilter);
+  const created_atFilter = buildDateRangeFilter("created_at", query);
+  if (Object.keys(created_atFilter).length) {
+    Object.assign(where, created_atFilter);
   }
 
   return where;
@@ -190,7 +190,7 @@ async function getRelatorioPedidos(req, res) {
         "status",
         "valorSolicitado",
         "finalidade",
-        "createdAt",
+        "created_at",
       ],
       include: [
         {
@@ -199,7 +199,7 @@ async function getRelatorioPedidos(req, res) {
           attributes: ["id", "nomeCompleto"],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
 
     return res.status(200).json(pedidos);
@@ -231,7 +231,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
           attributes: ["id", "nomeCompleto"],
         },
       ],
-      order: [["createdAt", "DESC"]],
+      order: [["created_at", "DESC"]],
     });
 
     const pedidoIds = pedidos.map((pedido) => pedido.id);
@@ -240,7 +240,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
       Desembolso.findAll({
         attributes: [
           "pedidoId",
-          [fn("SUM", col("valorDesembolsado")), "totalDesembolsado"],
+          [fn("SUM", col("valor_desembolsado")), "totalDesembolsado"],
         ],
         where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
         group: ["pedidoId"],
@@ -248,7 +248,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
       Reembolso.findAll({
         attributes: [
           "pedidoId",
-          [fn("SUM", col("valorReembolsado")), "totalReembolsado"],
+          [fn("SUM", col("valor_reembolsado")), "totalReembolsado"],
         ],
         where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
         group: ["pedidoId"],
@@ -256,7 +256,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
       Credito.findAll({
         attributes: [
           "pedidoId",
-          [fn("SUM", col("saldoAtual")), "saldo"],
+          [fn("SUM", col("saldo_atual")), "saldo"],
         ],
         where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
         group: ["pedidoId"],

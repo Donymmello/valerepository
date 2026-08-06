@@ -16,6 +16,7 @@ const Desembolso = require("./desembolso.model");
 const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
+const Empresa = require("./empresa.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
 
@@ -145,16 +146,6 @@ Desembolso.belongsTo(User, {
 /*
   Um pedido pode ter vários reembolsos.
 */
-PedidoCredito.hasMany(Reembolso, {
-  foreignKey: "pedidoId",
-  as: "reembolsos",
-});
-
-Reembolso.belongsTo(PedidoCredito, {
-  foreignKey: "pedidoId",
-  as: "pedido",
-});
-
 /*
   Um utilizador pode registar vários reembolsos.
 */
@@ -227,6 +218,11 @@ Credito.belongsTo(PedidoCredito, {
   as: "pedido",
 });
 
+PedidoCredito.hasMany(Credito, {
+  foreignKey: "pedidoId",
+  as: "creditos",
+});
+
 Mutuario.hasMany(Credito, {
   foreignKey: "mutuarioId",
   as: "creditos",
@@ -267,6 +263,26 @@ Desembolso.belongsTo(PedidoCredito, {
   as: "pedido",
 });
 
+User.hasMany(Comprovativo, { foreignKey: "userId", as: "comprovativosEnviados" });
+Comprovativo.belongsTo(User, { foreignKey: "userId", as: "remetente" });
+User.hasMany(Comprovativo, { foreignKey: "validadoPor", as: "comprovativosValidados" });
+Comprovativo.belongsTo(User, { foreignKey: "validadoPor", as: "validador" });
+
+Credito.hasMany(Comprovativo, { foreignKey: "creditoId", as: "comprovativos" });
+Comprovativo.belongsTo(Credito, { foreignKey: "creditoId", as: "credito" });
+ParcelaPagamento.hasMany(Comprovativo, { foreignKey: "parcelaId", as: "comprovativos" });
+Comprovativo.belongsTo(ParcelaPagamento, { foreignKey: "parcelaId", as: "parcela" });
+
+Empresa.hasMany(User, {
+    foreignKey: "empresaId",
+    as: "utilizadores",
+});
+
+User.belongsTo(Empresa, {
+    foreignKey: "empresaId",
+    as: "empresa",
+});
+
 
 module.exports = {
   sequelize,
@@ -285,6 +301,7 @@ module.exports = {
   Comprovativo,
   Anexo,
   Simulacao,
+  Empresa,
   PasswordResetToken,
   EmailVerificationToken,
 };

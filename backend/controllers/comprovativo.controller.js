@@ -1,45 +1,51 @@
 const path = require("path");
-const { Comprovativo, PedidoCredito, Reembolso, User } = require("../models");
+const {
+  Comprovativo,
+  Credito,
+  ParcelaPagamento,
+  Reembolso,
+  User,
+  Mutuario,
+  sequelize,
+} = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
-const { podeRegistrarReembolso, STATUS_PEDIDO } = require("../utils/regrasPedido");
+const CreditoService = require("../services/credito.service");
+const { podeRegistrarReembolso } = require("../utils/regrasCredito");
 
-/*
-  ==========================================================
-  ENVIAR COMPROVATIVO (PORTAL MUTUÁRIO)
-  ==========================================================
-  O mutuário envia o comprovativo de pagamento ligado ao pedido.
-  O ficheiro é guardado em uploads/comprovativos.
-*/
+const comprovativoInclude = [
+  { model: Credito, as: "credito", attributes: ["id", "numeroContrato", "estado", "mutuarioId"] },
+  { model: ParcelaPagamento, as: "parcela", attributes: ["id", "numeroParcela", "valorPrevisto", "valorPago", "saldoParcela", "estado"] },
+  { model: User, as: "remetente", attributes: ["id", "nome", "email"] },
+  { model: User, as: "validador", attributes: ["id", "nome", "email"] },
+];
+
+async function obterCreditoDoMutuario(creditoId, userId) {
+  return Credito.findOne({
+    where: { id: creditoId },
+    include: [{ model: Mutuario, as: "mutuario", where: { userId }, attributes: ["id", "userId"] }],
+  });
+}
+
 async function enviarComprovativo(req, res) {
   try {
-    if (!req.file) {
-      return res.status(400).json({
-        message: "Nenhum ficheiro foi enviado.",
-      });
-    }
+    if (!req.file) return res.status(400).json({ message: "Nenhum ficheiro foi enviado." });
 
-    const { pedidoId } = req.params;
+    const { creditoId, parcelaId } = req.params;
+    const credito = await obterCreditoDoMutuario(creditoId, req.user.id);
+    if (!credito) return res.status(404).json({ message: "Credito nao encontrado ou sem acesso." });
+    if (credito.estado === "LIQUIDADO") return res.status(400).json({ message: "Este credito ja foi liquidado." });
 
-    // Verifica que o pedido existe e pertence ao mutuário autenticado
-    const pedido = await PedidoCredito.findOne({
-      where: { id: pedidoId },
-      include: [{ association: "mutuario" }],
-    });
+    const parcela = await ParcelaPagamento.findOne({ where: { id: parcelaId, creditoId } });
+    if (!parcela) return res.status(404).json({ message: "Parcela nao encontrada neste credito." });
+    if (Number(parcela.saldoParcela) <= 0) return res.status(400).json({ message: "Esta parcela ja esta paga." });
 
-    if (!pedido) {
-      return res.status(404).json({ message: "Pedido não encontrado." });
-    }
-
-    // Só pedidos desembolsados aceitam comprovativos
-    if (pedido.status !== STATUS_PEDIDO.DESEMBOLSADO) {
-      return res.status(400).json({
-        message: `Só é possível enviar comprovativos para pedidos com status DESEMBOLSADO. Status actual: ${pedido.status}.`,
-      });
-    }
+    const pendente = await Comprovativo.findOne({ where: { creditoId, parcelaId, estado: "PENDENTE" } });
+    if (pendente) return res.status(409).json({ message: "Ja existe um comprovativo pendente para esta parcela." });
 
     const comprovativo = await Comprovativo.create({
-      pedidoId,
+      creditoId,
+      parcelaId,
       userId: req.user.id,
       nome: req.file.originalname,
       arquivo: req.file.filename,
@@ -53,235 +59,118 @@ async function enviarComprovativo(req, res) {
       acao: "ENVIAR_COMPROVATIVO",
       entidade: "Comprovativo",
       entidadeId: comprovativo.id,
-      descricao: `Comprovativo ${req.file.originalname} enviado para pedido ${pedido.numeroPedido}.`,
+      descricao: `Comprovativo enviado para o credito ${credito.numeroContrato}, parcela ${parcela.numeroParcela}.`,
     });
-
-    return res.status(201).json({
-      message: "Comprovativo enviado com sucesso.",
-      comprovativo,
-    });
+    return res.status(201).json({ message: "Comprovativo enviado com sucesso.", comprovativo });
   } catch (error) {
-    console.error("Erro ao enviar comprovativo:", error);
-    return res.status(500).json({
-      message: "Erro ao enviar comprovativo.",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Erro ao enviar comprovativo.", error: error.message });
   }
 }
 
-/*
-  ==========================================================
-  LISTAR COMPROVATIVOS DE UM PEDIDO (BACKOFFICE)
-  ==========================================================
-*/
-async function getComprovativos(req, res) {
-  try {
-    const { pedidoId } = req.params;
-
-    const comprovativos = await Comprovativo.findAll({
-      where: { pedidoId },
-      include: [
-        {
-          model: User,
-          as: "remetente",
-          attributes: ["id", "nome", "email"],
-        },
-        {
-          model: User,
-          as: "validador",
-          attributes: ["id", "nome", "email"],
-        },
-      ],
-      order: [["created_at", "DESC"]],
-    });
-
-    return res.status(200).json(comprovativos);
-  } catch (error) {
-    console.error("Erro ao listar comprovativos:", error);
-    return res.status(500).json({
-      message: "Erro ao listar comprovativos.",
-      error: error.message,
-    });
-  }
-}
-
-/*
-  ==========================================================
-  LISTAR MEUS COMPROVATIVOS (PORTAL MUTUÁRIO)
-  ==========================================================
-*/
 async function getMeusComprovativos(req, res) {
   try {
-    const { pedidoId } = req.params;
-
-    // Confirma que o pedido pertence ao mutuário autenticado
-    const pedido = await PedidoCredito.findOne({
-      where: { id: pedidoId },
-      include: [{ association: "mutuario", where: { userId: req.user.id } }],
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido não encontrado ou sem acesso.",
-      });
-    }
-
+    const credito = await obterCreditoDoMutuario(req.params.creditoId, req.user.id);
+    if (!credito) return res.status(404).json({ message: "Credito nao encontrado ou sem acesso." });
     const comprovativos = await Comprovativo.findAll({
-      where: { pedidoId },
+      where: { creditoId: credito.id },
+      include: comprovativoInclude.slice(1, 2),
       order: [["created_at", "DESC"]],
     });
-
-    return res.status(200).json(comprovativos);
+    return res.json(comprovativos);
   } catch (error) {
-    console.error("Erro ao listar comprovativos:", error);
-    return res.status(500).json({
-      message: "Erro ao listar comprovativos.",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Erro ao listar comprovativos.", error: error.message });
   }
 }
 
-/*
-  ==========================================================
-  DOWNLOAD DO COMPROVATIVO
-  ==========================================================
-*/
-async function downloadComprovativo(req, res) {
+async function getComprovativos(req, res) {
   try {
-    const { id } = req.params;
-
-    const comprovativo = await Comprovativo.findByPk(id);
-
-    if (!comprovativo) {
-      return res.status(404).json({ message: "Comprovativo não encontrado." });
-    }
-
-    return res.download(
-      path.resolve("upload/comprovativos", comprovativo.arquivo),
-      comprovativo.nome
-    );
+    const where = req.params.creditoId ? { creditoId: req.params.creditoId } : {};
+    if (req.query.estado) where.estado = req.query.estado;
+    const comprovativos = await Comprovativo.findAll({ where, include: comprovativoInclude, order: [["created_at", "DESC"]] });
+    return res.json(comprovativos);
   } catch (error) {
-    console.error("Erro ao baixar comprovativo:", error);
-    return res.status(500).json({
-      message: "Erro ao baixar comprovativo.",
-      error: error.message,
-    });
+    return res.status(500).json({ message: "Erro ao listar comprovativos.", error: error.message });
   }
 }
 
-/*
-  ==========================================================
-  VALIDAR COMPROVATIVO E REGISTAR REEMBOLSO (BACKOFFICE)
-  ==========================================================
-  Valida o comprovativo e cria automaticamente o reembolso
-  com os dados fornecidos pelo backoffice.
-*/
+async function obterComprovativo(req, res) {
+  const comprovativo = await Comprovativo.findByPk(req.params.id, { include: comprovativoInclude });
+  if (!comprovativo) return res.status(404).json({ message: "Comprovativo nao encontrado." });
+  return res.json(comprovativo);
+}
+
+async function downloadComprovativo(req, res) {
+  const comprovativo = await Comprovativo.findByPk(req.params.id);
+  if (!comprovativo) return res.status(404).json({ message: "Comprovativo nao encontrado." });
+  return res.download(path.resolve("upload/comprovativos", comprovativo.arquivo), comprovativo.nome);
+}
+
 async function validarComprovativo(req, res) {
   try {
-    const { id } = req.params;
-    const {
-      estado,
-      observacoes,
-      // campos do reembolso (só obrigatórios se estado === "VALIDADO")
-      valorReembolsado,
-      dataReembolso,
-      meioPagamento,
-      numeroTransacao,
-    } = req.body;
+    const { estado, observacoes, valorReembolsado, dataReembolso, meioPagamento, numeroTransacao } = req.body;
+    if (!["VALIDADO", "REJEITADO"].includes(estado)) {
+      return res.status(400).json({ message: "Estado invalido. Use VALIDADO ou REJEITADO." });
+    }
 
-    const estadosPermitidos = ["VALIDADO", "REJEITADO"];
-    if (!estadosPermitidos.includes(estado)) {
-      return res.status(400).json({
-        message: "Estado inválido. Use VALIDADO ou REJEITADO.",
+    const resultado = await sequelize.transaction(async (transaction) => {
+      const comprovativo = await Comprovativo.findByPk(req.params.id, {
+        include: [{ model: Credito, as: "credito" }, { model: ParcelaPagamento, as: "parcela" }],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
       });
-    }
-
-    const comprovativo = await Comprovativo.findByPk(id, {
-      include: [{ model: PedidoCredito, as: "pedido" }],
-    });
-
-    if (!comprovativo) {
-      return res.status(404).json({ message: "Comprovativo não encontrado." });
-    }
-
-    if (comprovativo.estado !== "PENDENTE") {
-      return res.status(409).json({
-        message: `Este comprovativo já foi ${comprovativo.estado.toLowerCase()}.`,
-      });
-    }
-
-    // Verifica permissão para registar reembolso
-    if (!podeRegistrarReembolso(req.user, comprovativo.pedido)) {
-      return res.status(403).json({
-        message: "Não tens permissão para validar este comprovativo.",
-      });
-    }
-
-    let reembolso = null;
-
-    // Se validado, cria o reembolso automaticamente
-    if (estado === "VALIDADO") {
-      if (!valorReembolsado || Number(valorReembolsado) <= 0) {
-        return res.status(400).json({
-          message: "valorReembolsado é obrigatório ao validar o comprovativo.",
-        });
+      if (!comprovativo) {
+        const error = new Error("Comprovativo nao encontrado."); error.status = 404; throw error;
+      }
+      if (comprovativo.estado !== "PENDENTE") {
+        const error = new Error("Este comprovativo ja foi tratado."); error.status = 409; throw error;
+      }
+      if (!podeRegistrarReembolso(req.user, comprovativo.credito)) {
+        const error = new Error("Sem permissao para validar este comprovativo."); error.status = 403; throw error;
       }
 
-      reembolso = await Reembolso.create({
-        pedidoId: comprovativo.pedidoId,
-        valorReembolsado,
-        dataReembolso: dataReembolso || new Date(),
-        meioPagamento: meioPagamento || "TRANSFERENCIA",
-        numeroTransacao: numeroTransacao || null,
-        referencia: await generateReferencia(),
-        observacoes: observacoes || null,
-        createdBy: req.user.id,
-      });
+      let reembolso = null;
+      if (estado === "VALIDADO") {
+        if (!valorReembolsado || Number(valorReembolsado) <= 0) {
+          const error = new Error("valorReembolsado e obrigatorio na aprovacao."); error.status = 400; throw error;
+        }
+        if (Number(valorReembolsado) > Number(comprovativo.parcela.saldoParcela)) {
+          const error = new Error("O valor aprovado excede o saldo da parcela."); error.status = 400; throw error;
+        }
+        const data = dataReembolso ? new Date(dataReembolso) : new Date();
+        reembolso = await Reembolso.create({
+          creditoId: comprovativo.creditoId,
+          parcelaId: comprovativo.parcelaId,
+          valorReembolsado,
+          dataReembolso: data,
+          meioPagamento: meioPagamento || "TRANSFERENCIA",
+          numeroTransacao: numeroTransacao || null,
+          referencia: await generateReferencia(),
+          observacoes: observacoes || null,
+          createdBy: req.user.id,
+        }, { transaction });
+        await CreditoService.registarReembolso(comprovativo.creditoId, comprovativo.parcelaId, valorReembolsado, data, { transaction });
+      }
 
+      await comprovativo.update({
+        estado,
+        observacoes: observacoes || null,
+        validadoPor: req.user.id,
+        dataValidacao: new Date(),
+        reembolsoId: reembolso?.id || null,
+      }, { transaction });
       await registrarLogAuditoria({
         userId: req.user.id,
-        acao: "CRIAR_REEMBOLSO",
-        entidade: "Reembolso",
-        entidadeId: reembolso.id,
-        descricao: `Reembolso de ${valorReembolsado} criado via comprovativo para pedido ${comprovativo.pedido.numeroPedido}.`,
-      });
-    }
-
-    // Actualiza o comprovativo
-    await comprovativo.update({
-      estado,
-      observacoes: observacoes || null,
-      validadoPor: req.user.id,
-      dataValidacao: new Date(),
-      reembolsoId: reembolso?.id || null,
+        acao: estado === "VALIDADO" ? "APROVAR_COMPROVATIVO" : "REJEITAR_COMPROVATIVO",
+        entidade: "Comprovativo",
+        entidadeId: comprovativo.id,
+        descricao: `Comprovativo ${comprovativo.id} ${estado.toLowerCase()} para credito ${comprovativo.credito.numeroContrato}.`,
+      }, { transaction });
+      return { comprovativo, reembolso };
     });
-
-    await registrarLogAuditoria({
-      userId: req.user.id,
-      acao: `${estado}_COMPROVATIVO`,
-      entidade: "Comprovativo",
-      entidadeId: comprovativo.id,
-      descricao: `Comprovativo ${comprovativo.nome} ${estado.toLowerCase()} para pedido ${comprovativo.pedido.numeroPedido}.`,
-    });
-
-    return res.status(200).json({
-      message: `Comprovativo ${estado.toLowerCase()} com sucesso.`,
-      comprovativo,
-      reembolso,
-    });
+    return res.json({ message: `Comprovativo ${estado.toLowerCase()} com sucesso.`, ...resultado });
   } catch (error) {
-    console.error("Erro ao validar comprovativo:", error);
-    return res.status(500).json({
-      message: "Erro ao validar comprovativo.",
-      error: error.message,
-    });
+    return res.status(error.status || 500).json({ message: error.message || "Erro ao validar comprovativo." });
   }
 }
 
-module.exports = {
-  enviarComprovativo,
-  getComprovativos,
-  getMeusComprovativos,
-  downloadComprovativo,
-  validarComprovativo,
-};
+module.exports = { enviarComprovativo, getMeusComprovativos, getComprovativos, obterComprovativo, downloadComprovativo, validarComprovativo };

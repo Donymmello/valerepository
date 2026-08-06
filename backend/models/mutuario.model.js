@@ -86,10 +86,18 @@ const Mutuario = sequelize.define(
       allowNull: true,
       field: "user_id",
     },
+    
+    empresaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "empresa_id",
+    },
   },
   {
+    // A MAGIA ESTÁ AQUI:
+    underscored: true, // Traduz created_at -> created_at e updatedAt -> updatedAt na BD
+    timestamps: true,  // Garante que o Sequelize gere os carimbos de data automaticamente
     tableName: "mutuarios",
-    timestamps: true,
     createdAt: "created_at",
     updatedAt: "updated_at",
   }
