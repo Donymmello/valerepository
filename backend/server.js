@@ -45,9 +45,27 @@ app.use(errorHandlerMiddleware);
 // =========================================================================
 const PORT = process.env.PORT || 5000;
 
+// O MySQL pode ainda não estar pronto a aceitar ligações quando este
+// processo arranca (mesmo com o container já "a correr"). Tenta várias
+// vezes com espera entre tentativas antes de desistir.
+async function conectarComRetry(tentativas = 10, delayMs = 3000) {
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    try {
+      await sequelize.authenticate();
+      return;
+    } catch (error) {
+      if (tentativa === tentativas) throw error;
+      logger.warn(`Falha ao ligar à base de dados (tentativa ${tentativa}/${tentativas}). Nova tentativa em ${delayMs / 1000}s.`, {
+        error: error.message,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 async function startServer() {
   try {
-    await sequelize.authenticate();
+    await conectarComRetry();
     logger.info("Ligação com MySQL estabelecida com sucesso.", { database: process.env.DB_NAME });
 
     await syncDatabase();

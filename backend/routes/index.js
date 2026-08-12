@@ -26,6 +26,9 @@ const anexoRoutes = require("./anexo.routes");
 const simulacaoRoutes = require("./simulacao.routes");
 const comprovativoRoutes = require("./comprovativo.routes");
 const creditoRoutes = require("./credito.routes");
+const empresaRoutes = require("./empresa.routes");
+const superadminRoutes = require("./superadmin.routes");
+const solicitacaoAcessoRoutes = require("./solicitacaoAcesso.routes");
 
 // Registo dos Namespaces
 router.use("/health", healthRoutes);
@@ -49,6 +52,9 @@ router.use("/alertas-pagamento", alertaPagamentoRoutes);
 router.use("/anexos", anexoRoutes);
 router.use("/simulacao", simulacaoRoutes);
 router.use("/comprovativos", comprovativoRoutes);
+router.use("/empresas", empresaRoutes);
+router.use("/superadmin", superadminRoutes);
+router.use("/solicitacoes-acesso", solicitacaoAcessoRoutes);
 
 // Rotas raiz /api (Sugestão Senior: Mudar para namespaces dedicados no futuro se possível)
 router.use("/", excellRoutes);

@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   bootstrapAdmin,
   registerInterno,
+  criarConvitePortal,
   registerMutuario,
   registerMutuarioRequestOTP,
   verifyOTPAndRegister,
@@ -16,6 +17,7 @@ const {
 
 // Importa o middleware de autenticação
 const authMiddleware = require("../middleware/auth.middleware");
+const { authLimiter } = require("../middleware/rateLimit.middleware");
 
 /*
   ==========================================================
@@ -28,28 +30,31 @@ const authMiddleware = require("../middleware/auth.middleware");
 */
 
 // Rota para criar um admin inicial (apenas para desenvolvimento)
-router.post("/bootstrap-admin", bootstrapAdmin);
+router.post("/bootstrap-admin", authLimiter, bootstrapAdmin);
 
 // Registo público do mutuário autónomo
-router.post("/register-mutuario", registerMutuario);
+router.post("/register-mutuario", authLimiter, registerMutuario);
 
 // Registo com OTP - Etapa 1: Solicitar OTP
-router.post("/register-mutuario-otp", registerMutuarioRequestOTP);
+router.post("/register-mutuario-otp", authLimiter, registerMutuarioRequestOTP);
 
 // Registo com OTP - Etapa 2: Verificar OTP e completar
-router.post("/verify-otp", verifyOTPAndRegister);
+router.post("/verify-otp", authLimiter, verifyOTPAndRegister);
 
 // Registo interno de utilizadores administrativos
 router.post("/register-interno", authMiddleware, registerInterno);
 
+// Criar convite de registo de portal (controlo de KYC; ADMIN/GESTOR)
+router.post("/convite-portal", authMiddleware, criarConvitePortal);
+
 // Fazer login
-router.post("/login", login);
+router.post("/login", authLimiter, login);
 
 // Buscar dados do utilizador autenticado
 router.get("/me", authMiddleware, getMe);
 
-router.post("/forgot-password", authMiddleware, forgotPassword);
+router.post("/forgot-password", authLimiter, forgotPassword);
 
-router.post("/reset-password", authMiddleware, resetPassword);
+router.post("/reset-password", authLimiter, resetPassword);
 
 module.exports = router;

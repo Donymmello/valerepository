@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   credito: # <--- ESTE NOME TEM DE SER IGUAL AO DB_HOST DO .ENV!
     image: mysql:8.0
@@ -14,10 +12,16 @@ services:
       - "3306:3306"
     volumes:
       - dados_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASS}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   api_backend:
     build: ./backend
     container_name: meu_backend
+    restart: on-failure
     ports:
       - "5000:5000"
     # Adiciona esta linha abaixo para o Docker injetar o teu .env no container!
@@ -29,7 +33,8 @@ services:
       - ./backend/upload:/app/upload
       - ./backend/upload/comprovativos:/app/upload/comprovativos
     depends_on:
-      - credito
+      credito:
+        condition: service_healthy
 
   # 3. FRONTEND (React + Vite)
   web_frontend:

@@ -31,8 +31,9 @@ async function syncDatabase() {
   } catch (error) {
     // Garante que o erro de infraestrutura é registado detalhadamente sem deitar o servidor abaixo às cegas
     logger.error("Erro crítico ao sincronizar a base de dados:", {
-      message: error.message,
-      stack: error.stack
+      error: error.message,
+      stack: error.stack,
+      original: error.parent?.sqlMessage || error.original?.sqlMessage || null,
     });
     
     // Opcional: Em inicializações críticas, podes querer forçar o encerramento do processo

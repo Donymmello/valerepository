@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/auth.middleware");
 const optionalAuthMiddleware = require("../middleware/optionalAuth.middleware");
+const { publicLimiter } = require("../middleware/rateLimit.middleware");
 
 const {
   simular,
@@ -15,9 +16,9 @@ const {
   Pública (visitante ou autenticado).
   Se vier token válido, a simulação já fica associada ao user.
 */
-router.post("/simular", optionalAuthMiddleware, simular);
+router.post("/simular", publicLimiter, optionalAuthMiddleware, simular);
 
-router.post("/calcular", calcular);
+router.post("/calcular", publicLimiter, calcular);
 
 /*
   Protegida: histórico de simulações do user autenticado.
