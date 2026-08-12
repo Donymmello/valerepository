@@ -30,6 +30,12 @@ export default function BackofficeLayout({ children }) {
     { label: "Reembolsos", to: "/interno/reembolsos" },
     { label: "Relatórios", to: "/interno/relatorios" },
     { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
+    ...(["ADMIN", "GESTOR"].includes(user?.role)
+      ? [{ label: "Convites de Registo", to: "/interno/convites-portal" }]
+      : []),
+    ...(["ADMIN", "GESTOR"].includes(user?.role)
+      ? [{ label: "Empresa", to: "/interno/empresa" }]
+      : []),
   ];
 
   const handleLogout = () => {

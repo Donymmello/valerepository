@@ -105,6 +105,11 @@ export const createDesembolsoRequest = async (payload) => {
   ==========================================================
 */
 
+export const createReembolsoRequest = async (payload) => {
+  const response = await api.post("/reembolsos", payload);
+  return response.data;
+};
+
 export const getAllReembolsosRequest = async () => {
   const response = await api.get("/reembolsos");
   return response.data;
@@ -365,6 +370,14 @@ export const getComprovativoRequest = async (id) => {
 };
 
 /**
+ * Lista os comprovativos ligados aos créditos de um pedido.
+ */
+export const getComprovativosByPedidoRequest = async (pedidoId) => {
+  const response = await api.get(`/comprovativos/pedido/${pedidoId}`);
+  return response.data;
+};
+
+/**
  * Valida ou rejeita um comprovativo.
  * Se estado === "VALIDADO", cria automaticamente o reembolso.
  */
@@ -400,3 +413,29 @@ export const getCreditosComReembolsoRequest = async (creditoId) => {
   const response = await api.get(`/creditos/${creditoId}`);
   return response.data;
 }
+
+/*
+  ==========================================================
+  EMPRESA (TENANT) — PERFIL E UTILIZADORES INTERNOS
+  ==========================================================
+*/
+
+export const getMinhaEmpresaRequest = async () => {
+  const response = await api.get("/empresas/me");
+  return response.data;
+};
+
+export const atualizarMinhaEmpresaRequest = async (payload) => {
+  const response = await api.put("/empresas/me", payload);
+  return response.data;
+};
+
+export const listarUtilizadoresEmpresaRequest = async () => {
+  const response = await api.get("/empresas/users");
+  return response.data;
+};
+
+export const atualizarEstadoUtilizadorRequest = async (id, ativo) => {
+  const response = await api.patch(`/empresas/users/${id}/ativo`, { ativo });
+  return response.data;
+};
