@@ -11,11 +11,12 @@ const { Op } = require("sequelize");
  * Valida se o documento ou utilizador já estão em uso por outro mutuário.
  * Lança erros específicos capturados pelo controlador.
  */
-async function validarIntegridadeMutuario({ documentoNumero, userId, mutuarioId = null }) {
+async function validarIntegridadeMutuario({ documentoNumero, userId, mutuarioId = null, empresaId }) {
   if (documentoNumero) {
     const conflitoDoc = await Mutuario.findOne({
       where: {
         documentoNumero,
+        empresaId, // unicidade de documento é por empresa (tenant), não global
         ...(mutuarioId && { id: { [Op.ne]: mutuarioId } }) // Ignora o próprio ID na atualização
       },
       attributes: ['id']
@@ -24,8 +25,9 @@ async function validarIntegridadeMutuario({ documentoNumero, userId, mutuarioId 
   }
 
   if (userId) {
-    const user = await User.findByPk(userId, { attributes: ['id', 'role'] });
+    const user = await User.findByPk(userId, { attributes: ['id', 'role', 'empresaId'] });
     if (!user) throw new Error("USER_NOT_FOUND");
+    if (user.empresaId !== empresaId) throw new Error("USER_NOT_FOUND"); // não expõe se o user existe noutra empresa
     if (user.role !== "USER") throw new Error("INVALID_ROLE");
 
     const conflitoUser = await Mutuario.findOne({
@@ -75,7 +77,7 @@ async function createMutuario(req, res) {
     }
 
     // Executa validações centralizadas
-    await validarIntegridadeMutuario({ documentoNumero, userId });
+    await validarIntegridadeMutuario({ documentoNumero, userId, empresaId: req.user.empresaId });
 
     // Execução Atómica com isolamento de transação
     const mutuario = await sequelize.transaction(async (t) => {
@@ -83,6 +85,7 @@ async function createMutuario(req, res) {
 
       const novoMutuario = await Mutuario.create({
         codigoMutuario,
+        empresaId: req.user.empresaId,
         nomeCompleto,
         documentoTipo: documentoTipo || null,
         documentoNumero: documentoNumero || null,
@@ -118,6 +121,7 @@ async function createMutuario(req, res) {
 async function getAllMutuarios(req, res) {
   try {
     const mutuarios = await Mutuario.findAll({
+      where: { empresaId: req.user.empresaId },
       include: [{ model: User, as: "user", required: false, attributes: ["id", "nome", "email", "role", "ativo"] }],
       order: [["id", "DESC"]],
     });
@@ -133,7 +137,8 @@ async function getAllMutuarios(req, res) {
  */
 async function getMutuarioById(req, res) {
   try {
-    const mutuario = await Mutuario.findByPk(req.params.id, {
+    const mutuario = await Mutuario.findOne({
+      where: { id: req.params.id, empresaId: req.user.empresaId },
       include: [
         { model: User, as: "user", required: false, attributes: ["id", "nome", "email", "role", "ativo"] },
         { model: PedidoCredito, as: "pedidosCredito", required: false },
@@ -154,16 +159,17 @@ async function getMutuarioById(req, res) {
 async function updateMutuario(req, res) {
   try {
     const { id } = req.params;
-    const mutuario = await Mutuario.findByPk(id);
+    const mutuario = await Mutuario.findOne({ where: { id, empresaId: req.user.empresaId } });
     if (!mutuario) return res.status(404).json({ message: "Mutuário não encontrado." });
 
     const { nomeCompleto, documentoTipo, documentoNumero, dataNascimento, provincia, distrito, localResidencia, telefone, email, userId } = req.body;
 
     // Corre as mesmas validações, mas passa o ID atual para evitar falsos positivos de duplicação
-    await validarIntegridadeMutuario({ 
-      documentoNumero: documentoNumero !== undefined ? documentoNumero : mutuario.documentoNumero, 
-      userId: userId !== undefined ? userId : mutuario.userId, 
-      mutuarioId: mutuario.id 
+    await validarIntegridadeMutuario({
+      documentoNumero: documentoNumero !== undefined ? documentoNumero : mutuario.documentoNumero,
+      userId: userId !== undefined ? userId : mutuario.userId,
+      mutuarioId: mutuario.id,
+      empresaId: req.user.empresaId,
     });
 
     await mutuario.update({
@@ -198,7 +204,7 @@ async function updateMutuario(req, res) {
  */
 async function deleteMutuario(req, res) {
   try {
-    const mutuario = await Mutuario.findByPk(req.params.id);
+    const mutuario = await Mutuario.findOne({ where: { id: req.params.id, empresaId: req.user.empresaId } });
     if (!mutuario) return res.status(404).json({ message: "Mutuário não encontrado." });
 
     await mutuario.destroy();

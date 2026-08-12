@@ -14,7 +14,7 @@ const registrarLogAuditoria = require("../utils/logAuditoria");
  */
 async function exportarMutuarios(req, res) {
     try {
-         const { buffer, fileName} = await excellService.gerarExcellMutuarios();
+         const { buffer, fileName} = await excellService.gerarExcellMutuarios(req.user.empresaId);
 
          /*
       Define o tipo de conteúdo da resposta como ficheiro Excel
@@ -57,7 +57,7 @@ async function exportarMutuarios(req, res) {
  */
 async function exportarPedidos(req, res) {
   try {
-    const { buffer, fileName } = await excellService.gerarExcellPedidos();
+    const { buffer, fileName } = await excellService.gerarExcellPedidos(req.user.empresaId);
     /*
       Define o tipo de conteúdo da resposta como ficheiro Excel
     */
@@ -103,7 +103,7 @@ async function exportarPedidos(req, res) {
 */
 async function exportarDesembolsos(req, res) {
   try {
-    const { buffer, fileName } = await excellService.gerarExcellDesembolsos();
+    const { buffer, fileName } = await excellService.gerarExcellDesembolsos(req.user.empresaId);
 
     res.setHeader(
       "Content-Type",
@@ -138,7 +138,7 @@ async function exportarDesembolsos(req, res) {
 */
 async function exportarReembolsos(req, res) {
   try {
-    const { buffer, fileName } = await excellService.gerarExcellReembolsos();
+    const { buffer, fileName } = await excellService.gerarExcellReembolsos(req.user.empresaId);
 
     res.setHeader(
       "Content-Type",
@@ -174,7 +174,7 @@ async function exportarReembolsos(req, res) {
 async function exportarRelatorioFinanceiro(req, res) {
   try {
     const { buffer, fileName } =
-      await excellService.gerarExcellRelatorioFinanceiro();
+      await excellService.gerarExcellRelatorioFinanceiro(req.user.empresaId);
 
     /*
       Define o tipo de conteúdo da resposta como ficheiro Excel
@@ -237,6 +237,7 @@ async function importarMutuarios(req, res) {
     const resultado = await excellService.importarExcellMutuarios({
       fileBuffer: req.file.buffer,
       userId: req.user?.id || null,
+      empresaId: req.user.empresaId,
     });
 
     /*
@@ -289,6 +290,7 @@ async function importarPedidos(req, res) {
     const resultado = await excellService.importarExcellPedidos({
       fileBuffer: req.file.buffer,
       userId: req.user?.id || null,
+      empresaId: req.user.empresaId,
     });
 
     /*

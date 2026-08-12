@@ -43,8 +43,8 @@ function buildDateRangeFilter(field, query = {}) {
   return Object.keys(filter).length ? { [field]: filter } : {};
 }
 
-function buildPedidoFilters(query = {}) {
-  const where = {};
+function buildPedidoFilters(query = {}, empresaId) {
+  const where = { empresaId };
 
   if (query.status) {
     where.status = query.status;
@@ -63,27 +63,31 @@ async function dashboardFinanceiro(req, res) {
     const hoje = new Date();
     const hojeString = hoje.toISOString().slice(0, 10);
 
+    const empresaId = req.user.empresaId;
+
     const [creditosPorEstado, totalParcelas, parcelasPendentes, parcelasPagas, parcelasVencidas, valorDesembolsado, valorRecebido, saldoCarteira] =
       await Promise.all([
         Credito.findAll({
+          where: { empresaId },
           attributes: [
             "estado",
             [fn("COUNT", col("id")), "count"],
           ],
           group: ["estado"],
         }),
-        ParcelaPagamento.count(),
-        ParcelaPagamento.count({ where: { estado: "PENDENTE" } }),
-        ParcelaPagamento.count({ where: { estado: "PAGO" } }),
+        ParcelaPagamento.count({ where: { empresaId } }),
+        ParcelaPagamento.count({ where: { empresaId, estado: "PENDENTE" } }),
+        ParcelaPagamento.count({ where: { empresaId, estado: "PAGO" } }),
         ParcelaPagamento.count({
           where: {
+            empresaId,
             estado: "PENDENTE",
             dataVencimento: { [Op.lt]: hojeString },
           },
         }),
-        Desembolso.sum("valorDesembolsado"),
-        Reembolso.sum("valorReembolsado"),
-        Credito.sum("saldoAtual"),
+        Desembolso.sum("valorDesembolsado", { where: { empresaId } }),
+        Reembolso.sum("valorReembolsado", { where: { empresaId } }),
+        Credito.sum("saldoAtual", { where: { empresaId } }),
       ]);
 
     const estadoMap = creditosPorEstado.reduce((acc, item) => {
@@ -128,6 +132,8 @@ async function dashboardFinanceiro(req, res) {
 
 async function getResumoGeral(req, res) {
   try {
+    const empresaId = req.user.empresaId;
+
     const [
       totalPedidos,
       pedidosPendentes,
@@ -138,14 +144,15 @@ async function getResumoGeral(req, res) {
       saldoGlobal,
       pedidosPorStatusRows,
     ] = await Promise.all([
-      PedidoCredito.count(),
-      PedidoCredito.count({ where: { status: { [Op.in]: PENDING_PEDIDO_STATUS } } }),
-      PedidoCredito.count({ where: { status: { [Op.in]: APPROVED_PEDIDO_STATUS } } }),
-      Mutuario.count(),
-      Desembolso.sum("valorDesembolsado"),
-      Reembolso.sum("valorReembolsado"),
-      Credito.sum("saldoAtual"),
+      PedidoCredito.count({ where: { empresaId } }),
+      PedidoCredito.count({ where: { empresaId, status: { [Op.in]: PENDING_PEDIDO_STATUS } } }),
+      PedidoCredito.count({ where: { empresaId, status: { [Op.in]: APPROVED_PEDIDO_STATUS } } }),
+      Mutuario.count({ where: { empresaId } }),
+      Desembolso.sum("valorDesembolsado", { where: { empresaId } }),
+      Reembolso.sum("valorReembolsado", { where: { empresaId } }),
+      Credito.sum("saldoAtual", { where: { empresaId } }),
       PedidoCredito.findAll({
+        where: { empresaId },
         attributes: [
           "status",
           [fn("COUNT", col("id")), "count"],
@@ -180,7 +187,7 @@ async function getResumoGeral(req, res) {
 
 async function getRelatorioPedidos(req, res) {
   try {
-    const where = buildPedidoFilters(req.query);
+    const where = buildPedidoFilters(req.query, req.user.empresaId);
 
     const pedidos = await PedidoCredito.findAll({
       where,
@@ -214,7 +221,7 @@ async function getRelatorioPedidos(req, res) {
 
 async function getRelatorioFinanceiroPedidos(req, res) {
   try {
-    const where = buildPedidoFilters(req.query);
+    const where = buildPedidoFilters(req.query, req.user.empresaId);
 
     const pedidos = await PedidoCredito.findAll({
       where,
@@ -245,13 +252,20 @@ async function getRelatorioFinanceiroPedidos(req, res) {
         where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
         group: ["pedidoId"],
       }),
+      // Reembolso não tem coluna pedidoId — relaciona-se com o pedido através
+      // de Credito (Reembolso -> Credito -> PedidoCredito). Por isso soma-se
+      // em JS em vez de um GROUP BY direto na BD.
       Reembolso.findAll({
-        attributes: [
-          "pedidoId",
-          [fn("SUM", col("valor_reembolsado")), "totalReembolsado"],
+        attributes: ["valorReembolsado"],
+        include: [
+          {
+            model: Credito,
+            as: "credito",
+            attributes: ["pedidoId"],
+            where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
+            required: true,
+          },
         ],
-        where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
-        group: ["pedidoId"],
       }),
       Credito.findAll({
         attributes: [
@@ -269,7 +283,9 @@ async function getRelatorioFinanceiroPedidos(req, res) {
     }, {});
 
     const reembolsosPorPedido = reembolsoRows.reduce((acc, item) => {
-      acc[item.pedidoId] = Number(item.get("totalReembolsado")) || 0;
+      const pedidoId = item.credito?.pedidoId;
+      if (pedidoId == null) return acc;
+      acc[pedidoId] = (acc[pedidoId] || 0) + Number(item.valorReembolsado || 0);
       return acc;
     }, {});
 
@@ -301,7 +317,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
 
 async function getRelatorioDesembolsos(req, res) {
   try {
-    const where = buildDateRangeFilter("dataDesembolso", req.query);
+    const where = { empresaId: req.user.empresaId, ...buildDateRangeFilter("dataDesembolso", req.query) };
 
     const [desembolsos, quantidade, totalDesembolsado] = await Promise.all([
       Desembolso.findAll({
@@ -350,9 +366,11 @@ async function getRelatorioDesembolsos(req, res) {
 
 async function getRelatorioReembolsos(req, res) {
   try {
-    const where = buildDateRangeFilter("dataReembolso", req.query);
+    const where = { empresaId: req.user.empresaId, ...buildDateRangeFilter("dataReembolso", req.query) };
 
     const [reembolsos, quantidade, totalReembolsado] = await Promise.all([
+      // Reembolso não tem associação direta com PedidoCredito — passa por
+      // Credito (Reembolso -> Credito -> PedidoCredito).
       Reembolso.findAll({
         where,
         attributes: [
@@ -365,14 +383,21 @@ async function getRelatorioReembolsos(req, res) {
         ],
         include: [
           {
-            model: PedidoCredito,
-            as: "pedido",
-            attributes: ["id", "numeroPedido"],
+            model: Credito,
+            as: "credito",
+            attributes: ["id"],
             include: [
               {
-                model: Mutuario,
-                as: "mutuario",
-                attributes: ["id", "nomeCompleto"],
+                model: PedidoCredito,
+                as: "pedido",
+                attributes: ["id", "numeroPedido"],
+                include: [
+                  {
+                    model: Mutuario,
+                    as: "mutuario",
+                    attributes: ["id", "nomeCompleto"],
+                  },
+                ],
               },
             ],
           },
@@ -383,10 +408,19 @@ async function getRelatorioReembolsos(req, res) {
       Reembolso.sum("valorReembolsado", { where }),
     ]);
 
+    // Achata credito.pedido -> pedido, para o frontend continuar a ler
+    // reembolso.pedido.numeroPedido / reembolso.pedido.mutuario sem mudar nada.
+    const resultado = reembolsos.map((reembolso) => {
+      const item = reembolso.toJSON();
+      item.pedido = item.credito?.pedido || null;
+      delete item.credito;
+      return item;
+    });
+
     return res.status(200).json({
       quantidade: Number(quantidade || 0),
       totalReembolsado: Number(totalReembolsado || 0),
-      reembolsos,
+      reembolsos: resultado,
     });
   } catch (error) {
     console.error(error);

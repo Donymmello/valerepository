@@ -20,7 +20,11 @@ function generateNumeroPedido() {
 async function criarAlertasPedidoCriado(pedido, transaction) {
   try {
     const usuariosInternos = await User.findAll({
-      where: { ativo: true, role: { [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"] } },
+      where: {
+        empresaId: pedido.empresaId,
+        ativo: true,
+        role: { [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"] },
+      },
       attributes: ['id'],
       transaction
     });
@@ -70,8 +74,12 @@ async function createPedidoCredito(req, res) {
       return res.status(400).json({ message: "Valor solicitado e prazo devem ser maiores que zero." });
     }
 
-    const mutuario = await Mutuario.findByPk(mutuarioId, { attributes: ['id'] });
+    const mutuario = await Mutuario.findByPk(mutuarioId, { attributes: ['id', 'empresaId'] });
     if (!mutuario) {
+      return res.status(404).json({ message: "Mutuário não encontrado." });
+    }
+
+    if (mutuario.empresaId !== req.user.empresaId) {
       return res.status(404).json({ message: "Mutuário não encontrado." });
     }
 
@@ -87,6 +95,7 @@ async function createPedidoCredito(req, res) {
       const novoPedido = await PedidoCredito.create({
         numeroPedido: generateNumeroPedido(),
         mutuarioId,
+        empresaId: req.user.empresaId,
         valorSolicitado: vSoli,
         finalidade,
         pacoteFinanciamento: pacoteFinanciamento || null,
@@ -129,6 +138,7 @@ async function createPedidoCredito(req, res) {
 async function getAllPedidosCredito(req, res) {
   try {
     const pedidos = await PedidoCredito.findAll({
+      where: { empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario" },
         { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
@@ -147,7 +157,8 @@ async function getAllPedidosCredito(req, res) {
  */
 async function getPedidoCreditoById(req, res) {
   try {
-    const pedido = await PedidoCredito.findByPk(req.params.id, {
+    const pedido = await PedidoCredito.findOne({
+      where: { id: req.params.id, empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario" },
         { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
@@ -169,11 +180,11 @@ async function getPedidoCreditoById(req, res) {
 async function getPedidosByMutuario(req, res) {
   try {
     const { mutuarioId } = req.params;
-    const mutuario = await Mutuario.findByPk(mutuarioId, { attributes: ['id'] });
+    const mutuario = await Mutuario.findOne({ where: { id: mutuarioId, empresaId: req.user.empresaId }, attributes: ['id'] });
     if (!mutuario) return res.status(404).json({ message: "Mutuário não encontrado." });
 
     const pedidos = await PedidoCredito.findAll({
-      where: { mutuarioId },
+      where: { mutuarioId, empresaId: req.user.empresaId },
       include: [{ model: User, as: "criador", attributes: ["id", "nome", "email", "role"] }],
       order: [["id", "DESC"]],
     });
@@ -191,7 +202,7 @@ async function getPedidosByMutuario(req, res) {
 async function getPedidosElegiveisDesembolso(req, res) {
   try {
     const elegiveis = await PedidoCredito.findAll({
-      where: { status: STATUS_PEDIDO.APROVADO },
+      where: { status: STATUS_PEDIDO.APROVADO, empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario", required: false },
         { model: Desembolso, as: "desembolsos", required: false }
@@ -214,7 +225,7 @@ async function getPedidosElegiveisDesembolso(req, res) {
 async function getPedidosElegiveisReembolso(req, res) {
   try {
     const pedidos = await PedidoCredito.findAll({
-      where: { status: STATUS_PEDIDO.DESEMBOLSADO },
+      where: { status: STATUS_PEDIDO.DESEMBOLSADO, empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario", required: false },
         { model: Desembolso, as: "desembolsos", required: false },
@@ -241,7 +252,7 @@ async function getPedidosElegiveisReembolso(req, res) {
  */
 async function updatePedidoCredito(req, res) {
   try {
-    const pedido = await PedidoCredito.findByPk(req.params.id);
+    const pedido = await PedidoCredito.findOne({ where: { id: req.params.id, empresaId: req.user.empresaId } });
     if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     if (!podeEditarPedido(req.user, pedido)) {
@@ -288,7 +299,7 @@ async function updateStatusPedidoCredito(req, res) {
       return res.status(403).json({ message: "Não tens permissão para alterar manualmente o status." });
     }
 
-    const pedido = await PedidoCredito.findByPk(req.params.id);
+    const pedido = await PedidoCredito.findOne({ where: { id: req.params.id, empresaId: req.user.empresaId } });
     if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     if (!podeTransitarStatus(pedido.status, status)) {
@@ -321,7 +332,7 @@ async function deletePedidoCredito(req, res) {
       return res.status(403).json({ message: "Não tens permissão para remover o pedido." });
     }
 
-    const pedido = await PedidoCredito.findByPk(req.params.id);
+    const pedido = await PedidoCredito.findOne({ where: { id: req.params.id, empresaId: req.user.empresaId } });
     if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     if (![STATUS_PEDIDO.RASCUNHO, STATUS_PEDIDO.SUBMETIDO].includes(pedido.status)) {
