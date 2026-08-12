@@ -33,6 +33,11 @@ import ExtratoPedidoInterno from "../pages/admin/pedidos/ExtratoPedidoInterno";
 import ExcelImportExport from "../pages/admin/excel/ExcelImportExport";
 import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
 import RegisterUser from "../pages/auth/RegisterUser";
+import ConvitesPortal from "../pages/auth/ConvitesPortal";
+import EmpresaConfiguracoes from "../pages/admin/empresa/EmpresaConfiguracoes";
+import SuperAdminLayout from "../components/layout/SuperAdminLayout";
+import EmpresasList from "../pages/superadmin/EmpresasList";
+import SolicitacoesAcessoList from "../pages/superadmin/SolicitacoesAcessoList";
 import LandingPage from "../pages/public/LandingPage";
 
 
@@ -182,6 +187,17 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="/interno/convites-portal"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR"]}>
+              <BackofficeLayout>
+                <ConvitesPortal />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/interno/pedidos"
           element={
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
@@ -325,6 +341,17 @@ export default function AppRoutes() {
         />
 
         <Route
+          path="/interno/empresa"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "GESTOR"]}>
+              <BackofficeLayout>
+                <EmpresaConfiguracoes />
+              </BackofficeLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/interno/alertas-prazo"
           element={
             <ProtectedRoute allowedRoles={["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"]}>
@@ -335,6 +362,36 @@ export default function AppRoutes() {
           }
         />
 
+        <Route
+          path="/superadmin"
+          element={<Navigate to="/superadmin/empresas" replace />}
+        />
+
+        <Route
+          path="/superadmin/empresas"
+          element={
+            <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
+              <SuperAdminLayout>
+                <EmpresasList />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/superadmin/solicitacoes-acesso"
+          element={
+            <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
+              <SuperAdminLayout>
+                <SolicitacoesAcessoList />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Qualquer caminho não reconhecido volta para a landing page,
+            em vez de ficar em branco sem explicação nenhuma. */}
+        <Route path="*" element={<Navigate to="/landing-page" replace />} />
       </Routes>
     </BrowserRouter>
   );

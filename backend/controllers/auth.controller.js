@@ -2,15 +2,48 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { User, Mutuario, Empresa, PasswordResetToken, EmailVerificationToken, sequelize } = require("../models"); // Importou a instância do sequelize para transações
+const { User, Mutuario, Empresa, ConvitePortal, PasswordResetToken, EmailVerificationToken, sequelize } = require("../models"); // Importou a instância do sequelize para transações
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
-const { sendVerificationEmail } = require("../utils/emailService");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/emailService");
+const { avaliarAcessoEmpresa, MENSAGENS } = require("../utils/empresaAccess");
 
 // =========================================================================
 // HELPERS / UTILS (Padrão de Resposta Interno)
 // =========================================================================
+
+/**
+ * Gera um slug simples e único (com sufixo numérico se necessário) a partir do nome da empresa.
+ */
+const gerarSlugEmpresa = async (nomeEmpresa) => {
+  const base = nomeEmpresa
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // remove acentos
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "") || "empresa";
+
+  let slug = base;
+  let sufixo = 1;
+  while (await Empresa.findOne({ where: { slug }, attributes: ["id"] })) {
+    sufixo += 1;
+    slug = `${base}-${sufixo}`;
+  }
+  return slug;
+};
+
+/**
+ * Valida um token de convite de portal: precisa existir, não estar usado e não ter expirado.
+ * Devolve o registo do convite (ainda não consumido) ou null.
+ */
+const obterConvitePortalValido = async (token, options = {}) => {
+  if (!token) return null;
+  const convite = await ConvitePortal.findOne({ where: { token, usado: false }, ...options });
+  if (!convite) return null;
+  if (new Date() > convite.expiresAt) return null;
+  return convite;
+};
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, nome: user.nome, email: user.email, role: user.role, empresaId: user.empresaId, },
@@ -33,24 +66,24 @@ const mapUserResponse = (user) => ({
 // =========================================================================
 
 /**
- * BOOTSTRAP DO PRIMEIRO ADMIN
+ * BOOTSTRAP DA EMPRESA + PRIMEIRO ADMIN (SaaS multi-tenant)
+ * Cria uma nova Empresa (tenant) e o respetivo utilizador ADMIN inicial.
  */
 const bootstrapAdmin = async (req, res) => {
   try {
-    const { nome, email, password } = req.body;
+    const { nomeEmpresa, nome, email, password } = req.body;
 
-    if (!nome || !email || !password) {
-      return res.status(400).json({ message: "Nome, email e password são obrigatórios." });
+    if (!nomeEmpresa || !nome || !email || !password) {
+      return res.status(400).json({ message: "nomeEmpresa, nome, email e password são obrigatórios." });
     }
 
-    // Otimização: Procura simultaneamente se há admin e se o email atual já existe
-    const [adminExistente, existingUser] = await Promise.all([
-      User.findOne({ where: { role: "ADMIN" }, attributes: ['id'] }),
+    const [empresaExistente, existingUser] = await Promise.all([
+      Empresa.findOne({ where: { nome: nomeEmpresa }, attributes: ['id'] }),
       User.findOne({ where: { email }, attributes: ['id'] })
     ]);
 
-    if (adminExistente) {
-      return res.status(403).json({ message: "Bootstrap não permitido. Já existe um ADMIN no sistema." });
+    if (empresaExistente) {
+      return res.status(409).json({ message: "Já existe uma empresa registada com este nome." });
     }
 
     if (existingUser) {
@@ -58,30 +91,54 @@ const bootstrapAdmin = async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    const slug = await gerarSlugEmpresa(nomeEmpresa);
 
-    const user = await User.create({
-      nome,
-      email,
-      passwordHash,
-      role: "ADMIN",
-      ativo: true,
-    });
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-    await registrarLogAuditoria({
-      userId: user.id,
-      acao: "BOOTSTRAP_ADMIN",
-      entidade: "User",
-      entidadeId: user.id,
-      descricao: `Primeiro administrador do sistema criado com email ${user.email}.`,
+    const result = await sequelize.transaction(async (t) => {
+      const empresa = await Empresa.create({
+        nome: nomeEmpresa,
+        slug,
+        estado: "TESTE",
+        trialEndsAt,
+      }, { transaction: t });
+
+      const user = await User.create({
+        nome,
+        email,
+        passwordHash,
+        role: "ADMIN",
+        ativo: true,
+        empresaId: empresa.id,
+      }, { transaction: t });
+
+      await registrarLogAuditoria({
+        userId: user.id,
+        acao: "BOOTSTRAP_ADMIN",
+        entidade: "User",
+        entidadeId: user.id,
+        descricao: `Empresa "${empresa.nome}" criada com administrador inicial ${user.email}.`,
+      }, { transaction: t });
+
+      return { empresa, user };
     });
 
     return res.status(201).json({
-      message: "Administrador inicial criado com sucesso.",
-      user: mapUserResponse(user),
+      message: "Empresa e administrador inicial criados com sucesso.",
+      token: generateToken(result.user),
+      empresa: {
+        id: result.empresa.id,
+        nome: result.empresa.nome,
+        slug: result.empresa.slug,
+        estado: result.empresa.estado,
+        trialEndsAt: result.empresa.trialEndsAt,
+      },
+      user: mapUserResponse(result.user),
     });
   } catch (error) {
     console.error("[BootstrapAdmin Error]:", error);
-    return res.status(500).json({ message: "Erro interno ao criar administrador inicial." });
+    return res.status(500).json({ message: "Erro interno ao criar empresa e administrador inicial." });
   }
 };
 
@@ -139,7 +196,7 @@ const registerInterno = async (req, res) => {
     // Bloco Atómico com Transação Relacional
     const result = await sequelize.transaction(async (t) => {
       const user = await User.create({
-        nome, email, passwordHash, role, ativo: true,
+        nome, email, passwordHash, role, ativo: true, empresaId: req.user.empresaId,
       }, { transaction: t });
 
       let mutuario = null;
@@ -147,7 +204,7 @@ const registerInterno = async (req, res) => {
       if (role === "MUTUARIO") {
         const codigoMutuario = await generateCodigoMutuario();
         mutuario = await Mutuario.create({
-          codigoMutuario, nomeCompleto, documentoTipo, documentoNumero,
+          codigoMutuario, empresaId: req.user.empresaId, nomeCompleto, documentoTipo, documentoNumero,
           dataNascimento, provincia, distrito, localResidencia, telefone,
           email, userId: user.id,
         }, { transaction: t });
@@ -176,18 +233,69 @@ const registerInterno = async (req, res) => {
 };
 
 /**
+ * CRIAR CONVITE DE REGISTO DE PORTAL (controlo de KYC)
+ * Gerado por ADMIN/GESTOR da empresa. Sem este token, o registo público
+ * de mutuário não é permitido.
+ */
+const criarConvitePortal = async (req, res) => {
+  try {
+    if (!req.user || !["ADMIN", "GESTOR"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Apenas ADMIN ou GESTOR podem gerar convites de registo." });
+    }
+
+    const { validadeDias } = req.body;
+    const dias = Number(validadeDias) > 0 ? Number(validadeDias) : 7;
+
+    const token = crypto.randomBytes(24).toString("hex");
+    const expiresAt = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+
+    const convite = await ConvitePortal.create({
+      token,
+      empresaId: req.user.empresaId,
+      criadoPor: req.user.id,
+      expiresAt,
+    });
+
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "CRIAR_CONVITE_PORTAL",
+      entidade: "ConvitePortal",
+      entidadeId: convite.id,
+      descricao: `Convite de registo de portal criado, válido até ${expiresAt.toISOString()}.`,
+    });
+
+    const link = `${process.env.FRONTEND_URL}/register-mutuario?convite=${token}`;
+
+    return res.status(201).json({
+      message: "Convite criado com sucesso.",
+      token,
+      link,
+      expiresAt,
+    });
+  } catch (error) {
+    console.error("[CriarConvitePortal Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao criar convite de registo." });
+  }
+};
+
+/**
  * REGISTO AUTÓNOMO DE MUTUÁRIO
  */
 const registerMutuario = async (req, res) => {
   try {
     const {
-      nome, email, password, nomeCompleto, documentoTipo,
+      token, nome, email, password, nomeCompleto, documentoTipo,
       documentoNumero, nuit, dataNascimento, provincia,
       distrito, localResidencia, telefone,
     } = req.body;
 
-    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
-      return res.status(400).json({ message: "Preencher campos obrigatórios." });
+    if (!token || !nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
+      return res.status(400).json({ message: "Preencher campos obrigatórios (incluindo o convite)." });
+    }
+
+    const convite = await obterConvitePortalValido(token);
+    if (!convite) {
+      return res.status(400).json({ message: "Convite inválido, expirado ou já utilizado." });
     }
 
     // Procura por conflitos numa única viagem à Base de Dados
@@ -211,13 +319,13 @@ const registerMutuario = async (req, res) => {
 
     const result = await sequelize.transaction(async (t) => {
       const user = await User.create({
-        nome, email, passwordHash, role: "USER", ativo: true,
+        nome, email, passwordHash, role: "USER", ativo: true, empresaId: convite.empresaId,
       }, { transaction: t });
 
       const codigoMutuario = await generateCodigoMutuario();
 
       const mutuario = await Mutuario.create({
-        codigoMutuario, nomeCompleto, documentoTipo, documentoNumero, nuit,
+        codigoMutuario, empresaId: convite.empresaId, nomeCompleto, documentoTipo, documentoNumero, nuit,
         dataNascimento: dataNascimento || null,
         provincia: provincia || null,
         distrito: distrito || null,
@@ -226,12 +334,16 @@ const registerMutuario = async (req, res) => {
         email, userId: user.id,
       }, { transaction: t });
 
+      convite.usado = true;
+      convite.usadoPor = user.id;
+      await convite.save({ transaction: t });
+
       await registrarLogAuditoria({
         userId: user.id,
         acao: "REGISTAR_MUTUARIO_AUTONOMO",
         entidade: "Mutuario",
         entidadeId: mutuario.id,
-        descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}.`,
+        descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}, via convite ${convite.id}.`,
       }, { transaction: t });
 
       return { user, mutuario };
@@ -275,7 +387,8 @@ const login = async (req, res) => {
           "nome",
           "slug",
           "plano",
-          "estado"
+          "estado",
+          "trialEndsAt"
         ]
       }]
     });
@@ -291,6 +404,18 @@ const login = async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Password inválida." });
+    }
+
+    // SUPERADMIN não pertence a nenhuma empresa, não há estado de subscrição a validar.
+    if (user.role !== "SUPERADMIN") {
+      const acesso = avaliarAcessoEmpresa(user.empresa);
+
+      if (!acesso.permitido) {
+        if (acesso.trialExpirouAgora) {
+          await Empresa.update({ estado: "SUSPENSA" }, { where: { id: user.empresa.id } });
+        }
+        return res.status(403).json({ message: MENSAGENS[acesso.motivo], motivo: acesso.motivo });
+      }
     }
 
     const token = generateToken(user);
@@ -339,7 +464,7 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email é obrigatório." });
 
-    const user = await User.findOne({ where: { email }, attributes: ['id'] });
+    const user = await User.findOne({ where: { email }, attributes: ['id', 'nome'] });
 
     // Mitigação de Enumeração de Contas: Mantém mensagem genérica mesmo se o user não existir
     if (!user) {
@@ -352,7 +477,7 @@ const forgotPassword = async (req, res) => {
     await PasswordResetToken.create({ userId: user.id, token, expiresAt });
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    console.log(`[DEV ONLY] Link de Reset: ${resetLink}`);
+    await sendPasswordResetEmail(email, resetLink, user.nome);
 
     return res.status(200).json({ message: "Se o email existir, receberá instruções para redefinição." });
   } catch (error) {
@@ -396,13 +521,18 @@ const resetPassword = async (req, res) => {
 const registerMutuarioRequestOTP = async (req, res) => {
   try {
     const {
-      nome, email, password, nomeCompleto, documentoTipo,
+      token, nome, email, password, nomeCompleto, documentoTipo,
       documentoNumero, nuit, dataNascimento, provincia,
       distrito, localResidencia, telefone,
     } = req.body;
 
-    if (!nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
-      return res.status(400).json({ message: "Preencher campos obrigatórios." });
+    if (!token || !nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
+      return res.status(400).json({ message: "Preencher campos obrigatórios (incluindo o convite)." });
+    }
+
+    const convite = await obterConvitePortalValido(token);
+    if (!convite) {
+      return res.status(400).json({ message: "Convite inválido, expirado ou já utilizado." });
     }
 
     // Pesquisa simultânea de duplicações para travar antes do OTP
@@ -434,6 +564,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
     await EmailVerificationToken.create({
       email, otp, expiresAt,
       temporaryData: {
+        conviteToken: token,
         nome, passwordHash, nomeCompleto, documentoTipo,
         nuit, documentoNumero, dataNascimento, provincia,
         distrito, localResidencia, telefone,
@@ -470,20 +601,30 @@ const verifyOTPAndRegister = async (req, res) => {
 
     const data = verificationToken.temporaryData;
 
+    // O convite pode ter sido usado ou expirado entre o pedido de OTP e a confirmação
+    const convite = await obterConvitePortalValido(data.conviteToken);
+    if (!convite) {
+      return res.status(400).json({ message: "Convite inválido, expirado ou já utilizado." });
+    }
+
     // Transação ACID ao materializar dados temporários na BD
     const result = await sequelize.transaction(async (t) => {
       const user = await User.create({
-        nome: data.nome, email, passwordHash: data.passwordHash, role: "USER", ativo: true,
+        nome: data.nome, email, passwordHash: data.passwordHash, role: "USER", ativo: true, empresaId: convite.empresaId,
       }, { transaction: t });
 
       const codigoMutuario = await generateCodigoMutuario();
 
       const mutuario = await Mutuario.create({
-        codigoMutuario, nomeCompleto: data.nomeCompleto, documentoTipo: data.documentoTipo,
+        codigoMutuario, empresaId: convite.empresaId, nomeCompleto: data.nomeCompleto, documentoTipo: data.documentoTipo,
         documentoNumero: data.documentoNumero, nuit: data.nuit, dataNascimento: data.dataNascimento,
         provincia: data.provincia, distrito: data.distrito, localResidencia: data.localResidencia,
         telefone: data.telefone, email, userId: user.id,
       }, { transaction: t });
+
+      convite.usado = true;
+      convite.usadoPor = user.id;
+      await convite.save({ transaction: t });
 
       verificationToken.verified = true;
       await verificationToken.save({ transaction: t });
@@ -518,6 +659,7 @@ const verifyOTPAndRegister = async (req, res) => {
 module.exports = {
   bootstrapAdmin,
   registerInterno,
+  criarConvitePortal,
   registerMutuario,
   registerMutuarioRequestOTP,
   verifyOTPAndRegister,

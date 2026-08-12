@@ -16,7 +16,7 @@ const User = sequelize.define(
 
     empresaId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true, // null apenas para role SUPERADMIN (utilizador da plataforma, não pertence a nenhuma empresa)
       field: "empresa_id",
 
       references: {
@@ -46,7 +46,7 @@ const User = sequelize.define(
     },
 
     role: {
-      type: DataTypes.ENUM("ADMIN", "GESTOR", "ANALISTA", "DIRETOR", "MUTUARIO", "USER"),
+      type: DataTypes.ENUM("SUPERADMIN", "ADMIN", "GESTOR", "ANALISTA", "DIRETOR", "MUTUARIO", "USER"),
       allowNull: false,
       defaultValue: "USER",
     },
@@ -63,6 +63,19 @@ const User = sequelize.define(
     tableName: "users",
     createdAt: "created_at",
     updatedAt: "updated_at",
+
+    validate: {
+      // Só o utilizador da plataforma (SUPERADMIN) pode não pertencer a nenhuma empresa.
+      // Todos os outros roles são sempre de uma empresa (tenant) específica.
+      empresaObrigatoriaExcetoSuperadmin() {
+        if (this.role !== "SUPERADMIN" && !this.empresaId) {
+          throw new Error("empresaId é obrigatório para utilizadores que não sejam SUPERADMIN.");
+        }
+        if (this.role === "SUPERADMIN" && this.empresaId) {
+          throw new Error("Um utilizador SUPERADMIN não deve estar associado a nenhuma empresa.");
+        }
+      },
+    },
   }
 );
 

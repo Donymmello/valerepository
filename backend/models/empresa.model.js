@@ -53,11 +53,21 @@ const Empresa = sequelize.define(
 
     estado: {
       type: DataTypes.ENUM(
-        "ATIVA",
-        "SUSPENSA",
+        "TESTE",     // em período de trial (ver trialEndsAt)
+        "ATIVA",     // plano pago, confirmado manualmente pelo SUPERADMIN
+        "SUSPENSA",  // acesso bloqueado (trial expirado ou pagamento em atraso)
         "CANCELADA"
       ),
-      defaultValue: "ATIVA",
+      defaultValue: "TESTE",
+    },
+
+    // Data em que o período de teste termina. Só é relevante enquanto
+    // estado === "TESTE". Fica null assim que o SUPERADMIN confirma o
+    // plano pago (estado passa a ATIVA) ou numa empresa criada já como ATIVA.
+    trialEndsAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "trial_ends_at",
     },
   },
   {

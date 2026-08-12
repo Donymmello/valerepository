@@ -45,6 +45,8 @@ export default function Login() {
 
       if (data.user.role === "MUTUARIO" || data.user.role === "USER") {
         navigate("/portal");
+      } else if (data.user.role === "SUPERADMIN") {
+        navigate("/superadmin/empresas");
       } else {
         navigate("/interno");
       }
