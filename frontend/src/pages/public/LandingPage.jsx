@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid,
-  Box, Slider, Card, CardContent, Stack, CircularProgress, Alert
+  Box, Slider, Card, CardContent, Stack, CircularProgress, Alert, TextField
 } from '@mui/material';
 import { AccountBalanceWallet, Speed, Security, CheckCircleOutline } from '@mui/icons-material';
-import { simularCreditoRequest } from '../../api/public.api';
+import { simularCreditoRequest, criarSolicitacaoAcessoRequest } from '../../api/public.api';
+import { bootstrapAdminRequest } from '../../api/auth.api';
 //import { simularCalculoCreditoRequest } from '../../api/public.api';
 import { useAuth } from "../../context/AuthContext";
 
@@ -15,7 +16,7 @@ const DEBOUNCE_MS = 500;
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, setSession } = useAuth();
   const [valorSolicitado, setValor] = useState(5000);
   const [parcelas, setParcelas] = useState(6);
 
@@ -24,6 +25,55 @@ export default function LandingPage() {
   const [erroSimulacao, setErroSimulacao] = useState("");
 
   const debounceRef = useRef(null);
+
+  // Trial self-service: cria a empresa + admin na hora (7 dias grátis).
+  const [trialForm, setTrialForm] = useState({ nomeEmpresa: "", nome: "", email: "", password: "" });
+  const [trialEnviando, setTrialEnviando] = useState(false);
+  const [trialErro, setTrialErro] = useState("");
+
+  const handleIniciarTrial = async (event) => {
+    event.preventDefault();
+    setTrialErro("");
+    setTrialEnviando(true);
+
+    try {
+      const data = await bootstrapAdminRequest(trialForm);
+      setSession(data.token, data.user);
+      navigate("/interno");
+    } catch (err) {
+      console.error(err);
+      setTrialErro(err?.response?.data?.message || "Não foi possível criar a tua conta. Tenta novamente.");
+    } finally {
+      setTrialEnviando(false);
+    }
+  };
+
+  // Formulário "Prefiro falar com alguém" — não cria conta, só regista o
+  // interesse para contacto manual (alternativa ao trial self-service acima).
+  const [acessoForm, setAcessoForm] = useState({
+    nomeEmpresa: "", nomeContacto: "", email: "", telefone: "", mensagem: "",
+  });
+  const [acessoEnviando, setAcessoEnviando] = useState(false);
+  const [acessoErro, setAcessoErro] = useState("");
+  const [acessoSucesso, setAcessoSucesso] = useState(false);
+  const [mostrarFormContacto, setMostrarFormContacto] = useState(false);
+
+  const handleEnviarSolicitacaoAcesso = async (event) => {
+    event.preventDefault();
+    setAcessoErro("");
+    setAcessoEnviando(true);
+
+    try {
+      await criarSolicitacaoAcessoRequest(acessoForm);
+      setAcessoSucesso(true);
+      setAcessoForm({ nomeEmpresa: "", nomeContacto: "", email: "", telefone: "", mensagem: "" });
+    } catch (err) {
+      console.error(err);
+      setAcessoErro(err?.response?.data?.message || "Não foi possível enviar o pedido. Tenta novamente.");
+    } finally {
+      setAcessoEnviando(false);
+    }
+  };
 
   // Dispara a simulação no backend sempre que valor/parcelas mudam,
   // com debounce para não disparar uma chamada por cada pixel do slider.
@@ -84,6 +134,9 @@ export default function LandingPage() {
                 FAQ
               </Button>
 
+              <Button color="inherit" onClick={() => scrollToSection("sou-financeira")}>
+                Sou uma Financeira
+              </Button>
 
               {isAuthenticated ? (
                 <Button
@@ -140,16 +193,18 @@ export default function LandingPage() {
                 Simular Crédito
               </Button>
 
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <Button variant="contained" onClick={() => navigate("/portal")}>
                   Ir para o Portal
                 </Button>
-              ) : (
-                <Button variant="outlined" onClick={() => navigate("/register-mutuario")}>
-                  Criar Conta
-                </Button>
               )}
             </Stack>
+
+            {!isAuthenticated && (
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+                Já és cliente de uma financeira? Pede o link de registo a ela.
+              </Typography>
+            )}
           </Grid>
 
           {/* Card do Simulador */}
@@ -237,22 +292,34 @@ export default function LandingPage() {
                   </Grid>
                 </Box>
 
-                <Button
-                  variant="contained"
-                  color="success"
-                  fullWidth
-                  size="large"
-                  sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
-                  onClick={() => {
-                    if (isAuthenticated) {
-                      navigate("/portal/criar-pedido");
-                    } else {
-                      navigate("/register-mutuario");
-                    }
-                  }}
-                >
-                  Solicitar Crédito
-                </Button>
+                {isAuthenticated ? (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    fullWidth
+                    size="large"
+                    sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
+                    onClick={() => navigate("/portal/criar-pedido")}
+                  >
+                    Solicitar Crédito
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      fullWidth
+                      size="large"
+                      disabled
+                      sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
+                    >
+                      Solicitar Crédito
+                    </Button>
+                    <Typography variant="caption" color="textSecondary" display="block" textAlign="center" mt={1}>
+                      Precisas de um convite da tua financeira para te registares.
+                    </Typography>
+                  </>
+                )}
               </CardContent>
             </Card>
           </Grid>
@@ -288,7 +355,7 @@ export default function LandingPage() {
                     2. Faça o Pedido
                   </Typography>
                   <Typography color="textSecondary">
-                    Registe-se e envie o pedido.
+                    Aceite o convite da sua financeira e envie o pedido.
                   </Typography>
                 </CardContent>
               </Card>
@@ -360,6 +427,144 @@ export default function LandingPage() {
             </Grid>
 
           </Grid>
+        </Container>
+      </Box>
+
+      {/* 4.5 Sou uma Financeira — trial self-service + alternativa de contacto */}
+      <Box id="sou-financeira" sx={{ py: 8, bgcolor: '#fff' }}>
+        <Container maxWidth="sm">
+          <Typography variant="h4" align="center" fontWeight="bold" mb={1} sx={{ color: '#1a237e' }}>
+            É uma financeira ou microcrédito?
+          </Typography>
+          <Typography align="center" color="textSecondary" mb={4}>
+            Cria a tua conta agora e experimenta grátis durante 7 dias. Sem cartão de crédito.
+          </Typography>
+
+          <Card sx={{ borderRadius: 4, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.08)' }}>
+            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+              <Box component="form" onSubmit={handleIniciarTrial}>
+                {trialErro && <Alert severity="error" sx={{ mb: 2 }}>{trialErro}</Alert>}
+
+                <Stack spacing={2.5}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Nome da empresa"
+                    value={trialForm.nomeEmpresa}
+                    onChange={(e) => setTrialForm({ ...trialForm, nomeEmpresa: e.target.value })}
+                  />
+                  <TextField
+                    fullWidth
+                    required
+                    label="O teu nome"
+                    value={trialForm.nome}
+                    onChange={(e) => setTrialForm({ ...trialForm, nome: e.target.value })}
+                  />
+                  <TextField
+                    fullWidth
+                    required
+                    type="email"
+                    label="Email"
+                    value={trialForm.email}
+                    onChange={(e) => setTrialForm({ ...trialForm, email: e.target.value })}
+                  />
+                  <TextField
+                    fullWidth
+                    required
+                    type="password"
+                    label="Password"
+                    value={trialForm.password}
+                    onChange={(e) => setTrialForm({ ...trialForm, password: e.target.value })}
+                  />
+
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="success"
+                    size="large"
+                    disabled={trialEnviando}
+                    sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
+                  >
+                    {trialEnviando ? "A criar conta..." : "Começar trial grátis de 7 dias"}
+                  </Button>
+                </Stack>
+              </Box>
+
+              <Box sx={{ textAlign: 'center', mt: 3 }}>
+                {mostrarFormContacto ? (
+                  acessoSucesso ? (
+                    <Alert severity="success">
+                      Pedido recebido com sucesso! Vamos entrar em contacto em breve.
+                    </Alert>
+                  ) : (
+                    <Box component="form" onSubmit={handleEnviarSolicitacaoAcesso} sx={{ textAlign: 'left', mt: 1 }}>
+                      <Typography variant="body2" color="textSecondary" mb={2}>
+                        Prefere falar com alguém primeiro? Deixa os teus dados e entramos em contacto.
+                      </Typography>
+                      {acessoErro && <Alert severity="error" sx={{ mb: 2 }}>{acessoErro}</Alert>}
+
+                      <Stack spacing={2}>
+                        <TextField
+                          fullWidth
+                          required
+                          size="small"
+                          label="Nome da empresa"
+                          value={acessoForm.nomeEmpresa}
+                          onChange={(e) => setAcessoForm({ ...acessoForm, nomeEmpresa: e.target.value })}
+                        />
+                        <TextField
+                          fullWidth
+                          required
+                          size="small"
+                          label="O teu nome"
+                          value={acessoForm.nomeContacto}
+                          onChange={(e) => setAcessoForm({ ...acessoForm, nomeContacto: e.target.value })}
+                        />
+                        <TextField
+                          fullWidth
+                          required
+                          size="small"
+                          type="email"
+                          label="Email"
+                          value={acessoForm.email}
+                          onChange={(e) => setAcessoForm({ ...acessoForm, email: e.target.value })}
+                        />
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Telefone (opcional)"
+                          value={acessoForm.telefone}
+                          onChange={(e) => setAcessoForm({ ...acessoForm, telefone: e.target.value })}
+                        />
+                        <TextField
+                          fullWidth
+                          size="small"
+                          multiline
+                          minRows={2}
+                          label="Mensagem (opcional)"
+                          value={acessoForm.mensagem}
+                          onChange={(e) => setAcessoForm({ ...acessoForm, mensagem: e.target.value })}
+                        />
+
+                        <Button
+                          type="submit"
+                          variant="outlined"
+                          disabled={acessoEnviando}
+                          sx={{ borderRadius: 2 }}
+                        >
+                          {acessoEnviando ? "A enviar..." : "Pedir Contacto"}
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )
+                ) : (
+                  <Button variant="text" size="small" onClick={() => setMostrarFormContacto(true)}>
+                    Prefiro falar com alguém primeiro
+                  </Button>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
         </Container>
       </Box>
 

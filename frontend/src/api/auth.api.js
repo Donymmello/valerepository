@@ -5,6 +5,12 @@ export const loginRequest = async (payload) => {
   return response.data;
 };
 
+// Cria uma Empresa nova + o seu primeiro ADMIN (usado pelo painel SUPERADMIN)
+export const bootstrapAdminRequest = async (payload) => {
+  const response = await api.post("/auth/bootstrap-admin", payload);
+  return response.data;
+};
+
 export const registerMutuarioRequest = async (payload) => {
   const response = await api.post("/auth/register-mutuario", payload);
   return response.data;
@@ -12,6 +18,11 @@ export const registerMutuarioRequest = async (payload) => {
 
 export const registerUserRequest = async (payload) => {
   const response = await api.post("/auth/register-interno", payload);
+  return response.data;
+};
+
+export const createConvitePortalRequest = async (payload) => {
+  const response = await api.post("/auth/convite-portal", payload);
   return response.data;
 };
 

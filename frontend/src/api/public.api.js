@@ -44,3 +44,13 @@ export const getMinhasSimulacoesRequest = async () => {
   const response = await api.get("/simulacao/minhas");
   return response.data;
 };
+
+/**
+ * Envia um pedido de acesso à plataforma (empresa interessada, via
+ * formulário público da landing page). Não cria conta nem empresa —
+ * fica registado para revisão manual.
+ */
+export const criarSolicitacaoAcessoRequest = async (payload) => {
+  const response = await api.post("/solicitacoes-acesso", payload);
+  return response.data;
+};

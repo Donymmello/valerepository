@@ -17,6 +17,8 @@ const Reembolso = require("./reembolso.model");
 const RequisitoCredito = require("./requisitoCredito.model");
 const PedidoRequisito = require("./pedidoRequisito.model");
 const Empresa = require("./empresa.model");
+const ConvitePortal = require("./convitePortal.model");
+const SolicitacaoAcesso = require("./solicitacaoAcesso.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
 
@@ -283,6 +285,34 @@ User.belongsTo(Empresa, {
     as: "empresa",
 });
 
+/*
+  Convites de portal (registo público de mutuário controlado por KYC).
+*/
+Empresa.hasMany(ConvitePortal, {
+    foreignKey: "empresaId",
+    as: "convitesPortal",
+});
+
+ConvitePortal.belongsTo(Empresa, {
+    foreignKey: "empresaId",
+    as: "empresa",
+});
+
+User.hasMany(ConvitePortal, {
+    foreignKey: "criadoPor",
+    as: "convitesCriados",
+});
+
+ConvitePortal.belongsTo(User, {
+    foreignKey: "criadoPor",
+    as: "criador",
+});
+
+ConvitePortal.belongsTo(User, {
+    foreignKey: "usadoPor",
+    as: "utilizador",
+});
+
 
 module.exports = {
   sequelize,
@@ -302,6 +332,8 @@ module.exports = {
   Anexo,
   Simulacao,
   Empresa,
+  ConvitePortal,
+  SolicitacaoAcesso,
   PasswordResetToken,
   EmailVerificationToken,
 };
