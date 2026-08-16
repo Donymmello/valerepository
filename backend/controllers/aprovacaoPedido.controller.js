@@ -55,7 +55,8 @@ async function decidirAprovacao(req, res) {
       return res.status(400).json({ message: "Campos obrigatórios em falta ou decisão inválida." });
     }
 
-    const pedido = await PedidoCredito.findByPk(pedidoId, {
+    const pedido = await PedidoCredito.findOne({
+      where: { id: pedidoId, empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario" },
         { model: User, as: "criador", attributes: ["id", "nome", "email", "role", "ativo"] }
@@ -143,7 +144,7 @@ async function getMinhasAprovacoes(req, res) {
   try {
     const aprovacoes = await AprovacaoPedido.findAll({
       where: { aprovadorId: req.user.id },
-      include: [{ model: PedidoCredito, as: "pedido" }],
+      include: [{ model: PedidoCredito, as: "pedido", where: { empresaId: req.user.empresaId }, required: true }],
       order: [["created_at", "DESC"]], // Normalizado para camelCase conforme discutimos!
     });
     return res.status(200).json(aprovacoes);
@@ -155,7 +156,10 @@ async function getMinhasAprovacoes(req, res) {
 
 async function getAprovacoesByPedido(req, res) {
   try {
-    const pedido = await PedidoCredito.findByPk(req.params.pedidoId, { include: [{ model: Mutuario, as: "mutuario" }] });
+    const pedido = await PedidoCredito.findOne({
+      where: { id: req.params.pedidoId, empresaId: req.user.empresaId },
+      include: [{ model: Mutuario, as: "mutuario" }],
+    });
     if (!pedido) return res.status(404).json({ message: "Pedido de crédito não encontrado." });
 
     const aprovacoes = await AprovacaoPedido.findAll({
@@ -175,7 +179,7 @@ async function getAllAprovacoes(req, res) {
   try {
     const aprovacoes = await AprovacaoPedido.findAll({
       include: [
-        { model: PedidoCredito, as: "pedido", include: [{ model: Mutuario, as: "mutuario", required: false }] },
+        { model: PedidoCredito, as: "pedido", where: { empresaId: req.user.empresaId }, required: true, include: [{ model: Mutuario, as: "mutuario", required: false }] },
         { model: User, as: "aprovador", attributes: ["id", "nome", "email", "role", "ativo"] }
       ],
       order: [["dataDecisao", "DESC"]],

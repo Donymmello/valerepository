@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -11,9 +11,9 @@ import {
   Paper,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import { useAuth } from "../../context/AuthContext";
+import PageHeader from "../../components/common/PageHeader";
 
 // Página interna (backoffice) — sem header/footer público
 export default function RegisterUser() {
@@ -60,14 +60,11 @@ export default function RegisterUser() {
 
   return (
     <Box sx={{ maxWidth: 640, mx: "auto", py: 4 }}>
-      <Box mb={4}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }} mb={0.5}>
-          Registar Utilizador
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Cria uma nova conta de acesso ao sistema interno.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Registar Utilizador"
+        subtitle="Cria uma nova conta de acesso ao sistema interno."
+        mb={4}
+      />
 
       <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3, border: "1px solid #e0e0e0" }}>
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}

@@ -12,6 +12,11 @@ const RequisitoCredito = sequelize.define("RequisitoCredito", {
     primaryKey: true,
     autoIncrement: true
   },
+  empresaId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    field: "empresa_id",
+  },
   nome: {
     type: DataTypes.STRING(150),
     allowNull: false

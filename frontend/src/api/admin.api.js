@@ -127,6 +127,11 @@ export const getResumoGeralRequest = async () => {
   return response.data;
 };
 
+export const getDashboardFinanceiroRequest = async () => {
+  const response = await api.get("/relatorios/dashboard");
+  return response.data;
+};
+
 export const getRelatorioPedidosRequest = async (params = {}) => {
   const response = await api.get("/relatorios/pedidos", { params });
   return response.data;
@@ -286,11 +291,8 @@ export const importarMutuariosExcelRequest = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await api.post("/import/mutuarios", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  // Sem Content-Type manual: o browser gera o boundary sozinho.
+  const response = await api.post("/import/mutuarios", formData);
 
   return response.data;
 };
@@ -299,11 +301,8 @@ export const importarPedidosExcelRequest = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await api.post("/import/pedidos", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  // Sem Content-Type manual: o browser gera o boundary sozinho.
+  const response = await api.post("/import/pedidos", formData);
 
   return response.data;
 };

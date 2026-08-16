@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { verificarAlertasPrazoRequest } from "../../../api/admin.api";
+import PageHeader from "../../../components/common/PageHeader";
 
 export default function AlertasPrazo() {
   const [loading, setLoading] = useState(false);
@@ -39,14 +40,10 @@ export default function AlertasPrazo() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
-        Alertas de Prazo
-      </Typography>
-
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Verifique pedidos com prazo de avaliação ou validação vencido ou próximo
-        e gere notificações para acompanhamento.
-      </Typography>
+      <PageHeader
+        title="Alertas de Prazo"
+        subtitle="Verifique pedidos com prazo de avaliação ou validação vencido ou próximo e gere notificações para acompanhamento."
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>

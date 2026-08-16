@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Divider,
   Paper,
   Snackbar,
@@ -18,12 +17,10 @@ import {
   updateMutuarioRequest,
   deleteMutuarioRequest,
 } from "../../../api/admin.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatusChip from "../../../components/common/StatusChip";
 
 export default function MutuarioDetalhe() {
   const { id } = useParams();
@@ -169,71 +166,55 @@ export default function MutuarioDetalhe() {
   };
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
-            Detalhe do Mutuário
-          </Typography>
+      <PageHeader
+        title="Detalhe do Mutuário"
+        subtitle="Visualização e gestão cadastral interna do mutuário."
+        actions={
+          mutuario && (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              {!editing ? (
+                <>
+                  <Button variant="contained" onClick={handleEditar}>
+                    Editar
+                  </Button>
 
-          <Typography variant="body2" color="text.secondary">
-            Visualização e gestão cadastral interna do mutuário.
-          </Typography>
-        </Box>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={handleApagar}
+                    disabled={deleting || saving}
+                  >
+                    {deleting ? "A apagar..." : "Apagar"}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outlined"
+                    onClick={handleCancelar}
+                    disabled={saving || deleting}
+                  >
+                    Cancelar
+                  </Button>
 
-        {mutuario && (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            {!editing ? (
-              <>
-                <Button variant="contained" onClick={handleEditar}>
-                  Editar
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={handleApagar}
-                  disabled={deleting || saving}
-                >
-                  {deleting ? "A apagar..." : "Apagar"}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={handleCancelar}
-                  disabled={saving || deleting}
-                >
-                  Cancelar
-                </Button>
-
-                <Button
-                  variant="contained"
-                  onClick={handleGuardar}
-                  disabled={saving || deleting}
-                >
-                  {saving ? "A guardar..." : "Guardar Alterações"}
-                </Button>
-              </>
-            )}
-          </Stack>
-        )}
-      </Stack>
+                  <Button
+                    variant="contained"
+                    onClick={handleGuardar}
+                    disabled={saving || deleting}
+                  >
+                    {saving ? "A guardar..." : "Guardar Alterações"}
+                  </Button>
+                </>
+              )}
+            </Stack>
+          )
+        }
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -429,11 +410,7 @@ export default function MutuarioDetalhe() {
                               {pedido.numeroPedido || `Pedido #${pedido.id}`}
                             </Typography>
 
-                            <Chip
-                              size="small"
-                              label={getStatusLabel(statusPedido)}
-                              color={getStatusColor(statusPedido)}
-                            />
+                            <StatusChip status={statusPedido} />
                           </Stack>
 
                           <Typography variant="body2" color="text.secondary">

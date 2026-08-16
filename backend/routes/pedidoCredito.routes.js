@@ -22,11 +22,21 @@ const {
   ==========================================================
 */
 
-// Criar pedido de crédito
-router.post("/", authMiddleware, createPedidoCredito);
+// Criar pedido de crédito (apenas backoffice; mutuário usa /portal/meus-pedidos)
+router.post(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA"),
+  createPedidoCredito
+);
 
-// Listar todos os pedidos
-router.get("/", authMiddleware, getAllPedidosCredito);
+// Listar todos os pedidos (apenas backoffice; mutuário usa /portal/meus-pedidos)
+router.get(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  getAllPedidosCredito
+);
 
 // Listar pedidos elegíveis para desembolso
 router.get(
@@ -44,11 +54,21 @@ router.get(
   getPedidosElegiveisReembolso
 );
 
-// Listar pedidos de um mutuário
-router.get("/mutuario/:mutuarioId", authMiddleware, getPedidosByMutuario);
+// Listar pedidos de um mutuário (apenas backoffice)
+router.get(
+  "/mutuario/:mutuarioId",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  getPedidosByMutuario
+);
 
-// Buscar pedido por ID
-router.get("/:id", authMiddleware, getPedidoCreditoById);
+// Buscar pedido por ID (apenas backoffice; mutuário usa /portal/meus-pedidos/:id)
+router.get(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  getPedidoCreditoById
+);
 
 // Atualizar dados do pedido
 router.put("/:id", authMiddleware, updatePedidoCredito);

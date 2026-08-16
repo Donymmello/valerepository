@@ -1,4 +1,5 @@
 const path = require("path");
+const { Op } = require("sequelize");
 const {
   Comprovativo,
   Credito,
@@ -82,26 +83,66 @@ async function getMeusComprovativos(req, res) {
   }
 }
 
+// Clona o include padrão, mas restringe o "credito" à empresa do utilizador autenticado
+function includeComEmpresa(empresaId) {
+  return comprovativoInclude.map((item) =>
+    item.as === "credito" ? { ...item, where: { empresaId }, required: true } : item
+  );
+}
+
 async function getComprovativos(req, res) {
   try {
     const where = req.params.creditoId ? { creditoId: req.params.creditoId } : {};
     if (req.query.estado) where.estado = req.query.estado;
-    const comprovativos = await Comprovativo.findAll({ where, include: comprovativoInclude, order: [["created_at", "DESC"]] });
+    const comprovativos = await Comprovativo.findAll({ where, include: includeComEmpresa(req.user.empresaId), order: [["created_at", "DESC"]] });
     return res.json(comprovativos);
   } catch (error) {
     return res.status(500).json({ message: "Erro ao listar comprovativos.", error: error.message });
   }
 }
 
+async function getComprovativosByPedido(req, res) {
+  try {
+    const creditos = await Credito.findAll({
+      where: { pedidoId: req.params.pedidoId, empresaId: req.user.empresaId },
+      attributes: ["id"],
+    });
+    if (!creditos.length) return res.json([]);
+
+    const comprovativos = await Comprovativo.findAll({
+      where: { creditoId: { [Op.in]: creditos.map((c) => c.id) } },
+      include: comprovativoInclude,
+      order: [["created_at", "DESC"]],
+    });
+    return res.json(comprovativos);
+  } catch (error) {
+    return res.status(500).json({ message: "Erro ao listar comprovativos do pedido.", error: error.message });
+  }
+}
+
 async function obterComprovativo(req, res) {
-  const comprovativo = await Comprovativo.findByPk(req.params.id, { include: comprovativoInclude });
+  const comprovativo = await Comprovativo.findOne({
+    where: { id: req.params.id },
+    include: includeComEmpresa(req.user.empresaId),
+  });
   if (!comprovativo) return res.status(404).json({ message: "Comprovativo nao encontrado." });
   return res.json(comprovativo);
 }
 
 async function downloadComprovativo(req, res) {
-  const comprovativo = await Comprovativo.findByPk(req.params.id);
+  const comprovativo = await Comprovativo.findByPk(req.params.id, {
+    include: [{ model: Credito, as: "credito", attributes: ["id", "empresaId", "mutuarioId"] }],
+  });
   if (!comprovativo) return res.status(404).json({ message: "Comprovativo nao encontrado." });
+
+  const ehStaffDaMesmaEmpresa = comprovativo.credito?.empresaId === req.user.empresaId
+    && ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"].includes(req.user.role);
+  const ehDonoDoComprovativo = comprovativo.userId === req.user.id;
+
+  if (!ehStaffDaMesmaEmpresa && !ehDonoDoComprovativo) {
+    return res.status(404).json({ message: "Comprovativo nao encontrado." });
+  }
+
   return res.download(path.resolve("upload/comprovativos", comprovativo.arquivo), comprovativo.nome);
 }
 
@@ -139,6 +180,7 @@ async function validarComprovativo(req, res) {
         const data = dataReembolso ? new Date(dataReembolso) : new Date();
         reembolso = await Reembolso.create({
           creditoId: comprovativo.creditoId,
+          empresaId: comprovativo.credito.empresaId,
           parcelaId: comprovativo.parcelaId,
           valorReembolsado,
           dataReembolso: data,
@@ -173,4 +215,4 @@ async function validarComprovativo(req, res) {
   }
 }
 
-module.exports = { enviarComprovativo, getMeusComprovativos, getComprovativos, obterComprovativo, downloadComprovativo, validarComprovativo };
+module.exports = { enviarComprovativo, getMeusComprovativos, getComprovativos, getComprovativosByPedido, obterComprovativo, downloadComprovativo, validarComprovativo };

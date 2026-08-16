@@ -8,15 +8,15 @@ import {
   Typography,
   LinearProgress,
   Chip,
-  Skeleton,
   Alert,
   Button,
-  Container,
   Divider,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { getMeusCreditosRequest } from "../../api/portal.api";
 import { formatCurrency } from "../../utils/formatters";
+import PageHeader from "../../components/common/PageHeader";
+import LoadingState from "../../components/common/LoadingState";
 
 export default function MeusCreditos() {
   const navigate = useNavigate();
@@ -216,37 +216,27 @@ export default function MeusCreditos() {
 
   // Carregamento
   if (loading) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Grid container spacing={3}>
-          {[1, 2, 3].map((i) => (
-            <Grid item xs={12} sm={6} md={4} key={i}>
-              <Card>
-                <Skeleton variant="rectangular" height={400} />
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
-    );
+    return <LoadingState />;
   }
 
   // Erro
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box>
+        <PageHeader title="Meus Créditos" subtitle="Consulte os seus créditos ativos e o histórico de pagamentos." />
         <Alert severity="error">{error}</Alert>
         <Button variant="contained" onClick={carregarCreditos} sx={{ mt: 2 }}>
           Tentar Novamente
         </Button>
-      </Container>
+      </Box>
     );
   }
 
   // Sem créditos
   if (creditos.length === 0) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box>
+        <PageHeader title="Meus Créditos" subtitle="Consulte os seus créditos ativos e o histórico de pagamentos." />
         <Alert severity="info">
           Você ainda não possui créditos. Crie um novo pedido para começar.
         </Alert>
@@ -257,12 +247,14 @@ export default function MeusCreditos() {
         >
           Solicitar Crédito
         </Button>
-      </Container>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Box>
+      <PageHeader title="Meus Créditos" subtitle="Consulte os seus créditos ativos e o histórico de pagamentos." />
+
       {/* Créditos Ativos */}
       {creditosAtivos.length > 0 && (
         <Box sx={{ mb: 6 }}>
@@ -310,6 +302,6 @@ export default function MeusCreditos() {
           </Grid>
         </Box>
       )}
-    </Container>
+    </Box>
   );
 }

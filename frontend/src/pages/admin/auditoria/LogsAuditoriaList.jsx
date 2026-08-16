@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,6 +13,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
 import {
   getAllLogsAuditoriaRequest,
   getLogAuditoriaByIdRequest,
@@ -110,39 +111,25 @@ export default function LogsAuditoriaList() {
   };
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Logs de Auditoria
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            {podeVerTodos
-              ? "Consulte o histórico de ações registadas no sistema."
-              : "Consulte o histórico das suas ações registadas no sistema."}
-          </Typography>
-        </Box>
-
-        <Chip
-          label={podeVerTodos ? "Visão Global" : "Meus Logs"}
-          color={podeVerTodos ? "primary" : "default"}
-        />
-      </Stack>
+      <PageHeader
+        title="Logs de Auditoria"
+        subtitle={
+          podeVerTodos
+            ? "Consulte o histórico de ações registadas no sistema."
+            : "Consulte o histórico das suas ações registadas no sistema."
+        }
+        actions={
+          <Chip
+            label={podeVerTodos ? "Visão Global" : "Meus Logs"}
+            color={podeVerTodos ? "primary" : "default"}
+          />
+        }
+      />
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <TextField

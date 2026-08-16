@@ -29,15 +29,13 @@ import {
   getExtratoPedidoInternoRequest,
   getPedidoByIdRequest,
 } from "../../../api/admin.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
 import { useAuth } from "../../../context/AuthContext";
 import PedidoRequisitosSection from "../../../pages/admin/pedidos/PedidoRequisitosSection";
 import ComprovativoBackofficeSection from "../../../pages/admin/ComprovativoBackofficeSection";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatusChip from "../../../components/common/StatusChip";
 
 // ─── Painel de tab ────────────────────────────────────────────────────────────
 function TabPanel({ value, index, children }) {
@@ -150,40 +148,25 @@ export default function PedidoDetalhe() {
   };
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto" }}>
       {/* Cabeçalho */}
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={0.5}>
-            Detalhe do Pedido
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Visualização interna e decisão do pedido de crédito.
-          </Typography>
-        </Box>
-
-        {pedido && (
-          <Chip
-            label={getStatusLabel(pedido.status)}
-            color={getStatusColor(pedido.status)}
-            sx={{ fontWeight: 700, fontSize: "0.85rem", px: 1 }}
-          />
-        )}
-      </Stack>
+      <PageHeader
+        title="Detalhe do Pedido"
+        subtitle="Visualização interna e decisão do pedido de crédito."
+        actions={
+          pedido && (
+            <StatusChip
+              status={pedido.status}
+              size="medium"
+              sx={{ fontWeight: 700, fontSize: "0.85rem", px: 1 }}
+            />
+          )
+        }
+      />
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 

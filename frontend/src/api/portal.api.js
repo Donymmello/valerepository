@@ -90,14 +90,10 @@ export const uploadRequisitoDocumentoRequest = async (pedidoRequisitoId, file) =
   const formData = new FormData();
   formData.append("arquivo", file);
 
+  // Idem: sem Content-Type manual, para o browser gerar o boundary.
   const response = await api.post(
     `/portal/meus-pedidos/upload/${pedidoRequisitoId}/requisitos`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
+    formData
   );
 
   return response.data;
@@ -117,10 +113,12 @@ export const enviarComprovativoRequest = async (creditoId, parcelaId, file) => {
   const formData = new FormData();
   formData.append("comprovativo", file);
 
+  // Não definir Content-Type à mão: o browser precisa de gerar o
+  // "boundary" sozinho a partir do FormData, senão o multer não
+  // consegue interpretar o corpo do pedido.
   const response = await api.post(
     `/comprovativos/portal/credito/${creditoId}/parcela/${parcelaId}/enviar`,
-    formData,
-    { headers: { "Content-Type": "multipart/form-data" } }
+    formData
   );
 
   return response.data;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   AppBar,
@@ -20,6 +20,8 @@ import { registerMutuarioWithOTPRequest } from "../../api/auth.api";
 
 export default function RegisterMutuario() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const conviteToken = searchParams.get("convite");
 
   const [form, setForm] = useState({
     nome: "",
@@ -52,7 +54,7 @@ export default function RegisterMutuario() {
     setSubmitting(true);
 
     try {
-      await registerMutuarioWithOTPRequest(form);
+      await registerMutuarioWithOTPRequest({ ...form, token: conviteToken });
       navigate("/verify-otp", { state: { email: form.email } });
     } catch (err) {
       console.error(err);
@@ -94,6 +96,27 @@ export default function RegisterMutuario() {
         <Container maxWidth="md">
           <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, borderRadius: 4, border: "1px solid #e0e0e0" }}>
 
+            {!conviteToken ? (
+              <>
+                <Box mb={3}>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#1a237e" }} mb={0.5}>
+                    Criar Conta
+                  </Typography>
+                </Box>
+                <Alert severity="warning">
+                  Este registo requer um convite válido. Peça ao administrador da sua
+                  instituição de crédito o link de registo e aceda através dele.
+                </Alert>
+                <Button
+                  variant="outlined"
+                  sx={{ mt: 3 }}
+                  onClick={() => navigate("/login")}
+                >
+                  Voltar ao Login
+                </Button>
+              </>
+            ) : (
+            <>
             <Box mb={4}>
               <Typography variant="h4" sx={{ fontWeight: 800, color: "#1a237e" }} mb={0.5}>
                 Criar Conta
@@ -192,6 +215,8 @@ export default function RegisterMutuario() {
                 Entrar
               </Link>
             </Typography>
+            </>
+            )}
           </Paper>
         </Container>
       </Box>

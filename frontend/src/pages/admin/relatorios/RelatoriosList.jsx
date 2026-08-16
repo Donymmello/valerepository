@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Grid,
   MenuItem,
   Paper,
@@ -25,6 +24,10 @@ import {
   getStatusColor,
   getStatusLabel,
 } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatCard from "../../../components/common/StatCard";
+import StatusChip from "../../../components/common/StatusChip";
 
 export default function RelatoriosList() {
   const [loading, setLoading] = useState(true);
@@ -178,32 +181,15 @@ export default function RelatoriosList() {
   }, [relatorioReembolsos]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Relatórios
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            Visão resumida e financeira do sistema de crédito.
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title="Relatórios"
+        subtitle="Visão resumida e financeira do sistema de crédito."
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -278,47 +264,19 @@ export default function RelatoriosList() {
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} md={6} lg={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Total de Pedidos
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {resumo?.totalPedidos || 0}
-            </Typography>
-          </Paper>
+          <StatCard label="Total de Pedidos" value={resumo?.totalPedidos || 0} />
         </Grid>
 
         <Grid item xs={12} md={6} lg={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Total Desembolsado
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {formatCurrency(resumo?.totalDesembolsado || 0)}
-            </Typography>
-          </Paper>
+          <StatCard label="Total Desembolsado" value={formatCurrency(resumo?.totalDesembolsado || 0)} />
         </Grid>
 
         <Grid item xs={12} md={6} lg={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Total Reembolsado
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {formatCurrency(resumo?.totalReembolsado || 0)}
-            </Typography>
-          </Paper>
+          <StatCard label="Total Reembolsado" value={formatCurrency(resumo?.totalReembolsado || 0)} />
         </Grid>
 
         <Grid item xs={12} md={6} lg={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Saldo Global
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {formatCurrency(resumo?.saldoGlobal || 0)}
-            </Typography>
-          </Paper>
+          <StatCard label="Saldo Global" value={formatCurrency(resumo?.saldoGlobal || 0)} />
         </Grid>
       </Grid>
 
@@ -368,11 +326,7 @@ export default function RelatoriosList() {
                         {pedido.numeroPedido}
                       </Typography>
 
-                      <Chip
-                        label={getStatusLabel(pedido.status)}
-                        color={getStatusColor(pedido.status)}
-                        size="small"
-                      />
+                      <StatusChip status={pedido.status} />
                     </Stack>
 
                     <Typography variant="body2" color="text.secondary">
@@ -423,11 +377,7 @@ export default function RelatoriosList() {
                       {item.numeroPedido}
                     </Typography>
 
-                    <Chip
-                      label={getStatusLabel(item.status)}
-                      color={getStatusColor(item.status)}
-                      size="small"
-                    />
+                    <StatusChip status={item.status} />
                   </Stack>
 
                   <Typography variant="body2" color="text.secondary">

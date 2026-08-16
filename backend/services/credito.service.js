@@ -27,6 +27,7 @@ async function criarCredito(pedido, desembolso, userId, options = {}) {
 
   const credito = await Credito.create({
     numeroContrato,
+    empresaId: pedido.empresaId,
     pedidoId: pedido.id,
     desembolsoId: desembolso.id,
     simulacaoId: pedido.simulacaoId || null,
@@ -48,6 +49,7 @@ async function criarCredito(pedido, desembolso, userId, options = {}) {
 
   const parcelas = generateCodParcela({
     creditoId: credito.id,
+    empresaId: credito.empresaId,
     prestacao: credito.prestacao,
     numeroParcelas: credito.prazo,
     primeiraDataVencimento: credito.dataInicio,

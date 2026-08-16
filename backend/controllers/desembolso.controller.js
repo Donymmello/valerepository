@@ -34,7 +34,7 @@ const createDesembolso = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Valor do desembolso deve ser maior que zero." });
   }
 
-  const pedido = await PedidoCredito.findByPk(pedidoId);
+  const pedido = await PedidoCredito.findOne({ where: { id: pedidoId, empresaId: req.user.empresaId } });
   if (!pedido) {
     return res.status(404).json({ message: "Pedido de crédito não encontrado." });
   }
@@ -58,6 +58,7 @@ const createDesembolso = asyncHandler(async (req, res) => {
 
     const novoDesembolso = await Desembolso.create({
       pedidoId,
+      empresaId: pedido.empresaId,
       valorDesembolsado,
       dataDesembolso: dataDesembolso ?? new Date(),
       meioPagamento: meioPagamento ?? "TRANSFERENCIA",
@@ -101,6 +102,7 @@ const createDesembolso = asyncHandler(async (req, res) => {
  */
 const getAllDesembolsos = asyncHandler(async (req, res) => {
   const desembolsos = await Desembolso.findAll({
+    where: { empresaId: req.user.empresaId },
     include: [
       { model: PedidoCredito, as: "pedido" },
       { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
@@ -118,7 +120,7 @@ const getDesembolsoByPedido = asyncHandler(async (req, res) => {
   const { pedidoId } = req.params;
 
   const desembolsos = await Desembolso.findAll({
-    where: { pedidoId },
+    where: { pedidoId, empresaId: req.user.empresaId },
     include: [
       { model: PedidoCredito, as: "pedido" },
       { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },

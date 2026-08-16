@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Paper,
   Stack,
   TextField,
@@ -13,6 +12,8 @@ import {
 } from "@mui/material";
 import { getAllMutuariosRequest } from "../../../api/admin.api";
 import { formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
 
 export default function MutuariosList() {
   const [mutuarios, setMutuarios] = useState([]);
@@ -64,32 +65,15 @@ export default function MutuariosList() {
   }, [mutuarios, search]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Mutuários
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            Consulte e acompanhe os mutuários registados no sistema.
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title="Mutuários"
+        subtitle="Consulte e acompanhe os mutuários registados no sistema."
+      />
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <TextField

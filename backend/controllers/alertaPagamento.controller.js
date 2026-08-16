@@ -42,6 +42,7 @@ async function verificarAlertasPagamento(req, res) {
 
     const parcelas = await ParcelaPagamento.findAll({
       where: {
+        empresaId: req.user.empresaId,
         estado: "PENDENTE",
         dataVencimento: {
           [Op.lte]: emTresDias,

@@ -41,9 +41,10 @@ async function criarNotificacao({
 
 }
 
-async function obterDestinatariosInternos() {
+async function obterDestinatariosInternos(empresaId) {
     return User.findAll({
         where: {
+            empresaId,
             ativo: true,
             role: {
                 [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"],
@@ -68,13 +69,14 @@ async function verificarAlertasPrazo(req, res) {
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
 
-        const destinatariosInternos = await obterDestinatariosInternos();
+        const destinatariosInternos = await obterDestinatariosInternos(req.user.empresaId);
 
         /*
          pedidos em analise com prazo de avaliacao vencido ou proximo
         */
         const pedidosAvaliacao = await PedidoCredito.findAll({
             where: {
+                empresaId: req.user.empresaId,
                 status: {
                     [Op.in]: ["SUBMETIDO", "EM_ANALISE"],
                 },
@@ -102,6 +104,7 @@ async function verificarAlertasPrazo(req, res) {
 
         const pedidosValidacao = await PedidoCredito.findAll({
             where: {
+                empresaId: req.user.empresaId,
                 status: {
                     [Op.in]: ["EM_VALIDACAO"]
                 },

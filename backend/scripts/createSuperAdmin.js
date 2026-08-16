@@ -12,7 +12,7 @@
     node scripts/createSuperAdmin.js "Nome Completo" email@dominio.com "password"
 
   Ou, via docker compose, a partir da tua máquina:
-    docker compose exec backend node scripts/createSuperAdmin.js "Nome" email password
+    docker compose exec api_backend node scripts/createSuperAdmin.js "Nome" email password
 */
 
 require("dotenv").config();

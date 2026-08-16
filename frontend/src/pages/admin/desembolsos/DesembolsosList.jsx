@@ -4,8 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   MenuItem,
   Paper,
   Snackbar,
@@ -18,12 +16,10 @@ import {
   getAllDesembolsosRequest,
   getAllPedidosRequest,
 } from "../../../api/admin.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatusChip from "../../../components/common/StatusChip";
 
 export default function DesembolsosList() {
   const [desembolsos, setDesembolsos] = useState([]);
@@ -178,31 +174,15 @@ export default function DesembolsosList() {
   }, [desembolsos, search]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Desembolsos
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Registe e consulte os desembolsos do sistema.
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title="Desembolsos"
+        subtitle="Registe e consulte os desembolsos do sistema."
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -260,11 +240,7 @@ export default function DesembolsosList() {
                       <strong>Finalidade:</strong> {pedidoSelecionado?.finalidade || "-"}
                     </Typography>
                     <Box>
-                      <Chip
-                        size="small"
-                        label={getStatusLabel(status)}
-                        color={getStatusColor(status)}
-                      />
+                      <StatusChip status={status} />
                     </Box>
                   </Stack>
                 );
@@ -372,13 +348,7 @@ export default function DesembolsosList() {
                       {desembolso?.pedido?.numeroPedido || `Desembolso #${desembolso.id}`}
                     </Typography>
 
-                    {statusPedido && (
-                      <Chip
-                        label={getStatusLabel(statusPedido)}
-                        color={getStatusColor(statusPedido)}
-                        size="small"
-                      />
-                    )}
+                    {statusPedido && <StatusChip status={statusPedido} />}
                   </Stack>
 
                   <Typography variant="body2" color="text.secondary">

@@ -352,6 +352,7 @@ async function createMeuPedido(req, res) {
     const pedido = await PedidoCredito.create({
       numeroPedido: generateNumeroPedido(),
       mutuarioId: mutuario.id,
+      empresaId: req.user.empresaId,
       valorSolicitado,
       finalidade,
       pacoteFinanciamento: pacoteFinanciamento || null,

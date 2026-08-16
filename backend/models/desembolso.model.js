@@ -19,6 +19,11 @@ const Desembolso = sequelize.define(
       allowNull: false,
       field: "pedido_id",
     },
+    empresaId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "empresa_id",
+    },
     valorDesembolsado: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,

@@ -10,6 +10,7 @@ router.get("/portal/credito/:creditoId", authMiddleware, controller.getMeusCompr
 
 router.get("/", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativos);
 router.get("/credito/:creditoId", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativos);
+router.get("/pedido/:pedidoId", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativosByPedido);
 router.get("/:id/download", authMiddleware, controller.downloadComprovativo);
 router.get("/:id", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.obterComprovativo);
 router.patch("/:id/validar", authMiddleware, authorizeRoles("ADMIN", "GESTOR"), controller.validarComprovativo);

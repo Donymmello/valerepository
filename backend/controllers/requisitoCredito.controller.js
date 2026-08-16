@@ -17,6 +17,7 @@ async function createRequisito(req, res) {
         }
 
         const requisito = await RequisitoCredito.create({
+            empresaId: req.user.empresaId,
             nome,
             descricao: descricao || null,
             obrigatorio: obrigatorio !== undefined ? obrigatorio : true,
@@ -53,6 +54,7 @@ async function createRequisito(req, res) {
 async function getAllRequisitos(req, res) {
     try {
         const requisitos = await RequisitoCredito.findAll({
+                where: { empresaId: req.user.empresaId },
                 order: [['id', 'DESC']]
         });
 
@@ -77,7 +79,7 @@ async function updateRequisito(req, res) {
         const { id } = req.params;
         const { nome, descricao, obrigatorio, ativo } = req.body;
 
-        const requisito = await RequisitoCredito.findByPk(id);
+        const requisito = await RequisitoCredito.findOne({ where: { id, empresaId: req.user.empresaId } });
 
         if (!requisito) {
             return res.status(404).json({

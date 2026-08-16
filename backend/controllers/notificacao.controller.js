@@ -1,4 +1,4 @@
-const { Notificacao } = require("../models");
+const { Notificacao, User } = require("../models");
 
 /*
   ==========================================================
@@ -29,6 +29,12 @@ async function createNotificacao(req, res) {
         message: "Tipo de notificação inválido.",
         tiposPermitidos,
       });
+    }
+
+    // Impede notificar utilizadores de outra empresa
+    const destinatario = await User.findOne({ where: { id: userId, empresaId: req.user.empresaId }, attributes: ['id'] });
+    if (!destinatario) {
+      return res.status(404).json({ message: "Utilizador não encontrado." });
     }
 
     const notificacaoExistente = await Notificacao.findOne({

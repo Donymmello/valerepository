@@ -4,20 +4,16 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { getAllPedidosRequest } from "../../../api/admin.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatusChip from "../../../components/common/StatusChip";
 
 export default function PedidosList() {
   const [pedidos, setPedidos] = useState([]);
@@ -65,32 +61,15 @@ export default function PedidosList() {
   }, [pedidos, search]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Pedidos
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            Consulte e acompanhe os pedidos de crédito no sistema.
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title="Pedidos"
+        subtitle="Consulte e acompanhe os pedidos de crédito no sistema."
+      />
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <TextField
@@ -132,11 +111,7 @@ export default function PedidosList() {
                     {pedido.numeroPedido}
                   </Typography>
 
-                  <Chip
-                    label={getStatusLabel(pedido.status)}
-                    color={getStatusColor(pedido.status)}
-                    size="small"
-                  />
+                  <StatusChip status={pedido.status} />
                 </Stack>
 
                 <Typography variant="body2" color="text.secondary">

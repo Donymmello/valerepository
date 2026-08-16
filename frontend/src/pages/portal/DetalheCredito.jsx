@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Grid,
   Paper,
   Stack,
@@ -21,6 +20,8 @@ import {
 } from "@mui/material";
 import { getMeuCreditoRequest } from "../../api/portal.api";
 import { formatCurrency, formatDate } from "../../utils/formatters";
+import PageHeader from "../../components/common/PageHeader";
+import LoadingState from "../../components/common/LoadingState";
 
 const getEstadoLabel = (estado) => {
   switch (estado) {
@@ -75,11 +76,7 @@ export default function DetalheCredito() {
   }, [id]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   if (error) {
@@ -97,28 +94,17 @@ export default function DetalheCredito() {
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Detalhe do Crédito
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Veja as informações do seu contrato e o histórico de parcelas.
-          </Typography>
-        </Box>
-
-        <Chip
-          label={getEstadoLabel(credito?.estado)}
-          color={getChipColor(credito?.estado)}
-          sx={{ fontWeight: 700, py: 0.5 }}
-        />
-      </Stack>
+      <PageHeader
+        title="Detalhe do Crédito"
+        subtitle="Veja as informações do seu contrato e o histórico de parcelas."
+        actions={
+          <Chip
+            label={getEstadoLabel(credito?.estado)}
+            color={getChipColor(credito?.estado)}
+            sx={{ fontWeight: 700, py: 0.5 }}
+          />
+        }
+      />
 
       <Stack spacing={3}>
         <Card>

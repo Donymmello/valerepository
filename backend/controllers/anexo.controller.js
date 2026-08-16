@@ -3,10 +3,24 @@ const path = require("path");
 const {
     Anexo,
     PedidoRequisito,
+    PedidoCredito,
 } = require("../models");
+
+// Confirma que o pedidoRequisito pertence a um pedido da empresa autenticada
+async function obterPedidoRequisitoDaEmpresa(pedidoRequisitoId, empresaId) {
+    return PedidoRequisito.findOne({
+        where: { id: pedidoRequisitoId },
+        include: [{ model: PedidoCredito, as: "pedido", where: { empresaId }, required: true }],
+    });
+}
 
 async function anexar (req, res) {
     try {
+        const pedidoRequisito = await obterPedidoRequisitoDaEmpresa(req.params.id, req.user.empresaId);
+        if (!pedidoRequisito) {
+            return res.status(404).json({ message: "Requisito de pedido não encontrado." });
+        }
+
         const anexo = await Anexo.create({
             pedidoRequisitoId: req.params.id,
             nome: req.file.originalname,
@@ -28,6 +42,11 @@ async function anexar (req, res) {
 
 async function listar (req, res) {
     try {
+        const pedidoRequisito = await obterPedidoRequisitoDaEmpresa(req.params.id, req.user.empresaId);
+        if (!pedidoRequisito) {
+            return res.status(404).json({ message: "Requisito de pedido não encontrado." });
+        }
+
         const anexos = await Anexo.findAll({
             where: {
                 pedidoRequisitoId: req.params.id,
@@ -47,11 +66,25 @@ async function listar (req, res) {
 
 async function download (req, res) {
     try {
-        const anexo = await Anexo.findByPk(
-            req.params.id
-        );
+        const anexo = await Anexo.findByPk(req.params.id, {
+            include: [{
+                model: PedidoRequisito,
+                as: "pedidoRequisito",
+                include: [{ model: PedidoCredito, as: "pedido" }],
+            }],
+        });
 
         if (!anexo) {
+            return res.status(404).json({
+                message: "Documento nao encontrado",
+            });
+        }
+
+        const pedido = anexo.pedidoRequisito?.pedido;
+        const ehDaMesmaEmpresa = pedido?.empresaId === req.user.empresaId;
+        const ehDono = anexo.userId === req.user.id;
+
+        if (!ehDaMesmaEmpresa && !ehDono) {
             return res.status(404).json({
                 message: "Documento nao encontrado",
             });

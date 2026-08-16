@@ -23,7 +23,7 @@ async function associarUserMutuario(req, res) {
       });
     }
 
-    const user = await User.findByPk(userId);
+    const user = await User.findOne({ where: { id: userId, empresaId: req.user.empresaId } });
 
     if (!user) {
       return res.status(404).json({
@@ -37,7 +37,7 @@ async function associarUserMutuario(req, res) {
       });
     }
 
-    const mutuario = await Mutuario.findByPk(mutuarioId);
+    const mutuario = await Mutuario.findOne({ where: { id: mutuarioId, empresaId: req.user.empresaId } });
 
     if (!mutuario) {
       return res.status(404).json({
@@ -115,7 +115,8 @@ async function removerAssociacaoUserMutuario(req, res) {
       });
     }
 
-    const mutuario = await Mutuario.findByPk(mutuarioId, {
+    const mutuario = await Mutuario.findOne({
+      where: { id: mutuarioId, empresaId: req.user.empresaId },
       include: [
         {
           model: User,
@@ -179,7 +180,8 @@ async function getAssociacaoMutuario(req, res) {
       });
     }
 
-    const mutuario = await Mutuario.findByPk(mutuarioId, {
+    const mutuario = await Mutuario.findOne({
+      where: { id: mutuarioId, empresaId: req.user.empresaId },
       include: [
         {
           model: User,
@@ -221,6 +223,7 @@ async function getUsersNaoAssociados(req, res) {
 
     const mutuariosAssociados = await Mutuario.findAll({
       where: {
+        empresaId: req.user.empresaId,
         userId: {
           [Op.ne]: null,
         },
@@ -234,6 +237,7 @@ async function getUsersNaoAssociados(req, res) {
 
     const where = {
       role: "USER",
+      empresaId: req.user.empresaId,
     };
 
     if (userIdsAssociados.length > 0) {

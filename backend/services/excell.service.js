@@ -6,11 +6,12 @@ const { Mutuario, PedidoCredito, Desembolso, Reembolso } = require("../models");
   * Service responsável por gerar ficheiro Excel de mutuários
   ===========================================================
 */
-async function gerarExcellMutuarios() {
+async function gerarExcellMutuarios(empresaId) {
   /*
     Busca todos os mutuários
   */
   const mutuarios = await Mutuario.findAll({
+    where: { empresaId },
     order: [["id", "DESC"]],
   });
 
@@ -124,11 +125,12 @@ async function gerarExcellMutuarios() {
   * Service responsável por gerar ficheiro Excel de pedidos
   ===========================================================
 */
-async function gerarExcellPedidos() {
+async function gerarExcellPedidos(empresaId) {
   /*
     Busca todos os pedidos com dados do mutuário e criador
   */
   const pedidos = await PedidoCredito.findAll({
+    where: { empresaId },
     include: [
       {
         association: "mutuario",
@@ -259,8 +261,9 @@ async function gerarExcellPedidos() {
   * Service responsável por gerar ficheiro Excel de desembolsos
   ===========================================================
 */
-async function gerarExcellDesembolsos() {
+async function gerarExcellDesembolsos(empresaId) {
   const desembolsos = await Desembolso.findAll({
+    where: { empresaId },
     include: [
       {
         association: "pedido",
@@ -366,8 +369,9 @@ async function gerarExcellDesembolsos() {
   * Service responsável por gerar ficheiro Excel de reembolsos
   ===========================================================
 */
-async function gerarExcellReembolsos() {
+async function gerarExcellReembolsos(empresaId) {
   const reembolsos = await Reembolso.findAll({
+    where: { empresaId },
     include: [
       {
         association: "pedido",
@@ -474,11 +478,12 @@ async function gerarExcellReembolsos() {
   * financeiro dos pedidos
   ===========================================================
 */
-async function gerarExcellRelatorioFinanceiro() {
+async function gerarExcellRelatorioFinanceiro(empresaId) {
   /*
     Busca todos os pedidos com os relacionamentos necessários
   */
   const pedidos = await PedidoCredito.findAll({
+    where: { empresaId },
     include: [
       {
         association: "mutuario",
@@ -662,7 +667,7 @@ async function gerarExcellRelatorioFinanceiro() {
   * Service responsável por importar mutuários via Excel
   ===========================================================
 */
-async function importarExcellMutuarios({ fileBuffer, userId }) {
+async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
   /*
     Lê o ficheiro Excel em memória
   */
@@ -865,6 +870,7 @@ async function importarExcellMutuarios({ fileBuffer, userId }) {
     */
     const dadosMutuario = {
       codigoMutuario,
+      empresaId,
       nomeCompleto,
       documentoTipo: documentoTipo || null,
       documentoNumero: documentoNumero || null,
@@ -906,7 +912,7 @@ async function importarExcellMutuarios({ fileBuffer, userId }) {
   * Service responsável por importar pedidos via Excel
   ===========================================================
 */
-async function importarExcellPedidos({ fileBuffer, userId }) {
+async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
   /*
     Lê o ficheiro Excel em memória
   */
@@ -1132,7 +1138,7 @@ async function importarExcellPedidos({ fileBuffer, userId }) {
       Localiza o mutuário pelo código
     */
     const mutuario = await Mutuario.findOne({
-      where: { codigoMutuario }
+      where: { codigoMutuario, empresaId }
     });
 
     if (!mutuario) {
@@ -1149,6 +1155,7 @@ async function importarExcellPedidos({ fileBuffer, userId }) {
     const dadosPedido = {
       numeroPedido,
       mutuarioId: mutuario.id,
+      empresaId,
       valorSolicitado,
       finalidade,
       pacoteFinanciamento: pacoteFinanciamento || null,

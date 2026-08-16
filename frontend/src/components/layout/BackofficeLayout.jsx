@@ -16,27 +16,43 @@ import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
-export default function BackofficeLayout({ children }) {
+const DEFAULT_LINKS = [
+  { label: "Dashboard", to: "/interno" },
+  { label: "Pedidos", to: "/interno/pedidos" },
+  { label: "Mutuários", to: "/interno/mutuarios" },
+  { label: "Aprovações", to: "/interno/aprovacoes" },
+  { label: "Desembolsos", to: "/interno/desembolsos" },
+  { label: "Reembolsos", to: "/interno/reembolsos" },
+  { label: "Relatórios", to: "/interno/relatorios" },
+  { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
+];
+
+// variant="minimal" (usado pelo painel SUPERADMIN): mesma casca de
+// layout (AppBar + barra de navegação), sem notificações/avatar — só
+// um chip com o nome do utilizador.
+export default function BackofficeLayout({
+  children,
+  links,
+  title = "Backoffice",
+  subtitle = "Gestão interna do sistema de crédito",
+  homePath = "/interno",
+  variant = "full",
+}) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const links = [
-    { label: "Dashboard", to: "/interno" },
-    { label: "Pedidos", to: "/interno/pedidos" },
-    { label: "Mutuários", to: "/interno/mutuarios" },
-    { label: "Aprovações", to: "/interno/aprovacoes" },
-    { label: "Desembolsos", to: "/interno/desembolsos" },
-    { label: "Reembolsos", to: "/interno/reembolsos" },
-    { label: "Relatórios", to: "/interno/relatorios" },
-    { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
-    ...(["ADMIN", "GESTOR"].includes(user?.role)
-      ? [{ label: "Convites de Registo", to: "/interno/convites-portal" }]
-      : []),
-    ...(["ADMIN", "GESTOR"].includes(user?.role)
-      ? [{ label: "Empresa", to: "/interno/empresa" }]
-      : []),
-  ];
+  const resolvedLinks =
+    links ??
+    [
+      ...DEFAULT_LINKS,
+      ...(["ADMIN", "GESTOR"].includes(user?.role)
+        ? [{ label: "Convites de Registo", to: "/interno/convites-portal" }]
+        : []),
+      ...(["ADMIN", "GESTOR"].includes(user?.role)
+        ? [{ label: "Empresa", to: "/interno/empresa" }]
+        : []),
+    ];
 
   const handleLogout = () => {
     logout();
@@ -44,7 +60,7 @@ export default function BackofficeLayout({ children }) {
   };
 
   const isActive = (path) => {
-    if (path === "/interno") return location.pathname === "/interno";
+    if (path === homePath) return location.pathname === homePath;
     return location.pathname.startsWith(path);
   };
 
@@ -61,18 +77,17 @@ export default function BackofficeLayout({ children }) {
             gap: 2,
           }}
         >
-          {/* Logo — clicável, mantem na dashboard */}
+          {/* Logo — clicável, mantem na home deste layout */}
           <Stack
             spacing={0.5}
             sx={{ cursor: "pointer" }}
-            onClick={() => 
-              navigate("/interno")}
+            onClick={() => navigate(homePath)}
           >
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Backoffice
+              {title}
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.7 }}>
-              Gestão interna do sistema de crédito
+              {subtitle}
             </Typography>
           </Stack>
 
@@ -81,43 +96,53 @@ export default function BackofficeLayout({ children }) {
             spacing={1.5}
             alignItems={{ xs: "flex-start", sm: "center" }}
           >
-            {/* Notificações com ícone MUI real */}
-            <Tooltip title="Notificações">
-              <IconButton
-                component={RouterLink}
-                to="/interno/notificacoes"
-                color="inherit"
-              >
-                <Badge color="error" variant="dot">
-                  <NotificationsIcon />
-                </Badge>
-              </IconButton>
-            </Tooltip>
+            {variant === "full" ? (
+              <>
+                {/* Notificações com ícone MUI real */}
+                <Tooltip title="Notificações">
+                  <IconButton
+                    component={RouterLink}
+                    to="/interno/notificacoes"
+                    color="inherit"
+                  >
+                    <Badge color="error" variant="dot">
+                      <NotificationsIcon />
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
 
-            {/* Avatar + info do user */}
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Avatar
-                sx={{ width: 36, height: 36, bgcolor: "#3b82f6", fontWeight: 700 }}
-              >
-                {user?.nome ? user.nome.charAt(0).toUpperCase() : "U"}
-              </Avatar>
+                {/* Avatar + info do user */}
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar
+                    sx={{ width: 36, height: 36, bgcolor: "#3b82f6", fontWeight: 700 }}
+                  >
+                    {user?.nome ? user.nome.charAt(0).toUpperCase() : "U"}
+                  </Avatar>
 
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {user?.nome || "Utilizador"}
-                </Typography>
-                <Chip
-                  label={user?.role || "-"}
-                  size="small"
-                  sx={{
-                    mt: 0.5,
-                    backgroundColor: "rgba(255,255,255,0.15)",
-                    color: "#fff",
-                    fontSize: "0.65rem",
-                  }}
-                />
-              </Box>
-            </Stack>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {user?.nome || "Utilizador"}
+                    </Typography>
+                    <Chip
+                      label={user?.role || "-"}
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        backgroundColor: "rgba(255,255,255,0.15)",
+                        color: "#fff",
+                        fontSize: "0.65rem",
+                      }}
+                    />
+                  </Box>
+                </Stack>
+              </>
+            ) : (
+              <Chip
+                label={user?.nome || "SUPERADMIN"}
+                size="small"
+                sx={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#fff" }}
+              />
+            )}
 
             <Button
               variant="outlined"
@@ -143,7 +168,7 @@ export default function BackofficeLayout({ children }) {
             spacing={0.5}
             sx={{ py: 1.5, overflowX: "auto" }}
           >
-            {links.map((link) => {
+            {resolvedLinks.map((link) => {
               const active = isActive(link.to);
               return (
                 <Button

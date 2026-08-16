@@ -5,18 +5,16 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { getAllAprovacoesRequest } from "../../../api/admin.api";
-import {
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
+import StatusChip from "../../../components/common/StatusChip";
 
 export default function AprovacoesList() {
   const [aprovacoes, setAprovacoes] = useState([]);
@@ -74,32 +72,15 @@ export default function AprovacoesList() {
   }, [aprovacoes, search]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Aprovações
-          </Typography>
-
-          <Typography variant="body2" color="text.secondary">
-            Consulte as aprovações registadas no sistema para auditoria e supervisão.
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader
+        title="Aprovações"
+        subtitle="Consulte as aprovações registadas no sistema para auditoria e supervisão."
+      />
 
       <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <TextField
@@ -145,13 +126,7 @@ export default function AprovacoesList() {
                       {aprovacao.pedido?.numeroPedido || `Aprovação #${aprovacao.id}`}
                     </Typography>
 
-                    {statusPedido && (
-                      <Chip
-                        label={getStatusLabel(statusPedido)}
-                        color={getStatusColor(statusPedido)}
-                        size="small"
-                      />
-                    )}
+                    {statusPedido && <StatusChip status={statusPedido} />}
 
                     <Chip
                       label={aprovacao.decisao || "-"}

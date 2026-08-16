@@ -25,7 +25,8 @@ async function getExtratoPedido(req, res) {
   try {
     const { pedidoId } = req.params;
 
-    const pedido = await PedidoCredito.findByPk(pedidoId, {
+    const pedido = await PedidoCredito.findOne({
+      where: { id: pedidoId, empresaId: req.user.empresaId },
       include: [
         {
           model: Mutuario,

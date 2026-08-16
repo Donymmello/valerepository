@@ -40,7 +40,7 @@ async function adicionarPedidoRequisito(req, res) {
       });
     }
 
-    const pedido = await PedidoCredito.findByPk(pedidoId);
+    const pedido = await PedidoCredito.findOne({ where: { id: pedidoId, empresaId: req.user.empresaId } });
 
     if (!pedido) {
       return res.status(404).json({
@@ -60,7 +60,7 @@ async function adicionarPedidoRequisito(req, res) {
       });
     }
 
-    const requisito = await RequisitoCredito.findByPk(requisitoId);
+    const requisito = await RequisitoCredito.findOne({ where: { id: requisitoId, empresaId: req.user.empresaId } });
 
     if (!requisito) {
       return res.status(404).json({
@@ -133,7 +133,7 @@ async function getRequisitosByPedido(req, res) {
   try {
     const { pedidoId } = req.params;
 
-    const pedido = await PedidoCredito.findByPk(pedidoId);
+    const pedido = await PedidoCredito.findOne({ where: { id: pedidoId, empresaId: req.user.empresaId } });
 
     if (!pedido) {
       return res.status(404).json({
@@ -197,6 +197,8 @@ async function validarRequisitoPedido(req, res) {
         {
           model: PedidoCredito,
           as: "pedido",
+          where: { empresaId: req.user.empresaId },
+          required: true,
         },
         {
           model: RequisitoCredito,

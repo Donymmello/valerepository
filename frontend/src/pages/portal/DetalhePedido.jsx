@@ -22,9 +22,7 @@ import {
 import {
   getMeuPedidoByIdRequest,
   uploadRequisitoDocumentoRequest,
-  getMeusComprovatioRequest,
-  enviarComprovatioRequest,
-  downloadComprovatioRequest,
+  getMeusCreditosRequest,
   getMeuExtratoPedidoRequest,
 } from "../../api/portal.api";
 import {
@@ -33,7 +31,6 @@ import {
   getStatusColor,
   getStatusLabel,
 } from "../../utils/formatters";
-import ComprovativoSection from "../../pages/portal/ComprovativoSection";
 
 // ─── Painel de tab ────────────────────────────────────────────────────────────
 function TabPanel({ value, index, children }) {
@@ -56,6 +53,12 @@ export default function DetalhePedido() {
   const [extrato, setExtrato] = useState(null);
   const [loadingExtrato, setLoadingExtrato] = useState(false);
   const [erroExtrato, setErroExtrato] = useState("");
+
+  // Comprovativos — o pedido não tem o crédito embutido na resposta,
+  // por isso vamos buscar aos meus créditos e filtrar pelo pedidoId.
+  const [creditoDoPedido, setCreditoDoPedido] = useState(undefined); // undefined = ainda não procurado, null = não existe
+  const [loadingCredito, setLoadingCredito] = useState(false);
+  const [erroCredito, setErroCredito] = useState("");
 
   const carregarPedido = async () => {
     try {
@@ -92,6 +95,27 @@ export default function DetalhePedido() {
   useEffect(() => {
     if (tab === 3) carregarExtrato();
   }, [tab]);
+
+  // Carrega o crédito deste pedido só quando o user clica na tab Comprovativos
+  useEffect(() => {
+    if (tab !== 2 || creditoDoPedido !== undefined) return;
+    (async () => {
+      try {
+        setLoadingCredito(true);
+        setErroCredito("");
+        const creditos = await getMeusCreditosRequest();
+        const encontrado = (creditos || []).find(
+          (c) => String(c.pedidoId) === String(id)
+        );
+        setCreditoDoPedido(encontrado || null);
+      } catch (err) {
+        console.error(err);
+        setErroCredito("Erro ao verificar o crédito deste pedido.");
+      } finally {
+        setLoadingCredito(false);
+      }
+    })();
+  }, [tab, id, creditoDoPedido]);
 
   if (loading) {
     return (
@@ -335,13 +359,38 @@ export default function DetalhePedido() {
 
               {/* ── Tab 2: Comprovativos ──────────────────────────────── */}
               <TabPanel value={tab} index={2}>
-                <ComprovativoSection
-                  pedidoId={id}
-                  pedidoStatus={pedido.status}
-                  getMeusComprovativos={getMeusComprovatioRequest}
-                  enviarComprovativo={enviarComprovatioRequest}
-                  downloadComprovativo={downloadComprovatioRequest}
-                />
+                {loadingCredito ? (
+                  <Stack direction="row" spacing={1} alignItems="center" py={2}>
+                    <CircularProgress size={18} />
+                    <Typography variant="body2" color="text.secondary">
+                      A verificar o crédito deste pedido...
+                    </Typography>
+                  </Stack>
+                ) : erroCredito ? (
+                  <Alert severity="error">{erroCredito}</Alert>
+                ) : creditoDoPedido ? (
+                  <Stack spacing={2}>
+                    <Typography color="text.secondary">
+                      Este pedido já tem um crédito ativo. Envia o comprovativo
+                      de pagamento de uma parcela na página de pagamento.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<UploadFileIcon />}
+                      component={RouterLink}
+                      to={`/portal/meus-creditos/${creditoDoPedido.id}/pagamento`}
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Efetuar Pagamento
+                    </Button>
+                  </Stack>
+                ) : (
+                  <Typography color="text.secondary">
+                    Ainda não existe nenhum crédito associado a este pedido —
+                    os comprovativos só podem ser enviados depois do
+                    desembolso.
+                  </Typography>
+                )}
               </TabPanel>
 
               {/* ── Tab 3: Extrato ────────────────────────────────────── */}

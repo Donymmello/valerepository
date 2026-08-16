@@ -19,9 +19,9 @@ import {
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
 import {
-  getComprovatiosByPedidoRequest,
-  validarComprovatioRequest,
-  downloadComprovatioRequest,
+  getComprovativosByPedidoRequest,
+  validarComprovativoRequest,
+  downloadComprovativoRequest,
 } from "../../api/admin.api";
 import { formatDate } from "../../utils/formatters";
 
@@ -69,7 +69,7 @@ function FormValidacao({ comprativoId, onSuccess, onCancel }) {
 
     try {
       setSaving(true);
-      await validarComprovatioRequest(comprativoId, {
+      await validarComprovativoRequest(comprativoId, {
         estado: form.estado,
         observacoes: form.observacoes || null,
         valorReembolsado: form.estado === "VALIDADO" ? Number(form.valorReembolsado) : undefined,
@@ -206,7 +206,7 @@ export default function ComprovativoBackofficeSection({ pedidoId, onUpdated }) {
     try {
       setLoading(true);
       setErro("");
-      const data = await getComprovatiosByPedidoRequest(pedidoId);
+      const data = await getComprovativosByPedidoRequest(pedidoId);
       setComprovativos(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
@@ -223,7 +223,7 @@ export default function ComprovativoBackofficeSection({ pedidoId, onUpdated }) {
   const handleDownload = async (c) => {
     try {
       setDownloadingId(c.id);
-      await downloadComprovatioRequest(c.id, c.nome);
+      await downloadComprovativoRequest(c.id, c.nome);
     } catch (err) {
       console.error(err);
     } finally {
@@ -274,9 +274,19 @@ export default function ComprovativoBackofficeSection({ pedidoId, onUpdated }) {
                   <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
                     <ReceiptIcon color="action" fontSize="small" />
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
-                        {c.nome}
-                      </Typography>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                          {c.nome}
+                        </Typography>
+                        {c.parcela && (
+                          <Chip
+                            label={`Parcela ${c.parcela.numeroParcela}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        )}
+                      </Stack>
                       <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
                         <EstadoChip estado={c.estado} />
                         <Typography variant="caption" color="text.secondary">

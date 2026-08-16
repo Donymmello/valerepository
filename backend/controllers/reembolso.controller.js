@@ -51,7 +51,7 @@ const createReembolso = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Valor do reembolso deve ser maior que zero." });
   }
 
-  const credito = await Credito.findByPk(creditoId);
+  const credito = await Credito.findOne({ where: { id: creditoId, empresaId: req.user.empresaId } });
   if (!credito) {
     return res.status(404).json({ message: "Crédito não encontrado." });
   }
@@ -70,6 +70,7 @@ const createReembolso = asyncHandler(async (req, res) => {
 
     const novoReembolso = await Reembolso.create({
       creditoId,
+      empresaId: credito.empresaId,
       parcelaId: parcelaId || null,
       valorReembolsado,
       dataReembolso: dataFormatada,
@@ -130,6 +131,7 @@ const createReembolso = asyncHandler(async (req, res) => {
  */
 const getAllReembolsos = asyncHandler(async (req, res) => {
   const reembolsos = await Reembolso.findAll({
+    where: { empresaId: req.user.empresaId },
     include: [
       { model: Credito, as: "credito" },
       { model: ParcelaPagamento, as: "parcela" },
@@ -148,7 +150,7 @@ const getReembolsoByCredito = asyncHandler(async (req, res) => {
   const { creditoId } = req.params;
 
   const reembolsos = await Reembolso.findAll({
-    where: { creditoId },
+    where: { creditoId, empresaId: req.user.empresaId },
     include: [
       { model: Credito, as: "credito" },
       { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
@@ -165,7 +167,8 @@ const getReembolsoByCredito = asyncHandler(async (req, res) => {
 const obterReembolso = asyncHandler(async (req, res) => {
   const { reembolsoId } = req.params;
 
-  const reembolso = await Reembolso.findByPk(reembolsoId, {
+  const reembolso = await Reembolso.findOne({
+    where: { id: reembolsoId, empresaId: req.user.empresaId },
     include: [
       { model: Credito, as: "credito" },
       { model: ParcelaPagamento, as: "parcela" },

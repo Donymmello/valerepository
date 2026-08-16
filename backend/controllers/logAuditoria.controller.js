@@ -13,7 +13,8 @@ async function getAllLogsAuditoria(req, res) {
         {
           model: User,
           as: "user",
-          required: false,
+          required: true,
+          where: { empresaId: req.user.empresaId },
           attributes: ["id", "nome", "email", "role", "ativo"],
         },
       ],
@@ -45,7 +46,8 @@ async function getLogAuditoriaById(req, res) {
         {
           model: User,
           as: "user",
-          required: false,
+          required: true,
+          where: { empresaId: req.user.empresaId },
           attributes: ["id", "nome", "email", "role", "ativo"],
         },
       ],

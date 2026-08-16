@@ -4,44 +4,19 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
+  Chip,
   Divider,
   Grid,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  AccountBalance as AccountBalanceIcon,
-  Assignment as AssignmentIcon,
-  CheckCircle as CheckCircleIcon,
-  HourglassEmpty as HourglassIcon,
-  People as PeopleIcon,
-  TrendingUp as TrendingUpIcon,
-} from "@mui/icons-material";
 import { useAuth } from "../../context/AuthContext";
-import { getResumoGeralRequest } from "../../api/admin.api";
-import { formatCurrency } from "../../utils/formatters";
-
-function StatCard({ label, value, icon, color = "#1a237e" }) {
-  return (
-    <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-        <Box>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            {label}
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 800, color }}>
-            {value ?? "—"}
-          </Typography>
-        </Box>
-        <Box sx={{ color, opacity: 0.2, fontSize: 48 }}>
-          {icon}
-        </Box>
-      </Stack>
-    </Paper>
-  );
-}
+import { getResumoGeralRequest, getDashboardFinanceiroRequest } from "../../api/admin.api";
+import { formatCurrency, getStatusLabel, getStatusColor } from "../../utils/formatters";
+import LoadingState from "../../components/common/LoadingState";
+import StatCard from "../../components/common/StatCard";
+import { CORES } from "../../theme";
 
 function ModuloCard({ titulo, descricao, to, buttonLabel }) {
   return (
@@ -68,14 +43,19 @@ function ModuloCard({ titulo, descricao, to, buttonLabel }) {
 export default function DashboardInterno() {
   const { user } = useAuth();
   const [resumo, setResumo] = useState(null);
+  const [financeiro, setFinanceiro] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const carregar = async () => {
       try {
-        const data = await getResumoGeralRequest();
-        setResumo(data);
+        const [resumoData, financeiroData] = await Promise.all([
+          getResumoGeralRequest(),
+          getDashboardFinanceiroRequest(),
+        ]);
+        setResumo(resumoData);
+        setFinanceiro(financeiroData);
       } catch (err) {
         console.error(err);
         setError("Não foi possível carregar o resumo.");
@@ -86,6 +66,10 @@ export default function DashboardInterno() {
 
     carregar();
   }, []);
+
+  const parcelasVencidas = financeiro?.parcelas?.parcelasVencidas ?? 0;
+  const creditosIncumprimento = financeiro?.resumo?.creditosIncumprimento ?? 0;
+  const temAtencaoNecessaria = parcelasVencidas > 0 || creditosIncumprimento > 0;
 
   return (
     <Box>
@@ -101,62 +85,122 @@ export default function DashboardInterno() {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      {/* Stats */}
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
+        <LoadingState />
       ) : (
-        <Grid container spacing={3} mb={4}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Total de Pedidos"
-              value={resumo?.totalPedidos ?? 0}
-              icon={<AssignmentIcon fontSize="inherit" />}
-              color="#1a237e"
-            />
+        <>
+          {/* Aviso de atenção necessária — só aparece quando há algo a tratar */}
+          {temAtencaoNecessaria && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Stack direction="row" spacing={3} flexWrap="wrap">
+                {parcelasVencidas > 0 && (
+                  <Typography variant="body2">
+                    <strong>{parcelasVencidas}</strong> parcela{parcelasVencidas !== 1 ? "s" : ""} vencida{parcelasVencidas !== 1 ? "s" : ""} por cobrar
+                  </Typography>
+                )}
+                {creditosIncumprimento > 0 && (
+                  <Typography variant="body2">
+                    <strong>{creditosIncumprimento}</strong> crédito{creditosIncumprimento !== 1 ? "s" : ""} em incumprimento
+                  </Typography>
+                )}
+              </Stack>
+            </Alert>
+          )}
+
+          {/* Carteira */}
+          <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
+            Carteira
+          </Typography>
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                label="Saldo da Carteira"
+                value={formatCurrency(financeiro?.financeiro?.saldoCarteira)}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                label="Total Desembolsado"
+                value={formatCurrency(financeiro?.financeiro?.valorDesembolsado)}
+                color={CORES.info}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                label="Total Recebido"
+                value={formatCurrency(financeiro?.financeiro?.valorRecebido)}
+                color={CORES.sucesso}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                label="Parcelas Vencidas"
+                value={parcelasVencidas}
+                color={parcelasVencidas > 0 ? CORES.erro : CORES.marca}
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Pedidos Pendentes"
-              value={resumo?.pedidosPendentes ?? 0}
-              icon={<HourglassIcon fontSize="inherit" />}
-              color="#b45309"
-            />
+
+          {/* Pedidos */}
+          <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
+            Pedidos
+          </Typography>
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Total de Pedidos" value={resumo?.totalPedidos ?? 0} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Pedidos Pendentes" value={resumo?.pedidosPendentes ?? 0} color={CORES.aviso} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Pedidos Aprovados" value={resumo?.pedidosAprovados ?? 0} color={CORES.sucesso} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Total Mutuários" value={resumo?.totalMutuarios ?? 0} color={CORES.roxo} />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Pedidos Aprovados"
-              value={resumo?.pedidosAprovados ?? 0}
-              icon={<CheckCircleIcon fontSize="inherit" />}
-              color="#15803d"
-            />
+
+          {resumo?.pedidosPorStatus && Object.keys(resumo.pedidosPorStatus).length > 0 && (
+            <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+              <Typography variant="body2" color="text.secondary" mb={1.5}>
+                Pedidos por estado
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {Object.entries(resumo.pedidosPorStatus).map(([status, total]) => (
+                  <Chip
+                    key={status}
+                    label={`${getStatusLabel(status)}: ${total}`}
+                    color={getStatusColor(status)}
+                    size="small"
+                  />
+                ))}
+              </Stack>
+            </Paper>
+          )}
+
+          {/* Créditos */}
+          <Typography variant="h6" sx={{ fontWeight: 700 }} mb={2}>
+            Créditos
+          </Typography>
+          <Grid container spacing={3} mb={4}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Créditos Ativos" value={financeiro?.resumo?.creditosAtivos ?? 0} color={CORES.sucesso} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Créditos Liquidados" value={financeiro?.resumo?.creditosLiquidados ?? 0} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                label="Em Incumprimento"
+                value={creditosIncumprimento}
+                color={creditosIncumprimento > 0 ? CORES.erro : CORES.marca}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard label="Reestruturados" value={financeiro?.resumo?.creditosReestruturados ?? 0} color={CORES.roxo} />
+            </Grid>
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Total Mutuários"
-              value={resumo?.totalMutuarios ?? 0}
-              icon={<PeopleIcon fontSize="inherit" />}
-              color="#7c3aed"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Total Desembolsado"
-              value={resumo?.totalDesembolsado != null ? formatCurrency(resumo.totalDesembolsado) : "—"}
-              icon={<AccountBalanceIcon fontSize="inherit" />}
-              color="#0369a1"
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              label="Total Reembolsado"
-              value={resumo?.totalReembolsado != null ? formatCurrency(resumo.totalReembolsado) : "—"}
-              icon={<TrendingUpIcon fontSize="inherit" />}
-              color="#0f766e"
-            />
-          </Grid>
-        </Grid>
+        </>
       )}
 
       <Divider sx={{ mb: 4 }} />

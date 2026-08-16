@@ -7,7 +7,7 @@ const { asyncHandler } = require("../middleware/errorHandler.middleware");
  */
 const buscarCreditosElegiveisReembolso = asyncHandler(async (req, res) => {
   const creditos = await Credito.findAll({
-    where: { estado: "ATIVO" },
+    where: { estado: "ATIVO", empresaId: req.user.empresaId },
     include: [
       {
         model: ParcelaPagamento,
@@ -30,7 +30,8 @@ const buscarCreditosElegiveisReembolso = asyncHandler(async (req, res) => {
  * BUSCAR CRÉDITO COM HISTÓRICO DE REEMBOLSOS
  */
 const buscarCreditoComReembolsos = asyncHandler(async (req, res) => {
-  const credito = await Credito.findByPk(req.params.creditoId, {
+  const credito = await Credito.findOne({
+    where: { id: req.params.creditoId, empresaId: req.user.empresaId },
     include: [
       { model: ParcelaPagamento, as: "parcelas", order: [["numeroParcela", "ASC"]] },
       { model: Reembolso, as: "reembolsos", order: [["created_at", "DESC"]] },
@@ -51,6 +52,7 @@ const buscarCreditoComReembolsos = asyncHandler(async (req, res) => {
  */
 const getAllCreditos = asyncHandler(async (req, res) => {
   const creditos = await Credito.findAll({
+    where: { empresaId: req.user.empresaId },
     include: [
       { model: PedidoCredito, as: "pedido" },
       { model: Mutuario, as: "mutuario" },

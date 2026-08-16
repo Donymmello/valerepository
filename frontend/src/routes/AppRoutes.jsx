@@ -14,6 +14,7 @@ import DetalhePedido from "../pages/portal/DetalhePedido";
 import ExtratoPedido from "../pages/portal/ExtratoPedido";
 import MeusCreditos from "../pages/portal/MeusCreditos";
 import DetalheCredito from "../pages/portal/DetalheCredito";
+import EfetuarPagamento from "../pages/portal/EfetuarPagamento";
 import DashboardInterno from "../pages/admin/DashboardInterno";
 import PortalLayout from "../components/layout/PortalLayout";
 import BackofficeLayout from "../components/layout/BackofficeLayout";
@@ -35,10 +36,14 @@ import AlertasPrazo from "../pages/admin/alertas/AlertasPrazo";
 import RegisterUser from "../pages/auth/RegisterUser";
 import ConvitesPortal from "../pages/auth/ConvitesPortal";
 import EmpresaConfiguracoes from "../pages/admin/empresa/EmpresaConfiguracoes";
-import SuperAdminLayout from "../components/layout/SuperAdminLayout";
 import EmpresasList from "../pages/superadmin/EmpresasList";
 import SolicitacoesAcessoList from "../pages/superadmin/SolicitacoesAcessoList";
 import LandingPage from "../pages/public/LandingPage";
+
+const SUPERADMIN_LINKS = [
+  { label: "Empresas", to: "/superadmin/empresas" },
+  { label: "Pedidos de Acesso", to: "/superadmin/solicitacoes-acesso" },
+];
 
 
 export default function AppRoutes() {
@@ -130,7 +135,18 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
- 
+
+        <Route
+          path="/portal/meus-creditos/:creditoId/pagamento"
+          element={
+            <ProtectedRoute allowedRoles={["MUTUARIO", "USER"]}>
+              <PortalLayout>
+                <EfetuarPagamento />
+              </PortalLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/portal/meus-pedidos/:id"
           element={
@@ -371,9 +387,15 @@ export default function AppRoutes() {
           path="/superadmin/empresas"
           element={
             <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
-              <SuperAdminLayout>
+              <BackofficeLayout
+                variant="minimal"
+                title="Plataforma"
+                subtitle="Gestão de empresas e subscrições"
+                homePath="/superadmin/empresas"
+                links={SUPERADMIN_LINKS}
+              >
                 <EmpresasList />
-              </SuperAdminLayout>
+              </BackofficeLayout>
             </ProtectedRoute>
           }
         />
@@ -382,9 +404,15 @@ export default function AppRoutes() {
           path="/superadmin/solicitacoes-acesso"
           element={
             <ProtectedRoute allowedRoles={["SUPERADMIN"]}>
-              <SuperAdminLayout>
+              <BackofficeLayout
+                variant="minimal"
+                title="Plataforma"
+                subtitle="Gestão de empresas e subscrições"
+                homePath="/superadmin/empresas"
+                links={SUPERADMIN_LINKS}
+              >
                 <SolicitacoesAcessoList />
-              </SuperAdminLayout>
+              </BackofficeLayout>
             </ProtectedRoute>
           }
         />

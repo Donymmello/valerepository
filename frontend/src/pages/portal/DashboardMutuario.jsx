@@ -4,8 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Chip,
-  CircularProgress,
   Divider,
   Grid,
   Paper,
@@ -23,12 +21,11 @@ import {
   getMeuMutuarioRequest,
   getMeusPedidosRequest,
 } from "../../api/portal.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
+import LoadingState from "../../components/common/LoadingState";
+import StatCard from "../../components/common/StatCard";
+import StatusChip from "../../components/common/StatusChip";
+import { CORES } from "../../theme";
 
 export default function DashboardMutuario() {
   const { user } = useAuth();
@@ -63,11 +60,7 @@ export default function DashboardMutuario() {
   }, []);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   const pedidosRecentes = pedidos.slice(0, 3);
@@ -92,47 +85,19 @@ export default function DashboardMutuario() {
       {/* Stats */}
       <Grid container spacing={3} mb={4}>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary" mb={1}>
-              Código do Mutuário
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#1a237e" }}>
-              {mutuario?.codigoMutuario || "—"}
-            </Typography>
-          </Paper>
+          <StatCard label="Código do Mutuário" value={mutuario?.codigoMutuario || "—"} />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary" mb={1}>
-              Total de Pedidos
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#1a237e" }}>
-              {pedidos.length}
-            </Typography>
-          </Paper>
+          <StatCard label="Total de Pedidos" value={pedidos.length} />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary" mb={1}>
-              Pedidos Ativos
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#b45309" }}>
-              {pedidosAtivos}
-            </Typography>
-          </Paper>
+          <StatCard label="Pedidos Ativos" value={pedidosAtivos} color={CORES.aviso} />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="body2" color="text.secondary" mb={1}>
-              Estado da Conta
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: "#15803d" }}>
-              Ativa
-            </Typography>
-          </Paper>
+          <StatCard label="Estado da Conta" value="Ativa" color={CORES.sucesso} />
         </Grid>
       </Grid>
 
@@ -287,11 +252,7 @@ export default function DashboardMutuario() {
                     <Typography sx={{ fontWeight: 700 }}>
                       {pedido.numeroPedido}
                     </Typography>
-                    <Chip
-                      label={getStatusLabel(pedido.status)}
-                      color={getStatusColor(pedido.status)}
-                      size="small"
-                    />
+                    <StatusChip status={pedido.status} />
                   </Stack>
 
                   <Typography variant="body2" color="text.secondary">

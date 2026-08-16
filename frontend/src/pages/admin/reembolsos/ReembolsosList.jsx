@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   MenuItem,
   Paper,
   Snackbar,
@@ -18,12 +17,9 @@ import {
   getAllReembolsosRequest,
   getCreditosElegiveisReembolsoRequest,
 } from "../../../api/admin.api";
-import {
-  formatCurrency,
-  formatDate,
-  getStatusColor,
-  getStatusLabel,
-} from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
+import PageHeader from "../../../components/common/PageHeader";
+import LoadingState from "../../../components/common/LoadingState";
 
 export default function ReembolsosList() {
   const [reembolsos, setReembolsos] = useState([]);
@@ -252,31 +248,12 @@ export default function ReembolsosList() {
   }, [reembolsos, search]);
 
   if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Box>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "center" }}
-        spacing={2}
-        mb={3}
-      >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Reembolsos
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Registar e gerir reembolsos de créditos
-          </Typography>
-        </Box>
-      </Stack>
+      <PageHeader title="Reembolsos" subtitle="Registar e gerir reembolsos de créditos." />
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
