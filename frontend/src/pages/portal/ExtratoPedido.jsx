@@ -14,6 +14,9 @@ import {
 import {
   getMeuExtratoPedidoRequest,
   exportarMeuExtratoExcelRequest,
+  exportarMeuExtratoPdfRequest,
+  exportarComprovativoDesembolsoRequest,
+  exportarComprovativoReembolsoRequest,
 } from "../../api/portal.api";
 import {
   formatCurrency,
@@ -47,20 +50,54 @@ export default function ExtratoPedido() {
     carregarExtrato();
   }, [id]);
 
+  const baixarFicheiro = (blob, nomeFicheiro) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeFicheiro;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleExportarExtrato = async () => {
     try {
       const blob = await exportarMeuExtratoExcelRequest(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `extrato_pedido_${id}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      baixarFicheiro(blob, `extrato_pedido_${id}.xlsx`);
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao exportar extrato.");
+    }
+  };
+
+  const handleExportarExtratoPdf = async () => {
+    try {
+      const blob = await exportarMeuExtratoPdfRequest(id);
+      baixarFicheiro(blob, `extrato_pedido_${id}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao exportar extrato em PDF.");
+    }
+  };
+
+  const handleComprovativoDesembolso = async (desembolsoId) => {
+    try {
+      const blob = await exportarComprovativoDesembolsoRequest(desembolsoId);
+      baixarFicheiro(blob, `comprovativo_desembolso_${desembolsoId}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao gerar comprovativo.");
+    }
+  };
+
+  const handleComprovativoReembolso = async (reembolsoId) => {
+    try {
+      const blob = await exportarComprovativoReembolsoRequest(reembolsoId);
+      baixarFicheiro(blob, `comprovativo_reembolso_${reembolsoId}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao gerar comprovativo.");
     }
   };
 
@@ -78,9 +115,14 @@ export default function ExtratoPedido() {
         title="Extrato do Pedido"
         subtitle="Consulte o resumo financeiro e os movimentos do pedido."
         actions={
-          <Button variant="outlined" onClick={handleExportarExtrato}>
-            Exportar Extrato
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button variant="outlined" onClick={handleExportarExtrato}>
+              Exportar Excel
+            </Button>
+            <Button variant="outlined" onClick={handleExportarExtratoPdf}>
+              Exportar PDF
+            </Button>
+          </Stack>
         }
       />
 
@@ -146,6 +188,10 @@ export default function ExtratoPedido() {
                 {formatCurrency(dados.resumoFinanceiro?.totalReembolsado)}
               </Typography>
               <Typography>
+                <strong>Montante Total (capital + juros):</strong>{" "}
+                {formatCurrency(dados.resumoFinanceiro?.montanteTotal)}
+              </Typography>
+              <Typography>
                 <strong>Saldo em Dívida:</strong>{" "}
                 {formatCurrency(dados.resumoFinanceiro?.saldoEmDivida)}
               </Typography>
@@ -161,20 +207,37 @@ export default function ExtratoPedido() {
               <Stack spacing={2}>
                 {dados.pedido.desembolsos.map((item) => (
                   <Box key={item.id}>
-                    <Typography>
-                      <strong>Valor:</strong>{" "}
-                      {formatCurrency(item.valorDesembolsado)}
-                    </Typography>
-                    <Typography>
-                      <strong>Data:</strong> {formatDate(item.dataDesembolso)}
-                    </Typography>
-                    <Typography>
-                      <strong>Meio de Pagamento:</strong>{" "}
-                      {item.meioPagamento || "-"}
-                    </Typography>
-                    <Typography>
-                      <strong>Observações:</strong> {item.observacoes || "-"}
-                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      justifyContent="space-between"
+                      alignItems={{ sm: "flex-start" }}
+                      spacing={1}
+                    >
+                      <Box>
+                        <Typography>
+                          <strong>Valor:</strong>{" "}
+                          {formatCurrency(item.valorDesembolsado)}
+                        </Typography>
+                        <Typography>
+                          <strong>Data:</strong> {formatDate(item.dataDesembolso)}
+                        </Typography>
+                        <Typography>
+                          <strong>Meio de Pagamento:</strong>{" "}
+                          {item.meioPagamento || "-"}
+                        </Typography>
+                        <Typography>
+                          <strong>Observações:</strong> {item.observacoes || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => handleComprovativoDesembolso(item.id)}
+                      >
+                        Comprovativo
+                      </Button>
+                    </Stack>
 
                     <Divider sx={{ mt: 1.5 }} />
                   </Box>
@@ -192,24 +255,41 @@ export default function ExtratoPedido() {
               Reembolsos
             </Typography>
 
-            {dados.pedido?.reembolsos?.length ? (
+            {reembolsos.length ? (
               <Stack spacing={2}>
-                {dados.pedido.reembolsos.map((item) => (
+                {reembolsos.map((item) => (
                   <Box key={item.id}>
-                    <Typography>
-                      <strong>Valor:</strong>{" "}
-                      {formatCurrency(item.valorReembolsado)}
-                    </Typography>
-                    <Typography>
-                      <strong>Data:</strong> {formatDate(item.dataReembolso)}
-                    </Typography>
-                    <Typography>
-                      <strong>Meio de Pagamento:</strong>{" "}
-                      {item.meioPagamento || "-"}
-                    </Typography>
-                    <Typography>
-                      <strong>Observações:</strong> {item.observacoes || "-"}
-                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      justifyContent="space-between"
+                      alignItems={{ sm: "flex-start" }}
+                      spacing={1}
+                    >
+                      <Box>
+                        <Typography>
+                          <strong>Valor:</strong>{" "}
+                          {formatCurrency(item.valorReembolsado)}
+                        </Typography>
+                        <Typography>
+                          <strong>Data:</strong> {formatDate(item.dataReembolso)}
+                        </Typography>
+                        <Typography>
+                          <strong>Meio de Pagamento:</strong>{" "}
+                          {item.meioPagamento || "-"}
+                        </Typography>
+                        <Typography>
+                          <strong>Observações:</strong> {item.observacoes || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => handleComprovativoReembolso(item.id)}
+                      >
+                        Comprovativo
+                      </Button>
+                    </Stack>
 
                     <Divider sx={{ mt: 1.5 }} />
                   </Box>

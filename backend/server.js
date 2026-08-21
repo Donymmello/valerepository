@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 const { sequelize } = require("./models");
 const syncDatabase = require("./config/databaseSync");
 require("dotenv").config();
@@ -10,15 +11,35 @@ const { errorHandlerMiddleware } = require("./middleware/errorHandler.middleware
 const { performanceMetricsMiddleware } = require("./middleware/performanceMetrics.middleware");
 const apiRoutes = require("./routes/index");
 const logger = require("./utils/logger");
+const { iniciarAgendador } = require("./services/agendador.service");
 
 const app = express();
 
 // =========================================================================
 // MIDDLEWARES GLOBAIS
 // =========================================================================
+// Origens permitidas: FRONTEND_URL sempre; extras via CORS_EXTRA_ORIGINS (separadas por vírgula).
+const origensPermitidas = [process.env.FRONTEND_URL, ...(process.env.CORS_EXTRA_ORIGINS || "").split(",")]
+  .map((origem) => origem.trim())
+  .filter(Boolean);
+
 app.use(requestIdMiddleware);
 app.use(express.json());
-app.use(cors());
+app.use(helmet());
+app.use(
+  cors({
+    origin(origem, callback) {
+      // Requisições sem "origin" (ex.: chamadas server-to-server, curl, Postman) são permitidas.
+      if (!origem || origensPermitidas.includes(origem)) {
+        return callback(null, true);
+      }
+      const erro = new Error("Origem não permitida pela política de CORS.");
+      erro.statusCode = 403;
+      return callback(erro);
+    },
+    credentials: true,
+  })
+);
 app.use(performanceMetricsMiddleware);
 
 // =========================================================================
@@ -69,6 +90,8 @@ async function startServer() {
     logger.info("Ligação com MySQL estabelecida com sucesso.", { database: process.env.DB_NAME });
 
     await syncDatabase();
+
+    iniciarAgendador();
 
     app.listen(PORT, () => {
       logger.info(`Servidor rodando`, {

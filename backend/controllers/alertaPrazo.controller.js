@@ -63,20 +63,25 @@ async function obterDestinatariosInternos(empresaId) {
     - prazo de validacao vencido => alerta
     - prazo proximo (hoje ou amanhã) => alerta
 */
-async function verificarAlertasPrazo(req, res) {
-    try {
+/*
+  Núcleo da verificação, isolado do req/res para poder ser chamado tanto
+  pelo endpoint manual (POST /alertas-prazo/verificar, usado pelo botão
+  em /interno/alertas-prazo) como pelo agendador automático
+  (services/agendador.service.js).
+*/
+async function executarVerificacaoPrazo(empresaId, { registarAuditoria = false, userIdAuditoria = null } = {}) {
         const hoje = new Date();
         const amanha = new Date();
         amanha.setDate(amanha.getDate() + 1);
 
-        const destinatariosInternos = await obterDestinatariosInternos(req.user.empresaId);
+        const destinatariosInternos = await obterDestinatariosInternos(empresaId);
 
         /*
          pedidos em analise com prazo de avaliacao vencido ou proximo
         */
         const pedidosAvaliacao = await PedidoCredito.findAll({
             where: {
-                empresaId: req.user.empresaId,
+                empresaId,
                 status: {
                     [Op.in]: ["SUBMETIDO", "EM_ANALISE"],
                 },
@@ -104,7 +109,7 @@ async function verificarAlertasPrazo(req, res) {
 
         const pedidosValidacao = await PedidoCredito.findAll({
             where: {
-                empresaId: req.user.empresaId,
+                empresaId,
                 status: {
                     [Op.in]: ["EM_VALIDACAO"]
                 },
@@ -209,12 +214,24 @@ async function verificarAlertasPrazo(req, res) {
             }
         }
 
-        await registrarLogAuditoria({
-            userId: req.user.id,
-            acao: "VERIFICAR_ALERTAS_PRAZO",
-            entidade: "PedidoCredito",
-            entidadeId: null,
-            descricao: `Verificação de alertas de prazo realizada. Total de alertas criados: ${alertasCriados.length}.`,
+        if (registarAuditoria) {
+            await registrarLogAuditoria({
+                userId: userIdAuditoria,
+                acao: "VERIFICAR_ALERTAS_PRAZO",
+                entidade: "PedidoCredito",
+                entidadeId: null,
+                descricao: `Verificação de alertas de prazo realizada. Total de alertas criados: ${alertasCriados.length}.`,
+            });
+        }
+
+        return alertasCriados;
+}
+
+async function verificarAlertasPrazo(req, res) {
+    try {
+        const alertasCriados = await executarVerificacaoPrazo(req.user.empresaId, {
+            registarAuditoria: true,
+            userIdAuditoria: req.user.id,
         });
 
         return res.status(200).json({
@@ -234,4 +251,5 @@ async function verificarAlertasPrazo(req, res) {
 
 module.exports = {
     verificarAlertasPrazo,
+    executarVerificacaoPrazo,
 };

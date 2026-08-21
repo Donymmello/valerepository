@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
   Divider,
@@ -10,7 +11,12 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { getExtratoPedidoInternoRequest } from "../../../api/admin.api";
+import {
+  getExtratoPedidoInternoRequest,
+  exportarExtratoPedidoPdfRequest,
+  exportarComprovativoDesembolsoPdfRequest,
+  exportarComprovativoReembolsoPdfRequest,
+} from "../../../api/admin.api";
 import {
   formatCurrency,
   formatDate,
@@ -44,6 +50,47 @@ export default function ExtratoPedidoInterno() {
     carregarExtrato();
   }, [id]);
 
+  const baixarFicheiro = (blob, nomeFicheiro) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeFicheiro;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExportarExtratoPdf = async () => {
+    try {
+      const blob = await exportarExtratoPedidoPdfRequest(id);
+      baixarFicheiro(blob, `extrato_pedido_${id}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao exportar extrato em PDF.");
+    }
+  };
+
+  const handleComprovativoDesembolso = async (desembolsoId) => {
+    try {
+      const blob = await exportarComprovativoDesembolsoPdfRequest(desembolsoId);
+      baixarFicheiro(blob, `comprovativo_desembolso_${desembolsoId}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao gerar comprovativo.");
+    }
+  };
+
+  const handleComprovativoReembolso = async (reembolsoId) => {
+    try {
+      const blob = await exportarComprovativoReembolsoPdfRequest(reembolsoId);
+      baixarFicheiro(blob, `comprovativo_reembolso_${reembolsoId}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao gerar comprovativo.");
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -57,13 +104,27 @@ export default function ExtratoPedidoInterno() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
-        Extrato do Pedido
-      </Typography>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        justifyContent="space-between"
+        alignItems={{ sm: "flex-start" }}
+        spacing={2}
+        mb={3}
+      >
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700 }} mb={1}>
+            Extrato do Pedido
+          </Typography>
 
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Consulta interna do resumo financeiro e dos movimentos do pedido.
-      </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Consulta interna do resumo financeiro e dos movimentos do pedido.
+          </Typography>
+        </Box>
+
+        <Button variant="outlined" onClick={handleExportarExtratoPdf}>
+          Exportar PDF
+        </Button>
+      </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -259,35 +320,52 @@ export default function ExtratoPedidoInterno() {
               <Stack spacing={2}>
                 {dados.pedido.desembolsos.map((item) => (
                   <Box key={item.id}>
-                    <Typography>
-                      <strong>Valor:</strong>{" "}
-                      {formatCurrency(item.valorDesembolsado)}
-                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      justifyContent="space-between"
+                      alignItems={{ sm: "flex-start" }}
+                      spacing={1}
+                    >
+                      <Box>
+                        <Typography>
+                          <strong>Valor:</strong>{" "}
+                          {formatCurrency(item.valorDesembolsado)}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Data:</strong> {formatDate(item.dataDesembolso)}
-                    </Typography>
+                        <Typography>
+                          <strong>Data:</strong> {formatDate(item.dataDesembolso)}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Número da Transação:</strong>{" "}
-                      {item.numeroTransacao || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Número da Transação:</strong>{" "}
+                          {item.numeroTransacao || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Referência:</strong> {item.referencia || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Referência:</strong> {item.referencia || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Observações:</strong> {item.observacoes || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Observações:</strong> {item.observacoes || "-"}
+                        </Typography>
 
-                    <Typography variant="body2" color="text.secondary">
-                      Registado por: {item.criador?.nome || "-"}
-                    </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Registado por: {item.criador?.nome || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => handleComprovativoDesembolso(item.id)}
+                      >
+                        Comprovativo
+                      </Button>
+                    </Stack>
 
                     <Divider sx={{ mt: 1.5 }} />
                   </Box>
@@ -309,35 +387,52 @@ export default function ExtratoPedidoInterno() {
               <Stack spacing={2}>
                 {reembolsos.map((item) => (
                   <Box key={item.id}>
-                    <Typography>
-                      <strong>Valor:</strong>{" "}
-                      {formatCurrency(item.valorReembolsado)}
-                    </Typography>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      justifyContent="space-between"
+                      alignItems={{ sm: "flex-start" }}
+                      spacing={1}
+                    >
+                      <Box>
+                        <Typography>
+                          <strong>Valor:</strong>{" "}
+                          {formatCurrency(item.valorReembolsado)}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Data:</strong> {formatDate(item.dataReembolso)}
-                    </Typography>
+                        <Typography>
+                          <strong>Data:</strong> {formatDate(item.dataReembolso)}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Meio de Pagamento:</strong> {item.meioPagamento || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Número da Transação:</strong>{" "}
-                      {item.numeroTransacao || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Número da Transação:</strong>{" "}
+                          {item.numeroTransacao || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Referência:</strong> {item.referencia || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Referência:</strong> {item.referencia || "-"}
+                        </Typography>
 
-                    <Typography>
-                      <strong>Observações:</strong> {item.observacoes || "-"}
-                    </Typography>
+                        <Typography>
+                          <strong>Observações:</strong> {item.observacoes || "-"}
+                        </Typography>
 
-                    <Typography variant="body2" color="text.secondary">
-                      Registado por: {item.criador?.nome || "-"}
-                    </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Registado por: {item.criador?.nome || "-"}
+                        </Typography>
+                      </Box>
+
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => handleComprovativoReembolso(item.id)}
+                      >
+                        Comprovativo
+                      </Button>
+                    </Stack>
 
                     <Divider sx={{ mt: 1.5 }} />
                   </Box>

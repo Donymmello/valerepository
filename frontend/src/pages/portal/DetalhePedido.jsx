@@ -125,6 +125,15 @@ export default function DetalhePedido() {
     );
   }
 
+  // O extrato devolve { pedido, resumoFinanceiro }, não campos soltos de
+  // desembolsos/reembolsos no topo — os reembolsos, em particular, só
+  // existem aninhados em pedido.creditos[].reembolsos (Reembolso não se
+  // liga diretamente a PedidoCredito).
+  const desembolsosDoExtrato = extrato?.pedido?.desembolsos || [];
+  const reembolsosDoExtrato = (extrato?.pedido?.creditos || []).flatMap(
+    (c) => c.reembolsos || []
+  );
+
   return (
     <Box sx={{ maxWidth: 900, mx: "auto" }}>
       {/* Cabeçalho */}
@@ -431,19 +440,19 @@ export default function DetalhePedido() {
                           Saldo em Aberto
                         </Typography>
                         <Typography variant="h6" sx={{ fontWeight: 700, color: "#b45309" }}>
-                          {formatCurrency(extrato.resumoFinanceiro?.saldoEmAberto)}
+                          {formatCurrency(extrato.resumoFinanceiro?.saldoEmDivida)}
                         </Typography>
                       </Paper>
                     </Stack>
 
                     {/* Desembolsos */}
-                    {extrato.desembolsos?.length > 0 && (
+                    {desembolsosDoExtrato.length > 0 && (
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
                           Desembolsos
                         </Typography>
                         <Stack spacing={1}>
-                          {extrato.desembolsos.map((d) => (
+                          {desembolsosDoExtrato.map((d) => (
                             <Paper key={d.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Stack direction="row" justifyContent="space-between">
                                 <Box>
@@ -467,13 +476,13 @@ export default function DetalhePedido() {
                     )}
 
                     {/* Reembolsos */}
-                    {extrato.reembolsos?.length > 0 && (
+                    {reembolsosDoExtrato.length > 0 && (
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
                           Reembolsos
                         </Typography>
                         <Stack spacing={1}>
-                          {extrato.reembolsos.map((r) => (
+                          {reembolsosDoExtrato.map((r) => (
                             <Paper key={r.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Stack direction="row" justifyContent="space-between">
                                 <Box>
@@ -496,7 +505,7 @@ export default function DetalhePedido() {
                       </Box>
                     )}
 
-                    {extrato.desembolsos?.length === 0 && extrato.reembolsos?.length === 0 && (
+                    {desembolsosDoExtrato.length === 0 && reembolsosDoExtrato.length === 0 && (
                       <Typography color="text.secondary">
                         Ainda não existem movimentos financeiros neste pedido.
                       </Typography>

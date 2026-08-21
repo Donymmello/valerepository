@@ -81,6 +81,27 @@ export const exportarMeuExtratoExcelRequest = async (id) => {
   return response.data;
 };
 
+export const exportarMeuExtratoPdfRequest = async (id) => {
+  const response = await api.get(`/portal/export/meu-extrato/${id}/pdf`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarComprovativoDesembolsoRequest = async (desembolsoId) => {
+  const response = await api.get(`/portal/export/comprovativo/desembolso/${desembolsoId}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarComprovativoReembolsoRequest = async (reembolsoId) => {
+  const response = await api.get(`/portal/export/comprovativo/reembolso/${reembolsoId}`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
 
 /**
  * Faz upload do documento para um requisito específico do pedido.

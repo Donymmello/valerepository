@@ -10,7 +10,6 @@ import {
   Divider,
   Grid,
   Link,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -28,13 +27,6 @@ export default function RegisterMutuario() {
     email: "",
     password: "",
     nomeCompleto: "",
-    documentoTipo: "",
-    documentoNumero: "",
-    nuuit: "",
-    dataNascimento: "",
-    provincia: "",
-    distrito: "",
-    localResidencia: "",
     telefone: "",
   });
 
@@ -122,7 +114,8 @@ export default function RegisterMutuario() {
                 Criar Conta
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Preencha os seus dados para solicitar crédito. Receberá um código de verificação por email.
+                Registo rápido — só o essencial. Receberá um código de verificação por email, e completa o
+                resto do perfil (documento, NUIT, morada) depois, dentro do portal.
               </Typography>
             </Box>
 
@@ -157,43 +150,14 @@ export default function RegisterMutuario() {
                   <TextField fullWidth label="Nome completo" name="nomeCompleto" value={form.nomeCompleto} onChange={handleChange} required />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="Data de nascimento" name="dataNascimento" type="date" InputLabelProps={{ shrink: true }} value={form.dataNascimento} onChange={handleChange} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField select fullWidth label="Tipo de documento" name="documentoTipo" value={form.documentoTipo} onChange={handleChange} required>
-                    <MenuItem value="B.I">Bilhete de Identidade</MenuItem>
-                    <MenuItem value="PASSAPORTE">Passaporte</MenuItem>
-                    <MenuItem value="CARTA">Carta de Condução</MenuItem>
-                  </TextField>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="Número do documento" name="documentoNumero" value={form.documentoNumero} onChange={handleChange} required />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="NUIT" name="nuit" value={form.nuit} onChange={handleChange} required />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="Telefone" name="telefone" value={form.telefone} onChange={handleChange} />
+                  <TextField fullWidth label="Telefone" name="telefone" value={form.telefone} onChange={handleChange} required />
                 </Grid>
               </Grid>
 
-              <Divider sx={{ mb: 3 }} />
-
-              {/* Secção: Localização */}
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", mb: 1.5, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Localização
-              </Typography>
-              <Grid container spacing={2} mb={4}>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="Província" name="provincia" value={form.provincia} onChange={handleChange} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="Distrito" name="distrito" value={form.distrito} onChange={handleChange} />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <TextField fullWidth label="Local de residência" name="localResidencia" value={form.localResidencia} onChange={handleChange} />
-                </Grid>
-              </Grid>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Documento de identificação, NUIT, data de nascimento e morada ficam para completar depois,
+                no portal — precisas deles só quando for submeter o teu primeiro pedido de crédito.
+              </Alert>
 
               <Divider sx={{ mb: 3 }} />
 

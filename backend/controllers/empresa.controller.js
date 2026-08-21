@@ -57,7 +57,7 @@ async function atualizarMinhaEmpresa(req, res) {
       return res.status(404).json({ message: "Empresa não encontrada." });
     }
 
-    const { nome, nuit, email, telefone, logo } = req.body;
+    const { nome, nuit, email, telefone, logo, taxaJurosMin, taxaJurosMax } = req.body;
 
     if (nome && nome !== empresa.nome) {
       const conflito = await Empresa.findOne({
@@ -69,12 +69,33 @@ async function atualizarMinhaEmpresa(req, res) {
       }
     }
 
+    let novaTaxaMin = empresa.taxaJurosMin;
+    let novaTaxaMax = empresa.taxaJurosMax;
+
+    if (taxaJurosMin !== undefined || taxaJurosMax !== undefined) {
+      novaTaxaMin = taxaJurosMin !== undefined ? Number(taxaJurosMin) : Number(empresa.taxaJurosMin);
+      novaTaxaMax = taxaJurosMax !== undefined ? Number(taxaJurosMax) : Number(empresa.taxaJurosMax);
+
+      if (
+        !Number.isFinite(novaTaxaMin) || !Number.isFinite(novaTaxaMax) ||
+        novaTaxaMin < 0 || novaTaxaMax < 0
+      ) {
+        return res.status(400).json({ message: "As taxas de juros devem ser números positivos." });
+      }
+
+      if (novaTaxaMin > novaTaxaMax) {
+        return res.status(400).json({ message: "A taxa mínima não pode ser maior que a taxa máxima." });
+      }
+    }
+
     await empresa.update({
       nome: nome ?? empresa.nome,
       nuit: nuit ?? empresa.nuit,
       email: email ?? empresa.email,
       telefone: telefone ?? empresa.telefone,
       logo: logo ?? empresa.logo,
+      taxaJurosMin: novaTaxaMin,
+      taxaJurosMax: novaTaxaMax,
     });
 
     await registrarLogAuditoria({

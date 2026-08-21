@@ -1,8 +1,18 @@
-const { Reembolso, Credito, ParcelaPagamento, User, sequelize } = require("../models");
+const {
+  Reembolso,
+  Credito,
+  ParcelaPagamento,
+  PedidoCredito,
+  Mutuario,
+  Empresa,
+  User,
+  sequelize,
+} = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
 const CreditoService = require("../services/credito.service");
 const { asyncHandler } = require("../middleware/errorHandler.middleware");
+const { gerarComprovativoPdf } = require("../services/pdfExport.service");
 const { podeRegistrarReembolso } = require("../utils/regrasCredito");
 
 // =========================================================================
@@ -183,9 +193,61 @@ const obterReembolso = asyncHandler(async (req, res) => {
   return res.status(200).json(reembolso);
 });
 
+/**
+ * COMPROVATIVO EM PDF DE UM REEMBOLSO (BACKOFFICE)
+ * Mesmo padrão do comprovativo de desembolso: acesso restrito por
+ * empresaId (staff). Reembolso não se liga diretamente a PedidoCredito,
+ * daí o include aninhado via Credito (mesma cadeia usada em
+ * portalExport.controller.js e extrato.controller.js).
+ */
+const obterComprovativoReembolsoPdf = asyncHandler(async (req, res) => {
+  const { reembolsoId } = req.params;
+
+  const reembolso = await Reembolso.findOne({
+    where: { id: reembolsoId, empresaId: req.user.empresaId },
+    include: [
+      {
+        model: Credito,
+        as: "credito",
+        include: [
+          {
+            model: PedidoCredito,
+            as: "pedido",
+            include: [{ model: Mutuario, as: "mutuario" }],
+          },
+        ],
+      },
+    ],
+  });
+
+  if (!reembolso) {
+    return res.status(404).json({ message: "Comprovativo não encontrado." });
+  }
+
+  const empresa = req.user.empresaId
+    ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+    : null;
+
+  const buffer = await gerarComprovativoPdf({
+    empresa,
+    tipo: "REEMBOLSO",
+    transacao: reembolso,
+    pedido: reembolso.credito?.pedido,
+    mutuario: reembolso.credito?.pedido?.mutuario,
+  });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=comprovativo_reembolso_${reembolso.referencia || reembolso.id}.pdf`
+  );
+  return res.status(200).send(buffer);
+});
+
 module.exports = {
   createReembolso,
   getAllReembolsos,
   getReembolsoByCredito,
   obterReembolso,
+  obterComprovativoReembolsoPdf,
 };

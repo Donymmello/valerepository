@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -9,6 +9,12 @@ import {
   Paper,
   Snackbar,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,6 +28,9 @@ import PageHeader from "../../../components/common/PageHeader";
 import LoadingState from "../../../components/common/LoadingState";
 
 export default function ReembolsosList() {
+  const [searchParams] = useSearchParams();
+  const formRef = useRef(null);
+
   const [reembolsos, setReembolsos] = useState([]);
   const [creditosElegiveis, setCreditosElegiveis] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +74,68 @@ export default function ReembolsosList() {
   useEffect(() => {
     carregarDados();
   }, []);
+
+  // Permite chegar aqui já com o crédito (e, opcionalmente, a parcela)
+  // pré-selecionados — usado pelo botão "Registar Pagamento" da página de
+  // detalhe do crédito e pela tabela de parcelas em atraso abaixo.
+  useEffect(() => {
+    if (!creditosElegiveis.length) return;
+
+    const creditoIdParam = searchParams.get("creditoId");
+    if (!creditoIdParam) return;
+
+    const creditoSelecionado = creditosElegiveis.find(
+      (credito) => String(credito.id) === String(creditoIdParam)
+    );
+    if (!creditoSelecionado) return;
+
+    const parcelaIdParam = searchParams.get("parcelaId");
+    const parcelaSelecionada = parcelaIdParam
+      ? creditoSelecionado.parcelas?.find((p) => String(p.id) === String(parcelaIdParam))
+      : null;
+
+    setForm((prev) => ({
+      ...prev,
+      creditoId: creditoSelecionado.id,
+      parcelaId: parcelaSelecionada?.id || "",
+      valorReembolsado: parcelaSelecionada
+        ? String(Number(parcelaSelecionada.saldoParcela || 0))
+        : prev.valorReembolsado,
+    }));
+
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creditosElegiveis, searchParams]);
+
+  // Achata os créditos elegíveis numa lista simples de parcelas vencidas
+  // (vencimento já passado), para o utilizador ver de imediato quem tem
+  // pagamentos em atraso sem ter de adivinhar em qual crédito procurar.
+  const parcelasVencidas = useMemo(() => {
+    const hoje = new Date();
+
+    return creditosElegiveis
+      .flatMap((credito) =>
+        (credito.parcelas || [])
+          .filter((parcela) => new Date(parcela.dataVencimento) < hoje)
+          .map((parcela) => ({ credito, parcela }))
+      )
+      .sort((a, b) => new Date(a.parcela.dataVencimento) - new Date(b.parcela.dataVencimento));
+  }, [creditosElegiveis]);
+
+  const handleSelecionarDaListaDeAtraso = ({ credito, parcela }) => {
+    setForm((prev) => ({
+      ...prev,
+      creditoId: credito.id,
+      parcelaId: parcela.id,
+      valorReembolsado: String(Number(parcela.saldoParcela || 0)),
+    }));
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const calcularDiasEmAtraso = (dataVencimento) => {
+    const diffMs = new Date() - new Date(dataVencimento);
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -257,7 +328,72 @@ export default function ReembolsosList() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+      {parcelasVencidas.length > 0 && (
+        <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }} mb={1}>
+            Parcelas Vencidas por Cobrar
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Vencimento já passado e ainda não totalmente paga. Clique em "Selecionar" para
+            preencher o formulário abaixo com esta parcela.
+          </Typography>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Mutuário</TableCell>
+                  <TableCell>Contrato</TableCell>
+                  <TableCell align="center">Parcela</TableCell>
+                  <TableCell>Vencimento</TableCell>
+                  <TableCell align="center">Dias em Atraso</TableCell>
+                  <TableCell align="right">Saldo</TableCell>
+                  <TableCell align="right">Ações</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {parcelasVencidas.map(({ credito, parcela }) => (
+                  <TableRow key={parcela.id} hover>
+                    <TableCell>{credito.mutuario?.nomeCompleto || "-"}</TableCell>
+                    <TableCell>{credito.numeroContrato || `#${credito.id}`}</TableCell>
+                    <TableCell align="center">#{parcela.numeroParcela}</TableCell>
+                    <TableCell>{formatDate(parcela.dataVencimento)}</TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        size="small"
+                        color="error"
+                        label={`${calcularDiasEmAtraso(parcela.dataVencimento)}d`}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{formatCurrency(parcela.saldoParcela)}</TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          component={RouterLink}
+                          to={`/interno/creditos/${credito.id}`}
+                        >
+                          Detalhes
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => handleSelecionarDaListaDeAtraso({ credito, parcela })}
+                        >
+                          Selecionar
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      <Paper ref={formRef} sx={{ p: 3, mb: 3, borderRadius: 3 }}>
         <Stack spacing={2}>
           <TextField
             select
@@ -502,7 +638,7 @@ export default function ReembolsosList() {
                   {reembolso.credito?.id && (
                     <Button
                       component={RouterLink}
-                      to={`/backoffice/creditos/${reembolso.credito.id}`}
+                      to={`/interno/creditos/${reembolso.credito.id}`}
                       variant="outlined"
                     >
                       Ver Crédito

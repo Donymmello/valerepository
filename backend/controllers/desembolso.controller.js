@@ -1,8 +1,9 @@
-const { Desembolso, PedidoCredito, User, sequelize } = require("../models");
+const { Desembolso, PedidoCredito, Mutuario, Empresa, User, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
 const creditoService = require("../services/credito.service");
 const { asyncHandler } = require("../middleware/errorHandler.middleware");
+const { gerarComprovativoPdf } = require("../services/pdfExport.service");
 const {
   podeDesembolsarPedido,
   podeTransitarStatus,
@@ -131,8 +132,52 @@ const getDesembolsoByPedido = asyncHandler(async (req, res) => {
   return res.status(200).json(desembolsos);
 });
 
+/**
+ * COMPROVATIVO EM PDF DE UM DESEMBOLSO (BACKOFFICE)
+ * Reaproveita o mesmo serviço de PDF usado no portal do mutuário —
+ * aqui o acesso é restrito por empresaId (staff), não por mutuarioId.
+ */
+const obterComprovativoDesembolsoPdf = asyncHandler(async (req, res) => {
+  const { desembolsoId } = req.params;
+
+  const desembolso = await Desembolso.findOne({
+    where: { id: desembolsoId, empresaId: req.user.empresaId },
+    include: [
+      {
+        model: PedidoCredito,
+        as: "pedido",
+        include: [{ model: Mutuario, as: "mutuario" }],
+      },
+    ],
+  });
+
+  if (!desembolso) {
+    return res.status(404).json({ message: "Comprovativo não encontrado." });
+  }
+
+  const empresa = req.user.empresaId
+    ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+    : null;
+
+  const buffer = await gerarComprovativoPdf({
+    empresa,
+    tipo: "DESEMBOLSO",
+    transacao: desembolso,
+    pedido: desembolso.pedido,
+    mutuario: desembolso.pedido?.mutuario,
+  });
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename=comprovativo_desembolso_${desembolso.referencia || desembolso.id}.pdf`
+  );
+  return res.status(200).send(buffer);
+});
+
 module.exports = {
   createDesembolso,
   getAllDesembolsos,
   getDesembolsoByPedido,
+  obterComprovativoDesembolsoPdf,
 };

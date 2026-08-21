@@ -30,7 +30,14 @@ export default function EmpresaConfiguracoes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [empresa, setEmpresa] = useState(null);
-  const [form, setForm] = useState({ nome: "", nuit: "", email: "", telefone: "" });
+  const [form, setForm] = useState({
+    nome: "",
+    nuit: "",
+    email: "",
+    telefone: "",
+    taxaJurosMin: "",
+    taxaJurosMax: "",
+  });
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaMsg, setEmpresaMsg] = useState("");
 
@@ -50,6 +57,8 @@ export default function EmpresaConfiguracoes() {
         nuit: empresaData.nuit || "",
         email: empresaData.email || "",
         telefone: empresaData.telefone || "",
+        taxaJurosMin: empresaData.taxaJurosMin ?? "",
+        taxaJurosMax: empresaData.taxaJurosMax ?? "",
       });
 
       if (["ADMIN", "GESTOR"].includes(user?.role)) {
@@ -192,6 +201,40 @@ export default function EmpresaConfiguracoes() {
 
             <Grid item xs={12} sm={6}>
               <TextField fullWidth label="Plano" value={empresa?.plano || "-"} disabled />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2" color="text.secondary" mb={1}>
+                Taxa de juros praticada
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Faixa de taxa anual (%) desta empresa. É usada como estimativa quando um pedido é submetido, e o analista escolhe a taxa final dentro desta faixa ao aprovar o pedido.
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Taxa Mínima Anual (%)"
+                type="number"
+                inputProps={{ step: "0.01", min: 0 }}
+                value={form.taxaJurosMin}
+                onChange={(e) => setForm({ ...form, taxaJurosMin: e.target.value })}
+                disabled={!podeEditar}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Taxa Máxima Anual (%)"
+                type="number"
+                inputProps={{ step: "0.01", min: 0 }}
+                value={form.taxaJurosMax}
+                onChange={(e) => setForm({ ...form, taxaJurosMax: e.target.value })}
+                disabled={!podeEditar}
+              />
             </Grid>
 
             {podeEditar && (

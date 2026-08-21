@@ -8,6 +8,7 @@ const registrarLogAuditoria = require("../utils/logAuditoria");
 const {
   podeValidarRequisito,
   statusPermiteAcao,
+  userTemPermissaoParaAcao,
 } = require("../utils/regrasPedido");
 
 /*
@@ -32,9 +33,13 @@ async function adicionarPedidoRequisito(req, res) {
 
     /*
       Regra de perfil:
-      associar requisito ao pedido é ação administrativa/gestão
+      associar requisito ao pedido é uma ação de análise, tal como validar
+      requisito — mesma matriz de perfis (ADMIN/GESTOR/ANALISTA), já usada
+      pela rota (authorizeRoles) e por validarRequisitoPedido. Antes disto
+      o check estava mais restrito ("ADMIN","GESTOR"), o que bloqueava
+      ANALISTA mesmo a rota permitindo — inconsistência corrigida aqui.
     */
-    if (!["ADMIN", "GESTOR"].includes(req.user.role)) {
+    if (!userTemPermissaoParaAcao(req.user, "VALIDAR_REQUISITO")) {
       return res.status(403).json({
         message: "Não tens permissão para adicionar requisitos ao pedido.",
       });

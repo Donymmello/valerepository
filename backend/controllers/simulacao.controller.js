@@ -1,12 +1,18 @@
-const { Simulacao } = require("../models");
+const { Simulacao, Empresa } = require("../models");
 const calcularPrestacao = require("../utils/calCredito");
 
 // =========================================================================
 // HELPERS / ENGINE MATEMÁTICO (Evita duplicar lógica na API)
 // =========================================================================
+// Taxa indicativa genérica, usada apenas quando não há empresa associada
+// ao pedido de simulação (ex: chamada anónima direta à API). Já não há
+// nenhum ecrã público na landing page a chamar isto sem contexto — a
+// simulação "de verdade" hoje só acontece dentro do portal do mutuário
+// (CriarPedido.jsx), já autenticado, e nesse caso usamos a taxa mínima
+// real da empresa (ver simular() abaixo).
 const TAXA_PADRAO = 18;
 
-function processarValoresSimulacao(valor, prazoMeses) {
+function processarValoresSimulacao(valor, prazoMeses, taxa = TAXA_PADRAO) {
   const valorSolicitado = Number(valor);
   const prazo = Number(prazoMeses);
 
@@ -14,11 +20,11 @@ function processarValoresSimulacao(valor, prazoMeses) {
     throw new Error("INVALID_INPUTS");
   }
 
-  const prestacao = calcularPrestacao(valorSolicitado, TAXA_PADRAO, prazo);
+  const prestacao = calcularPrestacao(valorSolicitado, taxa, prazo);
   const montanteTotal = prestacao * prazo;
   const jurosTotal = montanteTotal - valorSolicitado;
 
-  return { valorSolicitado, prazo, taxa: TAXA_PADRAO, prestacao, jurosTotal, montanteTotal };
+  return { valorSolicitado, prazo, taxa, prestacao, jurosTotal, montanteTotal };
 }
 
 // =========================================================================
@@ -31,9 +37,19 @@ function processarValoresSimulacao(valor, prazoMeses) {
 async function simular(req, res) {
   try {
     const { valorSolicitado, prazo } = req.body;
-    
+
+    // Utilizador autenticado e já dentro de uma empresa (ex: mutuário a
+    // simular no portal antes de submeter o pedido) usa a taxa mínima
+    // real dessa empresa, para bater certo com o que será calculado na
+    // submissão (ver pedidoCredito.controller.js).
+    let taxa = TAXA_PADRAO;
+    if (req.user?.empresaId) {
+      const empresa = await Empresa.findByPk(req.user.empresaId, { attributes: ["taxaJurosMin"] });
+      if (empresa) taxa = Number(empresa.taxaJurosMin);
+    }
+
     // Delega validação e matemática para o helper único
-    const dadosCalculados = processarValoresSimulacao(valorSolicitado, prazo);
+    const dadosCalculados = processarValoresSimulacao(valorSolicitado, prazo, taxa);
 
     // Identifica contexto de autenticação de forma limpa
     const userId = req.user?.id || null;

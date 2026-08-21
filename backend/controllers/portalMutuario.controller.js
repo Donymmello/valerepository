@@ -1,4 +1,5 @@
 const path = require("path");
+const { Op } = require("sequelize");
 const {
   Mutuario,
   PedidoCredito,
@@ -10,11 +11,13 @@ const {
   ParcelaPagamento,
   User,
   Anexo,
+  Empresa,
 } = require("../models");
 const CreditoService = require("../services/credito.service");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
+const { notificarStaffDaEmpresa } = require("../services/notificacaoInterna.service");
 
 /*
   ==========================================================
@@ -118,6 +121,14 @@ async function updateMeuMutuario(req, res) {
       distrito,
       localResidencia,
       email,
+      // Campos de identificação (KYC) — só chegam a ser gravados se o
+      // mutuário ainda não os tiver preenchido (ver bloco abaixo). Isto
+      // permite "Completar Perfil" sem abrir a porta a alterar um
+      // documento/NUIT já declarado por conta própria.
+      documentoTipo,
+      documentoNumero,
+      nuit,
+      dataNascimento,
     } = req.body;
 
     if (!nomeCompleto || !nomeCompleto.trim()) {
@@ -126,14 +137,45 @@ async function updateMeuMutuario(req, res) {
       });
     }
 
-    await mutuario.update({
+    const dadosAtualizacao = {
       nomeCompleto: nomeCompleto.trim(),
       telefone: telefone || null,
       provincia: provincia || null,
       distrito: distrito || null,
       localResidencia: localResidencia || null,
       email: email || null,
-    });
+    };
+
+    // Completar perfil: cada campo de KYC só pode ser definido uma vez.
+    // Depois de preenchido, alterações têm de passar pelo backoffice.
+    const querDefinirDocumento = !mutuario.documentoTipo && documentoTipo;
+    const querDefinirNumero = !mutuario.documentoNumero && documentoNumero;
+    const querDefinirNuit = !mutuario.nuit && nuit;
+
+    if (querDefinirNumero || querDefinirNuit) {
+      const condicoesDuplicado = [];
+      if (querDefinirNuit) condicoesDuplicado.push({ nuit });
+      if (querDefinirNumero) condicoesDuplicado.push({ documentoNumero });
+
+      const duplicado = await Mutuario.findOne({
+        where: { [Op.or]: condicoesDuplicado, id: { [Op.ne]: mutuario.id } },
+        attributes: ["id", "nuit", "documentoNumero"],
+      });
+
+      if (duplicado) {
+        const msg = querDefinirNuit && duplicado.nuit === nuit
+          ? "Já existe um mutuário com este NUIT."
+          : "Já existe um mutuário com este número de documento.";
+        return res.status(409).json({ message: msg });
+      }
+    }
+
+    if (querDefinirDocumento) dadosAtualizacao.documentoTipo = documentoTipo;
+    if (querDefinirNumero) dadosAtualizacao.documentoNumero = documentoNumero;
+    if (querDefinirNuit) dadosAtualizacao.nuit = nuit;
+    if (!mutuario.dataNascimento && dataNascimento) dadosAtualizacao.dataNascimento = dataNascimento;
+
+    await mutuario.update(dadosAtualizacao);
 
     await registrarLogAuditoria({
       userId: req.user.id,
@@ -328,6 +370,16 @@ async function createMeuPedido(req, res) {
       });
     }
 
+    // O registo pede só o essencial, mas antes de pedir crédito a
+    // identificação (KYC) tem de estar completa — é o ponto em que a
+    // relação de crédito de facto começa (ver nota em RECUPERACAO_BD.md).
+    if (!mutuario.documentoTipo || !mutuario.documentoNumero || !mutuario.nuit || !mutuario.dataNascimento) {
+      return res.status(400).json({
+        message: "Complete o seu perfil (documento, NUIT e data de nascimento) antes de submeter um pedido de crédito.",
+        perfilIncompleto: true,
+      });
+    }
+
     const dataSubmissao = new Date();
 
     // Prazos padrão: 7 dias (não podem ser alterados)
@@ -337,7 +389,13 @@ async function createMeuPedido(req, res) {
     const prazoValidacaoDate = new Date(dataSubmissao);
     prazoValidacaoDate.setDate(prazoValidacaoDate.getDate() + 7);
 
-    const taxa = 18;
+    // Estimativa inicial: taxa mínima da empresa (mesma lógica usada em
+    // pedidoCredito.controller.js). A taxa final é definida na aprovação
+    // de nível 1 — ver aprovacaoPedido.controller.js.
+    const empresa = await Empresa.findByPk(req.user.empresaId, {
+      attributes: ["taxaJurosMin"],
+    });
+    const taxa = Number(empresa?.taxaJurosMin ?? 18);
 
     const prestacao = calcularPrestacao(
       Number(valorSolicitado),
@@ -378,6 +436,18 @@ async function createMeuPedido(req, res) {
       entidade: "PedidoCredito",
       entidadeId: pedido.id,
       descricao: `Pedido ${pedido.numeroPedido} criado pelo próprio mutuário autenticado.`,
+    });
+
+    // Avisa o staff interno — mesmo alerta que já existia quando um
+    // funcionário cria o pedido em nome do mutuário (ver
+    // pedidoCredito.controller.js), só que este é o caminho mais comum:
+    // o próprio mutuário a submeter pelo portal.
+    await notificarStaffDaEmpresa({
+      empresaId: req.user.empresaId,
+      pedidoId: pedido.id,
+      titulo: "Novo Pedido de Crédito Criado",
+      mensagem: `Novo pedido de crédito ${pedido.numeroPedido} foi criado. Prazo de avaliação: 7 dias.`,
+      tipo: "PEDIDO_CRIADO",
     });
 
     return res.status(201).json({
@@ -516,6 +586,23 @@ async function anexarReqPedido(req, res) {
       entidadeId: req.params.id,
       descricao: `Documento ${req.file.originalname} enviado.`,
     });
+
+    // Avisa o staff interno para validar o documento acabado de chegar.
+    const pedidoRequisito = await PedidoRequisito.findByPk(req.params.id, {
+      include: [
+        { model: PedidoCredito, as: "pedido" },
+        { model: RequisitoCredito, as: "requisito" },
+      ],
+    });
+    if (pedidoRequisito?.pedido) {
+      await notificarStaffDaEmpresa({
+        empresaId: pedidoRequisito.pedido.empresaId,
+        pedidoId: pedidoRequisito.pedido.id,
+        titulo: "Documento enviado pelo mutuário",
+        mensagem: `O mutuário enviou o documento "${pedidoRequisito.requisito?.nome || "requisito"}" para o pedido ${pedidoRequisito.pedido.numeroPedido}. Aguarda validação.`,
+        tipo: "REQUISITO",
+      });
+    }
 
     return res.status(201).json(anexo);
   } catch (error) {

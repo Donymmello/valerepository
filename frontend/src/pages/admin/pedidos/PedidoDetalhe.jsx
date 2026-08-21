@@ -64,7 +64,15 @@ export default function PedidoDetalhe() {
     nivel: "",
     decisao: "",
     comentario: "",
+    taxaFinal: "",
   });
+
+  // Aprovação de nível 1 é a etapa de análise de risco (ANALISTA,
+  // ou GESTOR/ADMIN a agir nessa etapa): é aqui que a taxa de juros é
+  // definida, dentro da faixa da empresa. Os níveis 2 e 3 (GESTOR,
+  // DIRETOR/ADMIN) só confirmam ou rejeitam — não têm autoridade para
+  // redefinir a taxa já fixada no nível 1.
+  const definindoTaxaNestaEtapa = Number(form.nivel) === 1 && form.decisao === "APROVADO";
 
   const podeDecidir = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"].includes(user?.role);
 
@@ -126,6 +134,7 @@ export default function PedidoDetalhe() {
 
     if (!form.nivel) { setError("O nível é obrigatório."); return; }
     if (!form.decisao) { setError("Selecione a decisão."); return; }
+    if (definindoTaxaNestaEtapa && !form.taxaFinal) { setError("A taxa de juros é obrigatória para aprovar nesta etapa."); return; }
 
     setActionLoading(true);
 
@@ -134,10 +143,11 @@ export default function PedidoDetalhe() {
         nivel: Number(form.nivel),
         decisao: form.decisao,
         comentario: form.comentario,
+        ...(definindoTaxaNestaEtapa ? { taxaFinal: Number(form.taxaFinal) } : {}),
       });
 
       setSuccessOpen(true);
-      setForm((prev) => ({ ...prev, decisao: "", comentario: "" }));
+      setForm((prev) => ({ ...prev, decisao: "", comentario: "", taxaFinal: "" }));
       await carregarDados();
     } catch (err) {
       console.error(err);
@@ -150,6 +160,15 @@ export default function PedidoDetalhe() {
   if (loading) {
     return <LoadingState />;
   }
+
+  // O extrato devolve { pedido, resumoFinanceiro }, não campos soltos de
+  // desembolsos/reembolsos no topo — os reembolsos, em particular, só
+  // existem aninhados em pedido.creditos[].reembolsos (Reembolso não se
+  // liga diretamente a PedidoCredito).
+  const desembolsosDoExtrato = extrato?.pedido?.desembolsos || [];
+  const reembolsosDoExtrato = (extrato?.pedido?.creditos || []).flatMap(
+    (c) => c.reembolsos || []
+  );
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto" }}>
@@ -339,19 +358,19 @@ export default function PedidoDetalhe() {
                           Saldo em Aberto
                         </Typography>
                         <Typography variant="h6" sx={{ fontWeight: 700, color: "#b45309" }}>
-                          {formatCurrency(extrato.resumoFinanceiro?.saldoEmAberto)}
+                          {formatCurrency(extrato.resumoFinanceiro?.saldoEmDivida)}
                         </Typography>
                       </Paper>
                     </Stack>
 
                     {/* Desembolsos */}
-                    {extrato.desembolsos?.length > 0 && (
+                    {desembolsosDoExtrato.length > 0 && (
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
                           Desembolsos
                         </Typography>
                         <Stack spacing={1}>
-                          {extrato.desembolsos.map((d) => (
+                          {desembolsosDoExtrato.map((d) => (
                             <Paper key={d.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Stack direction="row" justifyContent="space-between">
                                 <Box>
@@ -375,13 +394,13 @@ export default function PedidoDetalhe() {
                     )}
 
                     {/* Reembolsos */}
-                    {extrato.reembolsos?.length > 0 && (
+                    {reembolsosDoExtrato.length > 0 && (
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }} mb={1.5}>
                           Reembolsos
                         </Typography>
                         <Stack spacing={1}>
-                          {extrato.reembolsos.map((r) => (
+                          {reembolsosDoExtrato.map((r) => (
                             <Paper key={r.id} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                               <Stack direction="row" justifyContent="space-between">
                                 <Box>
@@ -404,7 +423,7 @@ export default function PedidoDetalhe() {
                       </Box>
                     )}
 
-                    {!extrato.desembolsos?.length && !extrato.reembolsos?.length && (
+                    {!desembolsosDoExtrato.length && !reembolsosDoExtrato.length && (
                       <Typography color="text.secondary">
                         Ainda não existem movimentos financeiros neste pedido.
                       </Typography>
@@ -440,6 +459,19 @@ export default function PedidoDetalhe() {
                       <MenuItem value="APROVADO">Aprovar</MenuItem>
                       <MenuItem value="REJEITADO">Rejeitar</MenuItem>
                     </TextField>
+
+                    {definindoTaxaNestaEtapa && (
+                      <TextField
+                        fullWidth
+                        label="Taxa de Juros (%)"
+                        name="taxaFinal"
+                        type="number"
+                        inputProps={{ step: "0.01", min: 0 }}
+                        value={form.taxaFinal}
+                        onChange={handleChange}
+                        helperText="Define a taxa deste pedido com base na análise de risco, dentro da faixa em Configurações > Empresa. Os níveis seguintes já não podem alterá-la."
+                      />
+                    )}
 
                     <TextField
                       fullWidth

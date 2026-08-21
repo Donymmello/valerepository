@@ -5,6 +5,9 @@ import {
   Box,
   Button,
   CircularProgress,
+  Divider,
+  Grid,
+  MenuItem,
   Paper,
   Snackbar,
   Stack,
@@ -32,6 +35,10 @@ export default function MeuMutuarioEditar() {
     distrito: "",
     localResidencia: "",
     email: "",
+    documentoTipo: "",
+    documentoNumero: "",
+    nuit: "",
+    dataNascimento: "",
   });
 
   useEffect(() => {
@@ -50,6 +57,10 @@ export default function MeuMutuarioEditar() {
           distrito: data?.distrito || "",
           localResidencia: data?.localResidencia || "",
           email: data?.email || "",
+          documentoTipo: data?.documentoTipo || "",
+          documentoNumero: data?.documentoNumero || "",
+          nuit: data?.nuit || "",
+          dataNascimento: data?.dataNascimento || "",
         });
       } catch (err) {
         console.error(err);
@@ -61,6 +72,14 @@ export default function MeuMutuarioEditar() {
 
     fetchMeuMutuario();
   }, []);
+
+  // Uma vez que o backend só grava documento/NUIT/data de nascimento
+  // enquanto estiverem vazios, aqui bloqueamos os campos assim que já
+  // vierem preenchidos do servidor — evita a falsa sensação de que dá
+  // para editar um documento já declarado.
+  const perfilKycCompleto = Boolean(
+    mutuario?.documentoTipo && mutuario?.documentoNumero && mutuario?.nuit && mutuario?.dataNascimento
+  );
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -82,6 +101,22 @@ export default function MeuMutuarioEditar() {
       return;
     }
 
+    // Os campos de identificação só podem ser definidos uma vez (ver
+    // backend). Se ainda estão editáveis (perfil incompleto) e o
+    // utilizador começou a preencher, exige os quatro juntos — evita
+    // gravar um documento sem NUIT, por exemplo.
+    if (!perfilKycCompleto) {
+      const algumPreenchido =
+        form.documentoTipo || form.documentoNumero || form.nuit || form.dataNascimento;
+      const todosPreenchidos =
+        form.documentoTipo && form.documentoNumero && form.nuit && form.dataNascimento;
+
+      if (algumPreenchido && !todosPreenchidos) {
+        setError("Para completar o perfil, preenche tipo de documento, número, NUIT e data de nascimento todos juntos.");
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       setError("");
@@ -93,6 +128,10 @@ export default function MeuMutuarioEditar() {
         distrito: form.distrito || null,
         localResidencia: form.localResidencia || null,
         email: form.email || null,
+        documentoTipo: form.documentoTipo || null,
+        documentoNumero: form.documentoNumero || null,
+        nuit: form.nuit || null,
+        dataNascimento: form.dataNascimento || null,
       });
 
       setSuccessOpen(true);
@@ -203,6 +242,73 @@ export default function MeuMutuarioEditar() {
               placeholder="Digite seu local de residência"
             />
           </Stack>
+
+          <Divider sx={{ mb: 3 }} />
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary", mb: 1 }}>
+            Identificação (necessária para pedir crédito)
+          </Typography>
+
+          {perfilKycCompleto ? (
+            <Alert severity="success" sx={{ mb: 2.5 }}>
+              Identificação já registada. Para alterar o documento ou o NUIT, contacta a tua instituição.
+            </Alert>
+          ) : (
+            <Alert severity="info" sx={{ mb: 2.5 }}>
+              Preenche estes dados para poderes submeter um pedido de crédito. Uma vez guardados, só o
+              backoffice consegue alterá-los.
+            </Alert>
+          )}
+
+          <Grid container spacing={2.5} mb={3}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Tipo de Documento"
+                name="documentoTipo"
+                value={form.documentoTipo}
+                onChange={handleChange}
+                disabled={perfilKycCompleto}
+              >
+                <MenuItem value="B.I">Bilhete de Identidade</MenuItem>
+                <MenuItem value="PASSAPORTE">Passaporte</MenuItem>
+                <MenuItem value="CARTA">Carta de Condução</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Número do Documento"
+                name="documentoNumero"
+                value={form.documentoNumero}
+                onChange={handleChange}
+                disabled={perfilKycCompleto}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="NUIT"
+                name="nuit"
+                value={form.nuit}
+                onChange={handleChange}
+                disabled={perfilKycCompleto}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Data de Nascimento"
+                name="dataNascimento"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={form.dataNascimento}
+                onChange={handleChange}
+                disabled={perfilKycCompleto}
+              />
+            </Grid>
+          </Grid>
 
           <Stack
             direction={{ xs: "column", sm: "row" }}

@@ -19,7 +19,11 @@ jest.mock("../models", () => ({
   sequelize: { transaction: jest.fn((cb) => cb({})) },
   User: { findOne: jest.fn(), findAll: jest.fn().mockResolvedValue([]) },
   Mutuario: { findByPk: jest.fn() },
-  Empresa: { update: jest.fn() },
+  // findByPk usado em createPedidoCredito para ler a taxaJurosMin da
+  // empresa (ver pedidoCredito.controller.js) — mock tinha ficado
+  // desatualizado desde que essa funcionalidade foi adicionada, o que
+  // fazia os dois testes abaixo rebentar com "findByPk is not a function".
+  Empresa: { update: jest.fn(), findByPk: jest.fn().mockResolvedValue({ taxaJurosMin: 18 }) },
   PedidoCredito: { create: jest.fn(), findOne: jest.fn() },
   Notificacao: { bulkCreate: jest.fn() },
   ConvitePortal: {},

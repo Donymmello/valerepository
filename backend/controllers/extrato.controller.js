@@ -7,7 +7,9 @@ const {
   Credito,
   ParcelaPagamento,
   AprovacaoPedido,
+  Empresa,
 } = require("../models");
+const { gerarExtratoPedidoPdf } = require("../services/pdfExport.service");
 
 /*
   ==========================================================
@@ -21,11 +23,15 @@ const {
   - parcelas (previsto/pago/saldo/estado/vencimento)
   - reembolsos (via crédito)
 */
-async function getExtratoPedido(req, res) {
-  try {
-    const { pedidoId } = req.params;
+/*
+  Busca partilhada entre a consulta JSON (getExtratoPedido, usada pelo
+  ecrã ExtratoPedidoInterno.jsx) e a exportação em PDF — ambas precisam
+  exatamente dos mesmos dados.
+*/
+async function buscarExtratoPedidoInterno(req) {
+  const { pedidoId } = req.params;
 
-    const pedido = await PedidoCredito.findOne({
+  const pedido = await PedidoCredito.findOne({
       where: { id: pedidoId, empresaId: req.user.empresaId },
       include: [
         {
@@ -91,23 +97,69 @@ async function getExtratoPedido(req, res) {
       ],
     });
 
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido de crédito não encontrado.",
-      });
+  if (!pedido) {
+    return { erro: "Pedido de crédito não encontrado." };
+  }
+
+  const resumoFinanceiro = resumirExtrato(pedido);
+
+  return { pedido, resumoFinanceiro };
+}
+
+async function getExtratoPedido(req, res) {
+  try {
+    const resultado = await buscarExtratoPedidoInterno(req);
+    if (resultado.erro) {
+      return res.status(404).json({ message: resultado.erro });
     }
 
-    const resumoFinanceiro = resumirExtrato(pedido);
-
-    return res.status(200).json({
-      pedido,
-      resumoFinanceiro,
-    });
+    return res.status(200).json(resultado);
   } catch (error) {
     console.error("Erro ao gerar extrato do pedido:", error);
 
     return res.status(500).json({
       message: "Erro interno ao gerar extrato do pedido.",
+      error: error.message,
+    });
+  }
+}
+
+async function getExtratoPedidoPdf(req, res) {
+  try {
+    const resultado = await buscarExtratoPedidoInterno(req);
+    if (resultado.erro) {
+      return res.status(404).json({ message: resultado.erro });
+    }
+
+    const { pedido, resumoFinanceiro } = resultado;
+    const creditos = pedido.creditos || [];
+    const reembolsos = creditos.flatMap((c) => c.reembolsos || []);
+
+    const empresa = req.user.empresaId
+      ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+      : null;
+
+    const buffer = await gerarExtratoPedidoPdf({
+      empresa,
+      pedido,
+      mutuario: pedido.mutuario,
+      desembolsos: pedido.desembolsos,
+      reembolsos,
+      totais: resumoFinanceiro,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=extrato_pedido_${pedido.numeroPedido || pedido.id}.pdf`
+    );
+
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Erro ao exportar extrato do pedido em PDF:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao exportar extrato do pedido em PDF.",
       error: error.message,
     });
   }
@@ -144,4 +196,5 @@ function resumirExtrato(pedido) {
 
 module.exports = {
   getExtratoPedido,
+  getExtratoPedidoPdf,
 };

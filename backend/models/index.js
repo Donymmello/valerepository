@@ -313,6 +313,40 @@ ConvitePortal.belongsTo(User, {
     as: "utilizador",
 });
 
+/*
+  ==========================================================
+  FAN-OUT AUTOMÁTICO PARA EMAIL/SMS
+  ==========================================================
+  Qualquer Notificacao criada em qualquer parte do código (hoje há uns 6
+  controllers diferentes que criam Notificacao) passa por aqui, sem
+  precisar de tocar em cada um deles. Ver services/notificacaoExterna.service.js
+  para a lógica de despacho (quem recebe, por que canal, etc.).
+
+  O despacho só acontece depois da transação em que a notificação foi
+  criada ter mesmo confirmado (transaction.afterCommit) — para não enviar
+  um SMS/email referente a algo que acabou por ser revertido.
+*/
+const { despacharNotificacaoExterna } = require("../services/notificacaoExterna.service");
+
+function agendarDespachoExterno(notificacao, options) {
+  const disparar = () => despacharNotificacaoExterna(notificacao).catch((error) => {
+    console.error("[Notificacao afterCreate] Falha no despacho externo:", error.message);
+  });
+
+  if (options?.transaction) {
+    options.transaction.afterCommit(disparar);
+  } else {
+    disparar();
+  }
+}
+
+Notificacao.addHook("afterCreate", (notificacao, options) => {
+  agendarDespachoExterno(notificacao, options);
+});
+
+Notificacao.addHook("afterBulkCreate", (notificacoes, options) => {
+  (notificacoes || []).forEach((notificacao) => agendarDespachoExterno(notificacao, options));
+});
 
 module.exports = {
   sequelize,

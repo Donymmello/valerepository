@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { User, Mutuario, Empresa, ConvitePortal, PasswordResetToken, EmailVerificationToken, sequelize } = require("../models"); // Importou a instância do sequelize para transações
+const { User, Mutuario, Empresa, ConvitePortal, PasswordResetToken, EmailVerificationToken, Notificacao, sequelize } = require("../models"); // Importou a instância do sequelize para transações
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
@@ -52,6 +52,20 @@ const generateToken = (user) => {
   );
 };
 
+/**
+ * Valida a força mínima de uma password. Devolve uma mensagem de erro
+ * (string) se inválida, ou null se estiver ok.
+ */
+const validarForcaPassword = (password) => {
+  if (typeof password !== "string" || password.length < 8) {
+    return "A password deve ter pelo menos 8 caracteres.";
+  }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return "A password deve conter pelo menos uma letra e um número.";
+  }
+  return null;
+};
+
 const mapUserResponse = (user) => ({
   id: user.id,
   nome: user.nome,
@@ -76,6 +90,9 @@ const bootstrapAdmin = async (req, res) => {
     if (!nomeEmpresa || !nome || !email || !password) {
       return res.status(400).json({ message: "nomeEmpresa, nome, email e password são obrigatórios." });
     }
+
+    const erroPassword = validarForcaPassword(password);
+    if (erroPassword) return res.status(400).json({ message: erroPassword });
 
     const [empresaExistente, existingUser] = await Promise.all([
       Empresa.findOne({ where: { nome: nomeEmpresa }, attributes: ['id'] }),
@@ -160,6 +177,9 @@ const registerInterno = async (req, res) => {
     if (!nome || !email || !password || !role) {
       return res.status(400).json({ message: "Nome, email, password e role são obrigatórios." });
     }
+
+    const erroPassword = validarForcaPassword(password);
+    if (erroPassword) return res.status(400).json({ message: erroPassword });
 
     const rolesPermitidos = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
     if (!rolesPermitidos.includes(role)) {
@@ -292,6 +312,9 @@ const registerMutuario = async (req, res) => {
     if (!token || !nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
       return res.status(400).json({ message: "Preencher campos obrigatórios (incluindo o convite)." });
     }
+
+    const erroPasswordConvite = validarForcaPassword(password);
+    if (erroPasswordConvite) return res.status(400).json({ message: erroPasswordConvite });
 
     const convite = await obterConvitePortalValido(token);
     if (!convite) {
@@ -494,6 +517,9 @@ const resetPassword = async (req, res) => {
     const { token, password } = req.body;
     if (!token || !password) return res.status(400).json({ message: "Token e password são obrigatórios" });
 
+    const erroPasswordReset = validarForcaPassword(password);
+    if (erroPasswordReset) return res.status(400).json({ message: erroPasswordReset });
+
     const resetToken = await PasswordResetToken.findOne({ where: { token, used: false } });
 
     if (!resetToken || new Date() > resetToken.expiresAt) {
@@ -521,32 +547,47 @@ const resetPassword = async (req, res) => {
 const registerMutuarioRequestOTP = async (req, res) => {
   try {
     const {
-      token, nome, email, password, nomeCompleto, documentoTipo,
-      documentoNumero, nuit, dataNascimento, provincia,
-      distrito, localResidencia, telefone,
+      token, nome, email, password, nomeCompleto, telefone,
+      // Documento/NUIT/data de nascimento/morada já não são exigidos no
+      // registo — o mutuário completa isto depois em "Completar Perfil"
+      // (ver portalMutuario.controller.js, updateMeuMutuario). Se vierem
+      // preenchidos mesmo assim (ex: chamada direta à API), aceitam-se.
+      documentoTipo, documentoNumero, nuit, dataNascimento, provincia,
+      distrito, localResidencia,
     } = req.body;
 
-    if (!token || !nome || !email || !password || !nomeCompleto || !documentoTipo || !documentoNumero || !nuit) {
+    if (!token || !nome || !email || !password || !nomeCompleto || !telefone) {
       return res.status(400).json({ message: "Preencher campos obrigatórios (incluindo o convite)." });
     }
+
+    const erroPasswordOTP = validarForcaPassword(password);
+    if (erroPasswordOTP) return res.status(400).json({ message: erroPasswordOTP });
 
     const convite = await obterConvitePortalValido(token);
     if (!convite) {
       return res.status(400).json({ message: "Convite inválido, expirado ou já utilizado." });
     }
 
-    // Pesquisa simultânea de duplicações para travar antes do OTP
+    // Pesquisa simultânea de duplicações para travar antes do OTP.
+    // nuit/documentoNumero são opcionais agora, por isso só entram na
+    // verificação de duplicado quando realmente preenchidos.
+    const condicoesDuplicado = [];
+    if (nuit) condicoesDuplicado.push({ nuit });
+    if (documentoNumero) condicoesDuplicado.push({ documentoNumero });
+
     const [existingUser, existingMutuario] = await Promise.all([
       User.findOne({ where: { email }, attributes: ['id'] }),
-      Mutuario.findOne({
-        where: { [Op.or]: [{ nuit }, { documentoNumero }] },
-        attributes: ['id', 'nuit', 'documentoNumero']
-      })
+      condicoesDuplicado.length
+        ? Mutuario.findOne({
+            where: { [Op.or]: condicoesDuplicado },
+            attributes: ['id', 'nuit', 'documentoNumero']
+          })
+        : null,
     ]);
 
     if (existingUser) return res.status(409).json({ message: "Já existe um utilizador com este email." });
     if (existingMutuario) {
-      const msg = existingMutuario.nuit === nuit
+      const msg = nuit && existingMutuario.nuit === nuit
         ? "Já existe um mutuário com este nuit."
         : "Já existe um mutuário com este número de documento.";
       return res.status(409).json({ message: msg });
@@ -636,6 +677,20 @@ const verifyOTPAndRegister = async (req, res) => {
         entidadeId: mutuario.id,
         descricao: `Mutuário registado com verificação de email. User ID ${user.id}, Mutuário ID ${mutuario.id}.`,
       }, { transaction: t });
+
+      // O registo pede só o essencial — avisa aqui, uma vez, para
+      // completar o perfil (documento/NUIT/data de nascimento) antes de
+      // pedir crédito. Substitui banners espalhados pelo portal; a
+      // página "Meu Perfil" continua a mostrar o aviso enquanto faltar.
+      const perfilCompleto = mutuario.documentoTipo && mutuario.documentoNumero && mutuario.nuit && mutuario.dataNascimento;
+      if (!perfilCompleto) {
+        await Notificacao.create({
+          userId: user.id,
+          titulo: "Complete o seu perfil",
+          mensagem: "Falta o documento, NUIT e data de nascimento. Complete o seu perfil para poder submeter um pedido de crédito.",
+          tipo: "SISTEMA",
+        }, { transaction: t });
+      }
 
       return { user, mutuario };
     });

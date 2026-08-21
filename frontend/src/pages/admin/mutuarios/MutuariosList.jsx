@@ -11,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { getAllMutuariosRequest } from "../../../api/admin.api";
-import { formatDate } from "../../../utils/formatters";
+import { formatCurrency, formatDate } from "../../../utils/formatters";
 import PageHeader from "../../../components/common/PageHeader";
 import LoadingState from "../../../components/common/LoadingState";
 
@@ -147,6 +147,41 @@ export default function MutuariosList() {
                 <Typography variant="body2" color="text.secondary">
                   <strong>Data de registo:</strong> {formatDate(mutuario.createdAt)}
                 </Typography>
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap mt={1.5}>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`${mutuario.situacao?.pedidosAtivos ?? 0} pedido(s) ativo(s)`}
+                  />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color={mutuario.situacao?.creditosIncumprimento > 0 ? "error" : "default"}
+                    label={`${mutuario.situacao?.creditosAtivos ?? 0} crédito(s) ativo(s)`}
+                  />
+                  {mutuario.situacao?.creditosIncumprimento > 0 && (
+                    <Chip
+                      size="small"
+                      color="error"
+                      label={`${mutuario.situacao.creditosIncumprimento} em incumprimento`}
+                    />
+                  )}
+                  {mutuario.situacao?.parcelasEmAtraso > 0 && (
+                    <Chip
+                      size="small"
+                      color="warning"
+                      label={`${mutuario.situacao.parcelasEmAtraso} parcela(s) em atraso`}
+                    />
+                  )}
+                  {mutuario.situacao?.saldoEmDivida > 0 && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={`Saldo em dívida: ${formatCurrency(mutuario.situacao.saldoEmDivida)}`}
+                    />
+                  )}
+                </Stack>
               </Box>
 
               <Stack

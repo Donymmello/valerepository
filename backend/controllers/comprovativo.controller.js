@@ -13,6 +13,7 @@ const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
 const CreditoService = require("../services/credito.service");
 const { podeRegistrarReembolso } = require("../utils/regrasCredito");
+const { notificarStaffDaEmpresa } = require("../services/notificacaoInterna.service");
 
 const comprovativoInclude = [
   { model: Credito, as: "credito", attributes: ["id", "numeroContrato", "estado", "mutuarioId"] },
@@ -62,6 +63,15 @@ async function enviarComprovativo(req, res) {
       entidadeId: comprovativo.id,
       descricao: `Comprovativo enviado para o credito ${credito.numeroContrato}, parcela ${parcela.numeroParcela}.`,
     });
+
+    await notificarStaffDaEmpresa({
+      empresaId: credito.empresaId,
+      pedidoId: credito.pedidoId,
+      titulo: "Comprovativo de pagamento enviado",
+      mensagem: `O mutuário enviou um comprovativo de pagamento para a parcela ${parcela.numeroParcela} do contrato ${credito.numeroContrato}. Aguarda validação.`,
+      tipo: "ALERTA_PAGAMENTO",
+    });
+
     return res.status(201).json({ message: "Comprovativo enviado com sucesso.", comprovativo });
   } catch (error) {
     return res.status(500).json({ message: "Erro ao enviar comprovativo.", error: error.message });

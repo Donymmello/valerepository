@@ -28,27 +28,33 @@ const Mutuario = sequelize.define(
       field: "nome_completo",
     },
 
+    // Campos de identificação (KYC). Ficaram opcionais na BD porque o
+    // registo do mutuário (RegisterMutuario.jsx) já não os exige — pede
+    // só o essencial para reduzir fricção. São preenchidos depois em
+    // "Completar Perfil" (ver portalMutuario.controller.js,
+    // updateMeuMutuario), e continuam obrigatórios antes de submeter um
+    // pedido de crédito (ver createMeuPedido).
     documentoTipo: {
       type: DataTypes.STRING(50),
-      allowNull: false,
+      allowNull: true,
       field: "documento_tipo",
     },
 
     documentoNumero: {
       type: DataTypes.STRING(14),
-      allowNull: false,
+      allowNull: true,
       field: "documento_numero",
     },
 
     nuit: {
       type: DataTypes.STRING(9),
-      allowNull: false,
+      allowNull: true,
       field: "nuit"
     },
 
     dataNascimento: {
       type: DataTypes.DATEONLY,
-      allowNull: false,
+      allowNull: true,
       field: "data_nascimento",
     },
 

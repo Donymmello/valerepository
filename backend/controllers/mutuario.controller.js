@@ -1,4 +1,4 @@
-const { Mutuario, User, PedidoCredito, sequelize } = require("../models");
+const { Mutuario, User, PedidoCredito, Credito, ParcelaPagamento, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateCodigoMutuario } = require("../utils/generateCode");
 const { Op } = require("sequelize");
@@ -117,6 +117,10 @@ async function createMutuario(req, res) {
 
 /**
  * LISTAR TODOS OS MUTUÁRIOS
+ * Inclui uma "situação" resumida por mutuário (pedidos ativos, créditos
+ * ativos/em incumprimento, saldo em dívida, parcelas em atraso) para o
+ * backoffice conseguir ver de relance quem precisa de atenção, sem ter
+ * de abrir o detalhe de cada um.
  */
 async function getAllMutuarios(req, res) {
   try {
@@ -125,7 +129,70 @@ async function getAllMutuarios(req, res) {
       include: [{ model: User, as: "user", required: false, attributes: ["id", "nome", "email", "role", "ativo"] }],
       order: [["id", "DESC"]],
     });
-    return res.status(200).json(mutuarios);
+
+    const mutuarioIds = mutuarios.map((m) => m.id);
+
+    const situacaoVazia = () => ({
+      pedidosAtivos: 0,
+      creditosAtivos: 0,
+      creditosIncumprimento: 0,
+      saldoEmDivida: 0,
+      parcelasEmAtraso: 0,
+    });
+
+    const situacaoPorMutuario = {};
+    for (const id of mutuarioIds) situacaoPorMutuario[id] = situacaoVazia();
+
+    if (mutuarioIds.length) {
+      const [pedidos, creditos] = await Promise.all([
+        PedidoCredito.findAll({
+          where: { mutuarioId: { [Op.in]: mutuarioIds }, empresaId: req.user.empresaId },
+          attributes: ["id", "mutuarioId", "status"],
+        }),
+        Credito.findAll({
+          where: { mutuarioId: { [Op.in]: mutuarioIds }, empresaId: req.user.empresaId },
+          attributes: ["id", "mutuarioId", "estado", "saldoAtual"],
+          include: [
+            {
+              model: ParcelaPagamento,
+              as: "parcelas",
+              attributes: ["id", "estado"],
+              required: false,
+            },
+          ],
+        }),
+      ]);
+
+      for (const pedido of pedidos) {
+        const situacao = situacaoPorMutuario[pedido.mutuarioId];
+        if (!situacao) continue;
+        if (!["REJEITADO", "ENCERRADO"].includes(pedido.status)) {
+          situacao.pedidosAtivos += 1;
+        }
+      }
+
+      for (const credito of creditos) {
+        const situacao = situacaoPorMutuario[credito.mutuarioId];
+        if (!situacao) continue;
+        if (["ATIVO", "INCUMPRIMENTO"].includes(credito.estado)) {
+          situacao.creditosAtivos += 1;
+        }
+        if (credito.estado === "INCUMPRIMENTO") {
+          situacao.creditosIncumprimento += 1;
+        }
+        situacao.saldoEmDivida += Number(credito.saldoAtual || 0);
+        situacao.parcelasEmAtraso += (credito.parcelas || []).filter(
+          (parcela) => parcela.estado === "ATRASADO"
+        ).length;
+      }
+    }
+
+    const mutuariosComSituacao = mutuarios.map((mutuario) => ({
+      ...mutuario.toJSON(),
+      situacao: situacaoPorMutuario[mutuario.id] || situacaoVazia(),
+    }));
+
+    return res.status(200).json(mutuariosComSituacao);
   } catch (error) {
     console.error("[GetAllMutuarios Error]:", error);
     return res.status(500).json({ message: "Erro interno ao listar mutuários." });

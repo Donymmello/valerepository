@@ -1,6 +1,7 @@
-const { AprovacaoPedido, PedidoCredito, User, Mutuario, Notificacao, PedidoRequisito, RequisitoCredito, sequelize } = require("../models");
+const { AprovacaoPedido, PedidoCredito, User, Mutuario, Empresa, Notificacao, PedidoRequisito, RequisitoCredito, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { podeAprovarPedido, podeRejeitarPedido, podeTransitarStatus, STATUS_PEDIDO } = require("../utils/regrasPedido");
+const calcularPrestacao = require("../utils/calCredito");
 
 // =========================================================================
 // HELPERS / ENGINE DE FLUXO
@@ -49,7 +50,7 @@ const TEXTOS_FLUXO = {
 async function decidirAprovacao(req, res) {
   try {
     const { pedidoId } = req.params;
-    const { nivel, decisao, comentario } = req.body;
+    const { nivel, decisao, comentario, taxaFinal } = req.body;
 
     if (!nivel || !decisao || !["APROVADO", "REJEITADO"].includes(decisao)) {
       return res.status(400).json({ message: "Campos obrigatórios em falta ou decisão inválida." });
@@ -93,12 +94,51 @@ async function decidirAprovacao(req, res) {
     }
 
     // Gerir estados de transição calculados antecipadamente
-    const { novoStatus, novaEtapa } = decisao === "REJEITADO" 
+    const { novoStatus, novaEtapa } = decisao === "REJEITADO"
       ? { novoStatus: STATUS_PEDIDO.REJEITADO, novaEtapa: pedido.etapaAtual }
       : calcularProximoFluxoAprovacao(pedido);
 
     if (pedido.status !== novoStatus && !podeTransitarStatus(pedido.status, novoStatus)) {
       return res.status(400).json({ message: `Transição inválida de status: ${pedido.status} -> ${novoStatus}.` });
+    }
+
+    // Aprovação de nível 1: é aqui que quem faz a análise de risco
+    // (normalmente o ANALISTA, mas a etapa 1 também permite GESTOR/ADMIN)
+    // define a taxa de juros, dentro da faixa que a empresa pratica.
+    // Os níveis 2 e 3 (GESTOR, DIRETOR/ADMIN) só confirmam ou rejeitam
+    // — não voltam a mexer na taxa, já definida aqui. Antes disto o
+    // pedido só tinha a taxa mínima como estimativa (ver
+    // pedidoCredito.controller.js). É esta taxa que o crédito herda no
+    // desembolso (credito.service.js lê pedido.taxa/prestacao/etc.).
+    let dadosFinanceirosFinais = null;
+    if (decisao === "APROVADO" && Number(nivel) === 1) {
+      const taxa = Number(taxaFinal);
+
+      if (!taxaFinal || !Number.isFinite(taxa) || taxa <= 0) {
+        return res.status(400).json({ message: "A taxa de juros é obrigatória para aprovar nesta etapa." });
+      }
+
+      const empresa = await Empresa.findByPk(req.user.empresaId, {
+        attributes: ["taxaJurosMin", "taxaJurosMax"],
+      });
+      const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
+      const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
+
+      if (taxa < taxaMin || taxa > taxaMax) {
+        return res.status(400).json({
+          message: `A taxa deve estar entre ${taxaMin}% e ${taxaMax}% (faixa definida em Configurações > Empresa).`,
+        });
+      }
+
+      const prestacao = calcularPrestacao(Number(pedido.valorSolicitado), taxa, Number(pedido.prazo));
+      const montanteTotal = prestacao * Number(pedido.prazo);
+
+      dadosFinanceirosFinais = {
+        taxa,
+        prestacao,
+        montanteTotal,
+        jurosTotal: montanteTotal - Number(pedido.valorSolicitado),
+      };
     }
 
     // Execução transacional atómica total
@@ -114,7 +154,10 @@ async function decidirAprovacao(req, res) {
         await aprovacaoReg.update({ aprovadorId: req.user.id, decisao, comentario: comentario || null, dataDecisao: new Date() }, { transaction: t });
       }
 
-      await pedido.update({ status: novoStatus, etapaAtual: novaEtapa }, { transaction: t });
+      await pedido.update(
+        { status: novoStatus, etapaAtual: novaEtapa, ...dadosFinanceirosFinais },
+        { transaction: t }
+      );
 
       const configTexto = decisao === "REJEITADO" ? TEXTOS_FLUXO.REJEITADO(pedido.numeroPedido, nivel) : TEXTOS_FLUXO[Number(nivel)](pedido.numeroPedido);
 

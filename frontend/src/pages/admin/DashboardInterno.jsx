@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
@@ -9,14 +9,26 @@ import {
   Grid,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
 import { useAuth } from "../../context/AuthContext";
-import { getResumoGeralRequest, getDashboardFinanceiroRequest } from "../../api/admin.api";
+import {
+  getResumoGeralRequest,
+  getDashboardFinanceiroRequest,
+  getAllMutuariosRequest,
+} from "../../api/admin.api";
 import { formatCurrency, getStatusLabel, getStatusColor } from "../../utils/formatters";
 import LoadingState from "../../components/common/LoadingState";
 import StatCard from "../../components/common/StatCard";
 import { CORES } from "../../theme";
+
+const LIMITE_MUTUARIOS_DASHBOARD = 8;
 
 function ModuloCard({ titulo, descricao, to, buttonLabel }) {
   return (
@@ -44,18 +56,21 @@ export default function DashboardInterno() {
   const { user } = useAuth();
   const [resumo, setResumo] = useState(null);
   const [financeiro, setFinanceiro] = useState(null);
+  const [mutuarios, setMutuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const carregar = async () => {
       try {
-        const [resumoData, financeiroData] = await Promise.all([
+        const [resumoData, financeiroData, mutuariosData] = await Promise.all([
           getResumoGeralRequest(),
           getDashboardFinanceiroRequest(),
+          getAllMutuariosRequest(),
         ]);
         setResumo(resumoData);
         setFinanceiro(financeiroData);
+        setMutuarios(Array.isArray(mutuariosData) ? mutuariosData : []);
       } catch (err) {
         console.error(err);
         setError("Não foi possível carregar o resumo.");
@@ -70,6 +85,24 @@ export default function DashboardInterno() {
   const parcelasVencidas = financeiro?.parcelas?.parcelasVencidas ?? 0;
   const creditosIncumprimento = financeiro?.resumo?.creditosIncumprimento ?? 0;
   const temAtencaoNecessaria = parcelasVencidas > 0 || creditosIncumprimento > 0;
+
+  // Prioriza quem precisa de atenção (incumprimento, depois atraso, depois
+  // maior saldo em dívida) para o resumo do dashboard não ficar uma lista
+  // solta sem critério — a lista completa e pesquisável continua em
+  // /interno/mutuarios.
+  const mutuariosOrdenados = useMemo(() => {
+    return [...mutuarios].sort((a, b) => {
+      const sa = a.situacao || {};
+      const sb = b.situacao || {};
+      return (
+        (sb.creditosIncumprimento || 0) - (sa.creditosIncumprimento || 0) ||
+        (sb.parcelasEmAtraso || 0) - (sa.parcelasEmAtraso || 0) ||
+        (sb.saldoEmDivida || 0) - (sa.saldoEmDivida || 0)
+      );
+    });
+  }, [mutuarios]);
+
+  const mutuariosParaMostrar = mutuariosOrdenados.slice(0, LIMITE_MUTUARIOS_DASHBOARD);
 
   return (
     <Box>
@@ -95,7 +128,8 @@ export default function DashboardInterno() {
               <Stack direction="row" spacing={3} flexWrap="wrap">
                 {parcelasVencidas > 0 && (
                   <Typography variant="body2">
-                    <strong>{parcelasVencidas}</strong> parcela{parcelasVencidas !== 1 ? "s" : ""} vencida{parcelasVencidas !== 1 ? "s" : ""} por cobrar
+                    <strong>{parcelasVencidas}</strong> parcela{parcelasVencidas !== 1 ? "s" : ""} vencida{parcelasVencidas !== 1 ? "s" : ""} por cobrar —{" "}
+                    <RouterLink to="/interno/reembolsos">ver parcelas em atraso</RouterLink>
                   </Typography>
                 )}
                 {creditosIncumprimento > 0 && (
@@ -137,6 +171,7 @@ export default function DashboardInterno() {
                 label="Parcelas Vencidas"
                 value={parcelasVencidas}
                 color={parcelasVencidas > 0 ? CORES.erro : CORES.marca}
+                to="/interno/reembolsos"
               />
             </Grid>
           </Grid>
@@ -200,6 +235,85 @@ export default function DashboardInterno() {
               <StatCard label="Reestruturados" value={financeiro?.resumo?.creditosReestruturados ?? 0} color={CORES.roxo} />
             </Grid>
           </Grid>
+
+          {/* Mutuários e situação financeira */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Mutuários
+            </Typography>
+            <Button component={RouterLink} to="/interno/mutuarios" size="small">
+              Ver todos
+            </Button>
+          </Stack>
+
+          {mutuariosParaMostrar.length ? (
+            <TableContainer component={Paper} sx={{ borderRadius: 3, mb: 4 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Mutuário</TableCell>
+                    <TableCell align="center">Pedidos Ativos</TableCell>
+                    <TableCell align="center">Créditos Ativos</TableCell>
+                    <TableCell align="center">Em Incumprimento</TableCell>
+                    <TableCell align="center">Parcelas em Atraso</TableCell>
+                    <TableCell align="right">Saldo em Dívida</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {mutuariosParaMostrar.map((mutuario) => {
+                    const situacao = mutuario.situacao || {};
+                    const precisaAtencao =
+                      (situacao.creditosIncumprimento || 0) > 0 || (situacao.parcelasEmAtraso || 0) > 0;
+
+                    return (
+                      <TableRow
+                        key={mutuario.id}
+                        component={RouterLink}
+                        to={`/interno/mutuarios/${mutuario.id}`}
+                        hover
+                        sx={{
+                          textDecoration: "none",
+                          cursor: "pointer",
+                          "& .MuiTableCell-root": { color: "inherit" },
+                        }}
+                      >
+                        <TableCell>{mutuario.nomeCompleto || "-"}</TableCell>
+                        <TableCell align="center">{situacao.pedidosAtivos ?? 0}</TableCell>
+                        <TableCell align="center">{situacao.creditosAtivos ?? 0}</TableCell>
+                        <TableCell align="center">
+                          {situacao.creditosIncumprimento > 0 ? (
+                            <Chip label={situacao.creditosIncumprimento} color="error" size="small" />
+                          ) : (
+                            0
+                          )}
+                        </TableCell>
+                        <TableCell align="center">
+                          {situacao.parcelasEmAtraso > 0 ? (
+                            <Chip label={situacao.parcelasEmAtraso} color="warning" size="small" />
+                          ) : (
+                            0
+                          )}
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: precisaAtencao ? 700 : 400 }}
+                            color={precisaAtencao ? "error" : "inherit"}
+                          >
+                            {formatCurrency(situacao.saldoEmDivida)}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
+              <Typography color="text.secondary">Ainda não existem mutuários registados.</Typography>
+            </Paper>
+          )}
         </>
       )}
 

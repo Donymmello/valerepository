@@ -1,5 +1,6 @@
 const XLSX = require("xlsx");
-const { Mutuario, PedidoCredito, Desembolso, Reembolso } = require("../models");
+const { Mutuario, PedidoCredito, Desembolso, Reembolso, Credito, Empresa } = require("../models");
+const calcularPrestacao = require("../utils/calCredito");
 
 /*
   ===========================================================
@@ -152,10 +153,15 @@ async function gerarExcellPedidos(empresaId) {
     CodigoMutuario: pedido.mutuario?.codigoMutuario || "",
     NomeMutuario: pedido.mutuario?.nomeCompleto || "",
     ValorSolicitado: pedido.valorSolicitado || "",
+    Prazo: pedido.prazo || "",
     Finalidade: pedido.finalidade || "",
     PacoteFinanciamento: pedido.pacoteFinanciamento || "",
     Status: pedido.status || "",
     EtapaAtual: pedido.etapaAtual || "",
+    Taxa: pedido.taxa || "",
+    Prestacao: pedido.prestacao || "",
+    JurosTotal: pedido.jurosTotal || "",
+    MontanteTotal: pedido.montanteTotal || "",
     DataSubmissao: pedido.dataSubmissao
       ? new Date(pedido.dataSubmissao).toLocaleString("pt-PT")
       : "",
@@ -201,10 +207,15 @@ async function gerarExcellPedidos(empresaId) {
             CodigoMutuario: "",
             NomeMutuario: "",
             ValorSolicitado: "",
+            Prazo: "",
             Finalidade: "",
             PacoteFinanciamento: "",
             Status: "",
             EtapaAtual: "",
+            Taxa: "",
+            Prestacao: "",
+            JurosTotal: "",
+            MontanteTotal: "",
             DataSubmissao: "",
             PrazoAvaliacao: "",
             PrazoValidacao: "",
@@ -220,24 +231,29 @@ async function gerarExcellPedidos(empresaId) {
   const worksheet = XLSX.utils.json_to_sheet(dadosParaPlanilha);
 
   worksheet["!cols"] = [
-    { wch: 8 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 30 },
-    { wch: 18 },
-    { wch: 35 },
-    { wch: 22 },
-    { wch: 18 },
-    { wch: 12 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 22 },
-    { wch: 35 },
-    { wch: 12 },
-    { wch: 25 },
-    { wch: 30 },
-    { wch: 22 },
-    { wch: 22 },
+    { wch: 8 },  // ID
+    { wch: 18 }, // NumeroPedido
+    { wch: 18 }, // CodigoMutuario
+    { wch: 30 }, // NomeMutuario
+    { wch: 18 }, // ValorSolicitado
+    { wch: 10 }, // Prazo
+    { wch: 35 }, // Finalidade
+    { wch: 22 }, // PacoteFinanciamento
+    { wch: 18 }, // Status
+    { wch: 12 }, // EtapaAtual
+    { wch: 10 }, // Taxa
+    { wch: 14 }, // Prestacao
+    { wch: 14 }, // JurosTotal
+    { wch: 16 }, // MontanteTotal
+    { wch: 22 }, // DataSubmissao
+    { wch: 22 }, // PrazoAvaliacao
+    { wch: 22 }, // PrazoValidacao
+    { wch: 35 }, // Observacoes
+    { wch: 12 }, // CriadoPorId
+    { wch: 25 }, // CriadoPorNome
+    { wch: 30 }, // CriadoPorEmail
+    { wch: 22 }, // DataCriacao
+    { wch: 22 }, // DataAtualizacao
   ];
 
   const workbook = XLSX.utils.book_new();
@@ -492,7 +508,12 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
         association: "desembolsos",
       },
       {
-        association: "reembolsos",
+        // Reembolso não tem associação direta com PedidoCredito — só existe
+        // via Credito (Reembolso -> Credito -> PedidoCredito). Um include
+        // direto de "reembolsos" aqui dava SequelizeEagerLoadingError (mesmo
+        // bug corrigido em relatorio.controller.js e portalExport.controller.js).
+        association: "creditos",
+        include: [{ association: "reembolsos" }],
       },
     ],
     order: [["id", "DESC"]],
@@ -502,6 +523,9 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
     Monta os dados do relatório
   */
   const dadosFormatados = pedidos.map((pedido) => {
+    const creditos = pedido.creditos || [];
+    const reembolsosDoPedido = creditos.flatMap((credito) => credito.reembolsos || []);
+
     /*
       Soma o total desembolsado do pedido
     */
@@ -514,24 +538,35 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
     /*
       Soma o total reembolsado do pedido
     */
-    const totalReembolsado = (pedido.reembolsos || []).reduce(
+    const totalReembolsado = reembolsosDoPedido.reduce(
       (total, reembolso) =>
         total + Number(reembolso.valorReembolsado || 0),
       0
     );
 
     /*
-      Calcula o saldo em aberto
-      Regra:
-      saldo = total desembolsado - total reembolsado
+      Montante total a pagar (capital + juros) — vem do Crédito, criado a
+      partir de pedido.montanteTotal no desembolso (ver credito.service.js).
     */
-    const saldoEmAberto = totalDesembolsado - totalReembolsado;
+    const montanteTotal = creditos.reduce(
+      (total, credito) => total + Number(credito.montanteTotal || 0),
+      0
+    );
+
+    /*
+      Calcula o saldo em aberto a partir do saldoAtual do crédito (já
+      desconta capital + juros pagos). Sem crédito ainda (pedido não
+      desembolsado), só há capital em jogo, daí o fallback.
+    */
+    const saldoEmAberto = creditos.length
+      ? creditos.reduce((total, credito) => total + Number(credito.saldoAtual || 0), 0)
+      : totalDesembolsado - totalReembolsado;
 
     /*
       Quantidade de movimentos financeiros
     */
     const quantidadeDesembolsos = (pedido.desembolsos || []).length;
-    const quantidadeReembolsos = (pedido.reembolsos || []).length;
+    const quantidadeReembolsos = reembolsosDoPedido.length;
 
     return {
       ID: pedido.id || "",
@@ -541,6 +576,7 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
       ValorSolicitado: Number(pedido.valorSolicitado || 0),
       TotalDesembolsado: totalDesembolsado,
       TotalReembolsado: totalReembolsado,
+      MontanteTotal: montanteTotal,
       SaldoEmAberto: saldoEmAberto,
       QuantidadeDesembolsos: quantidadeDesembolsos,
       QuantidadeReembolsos: quantidadeReembolsos,
@@ -582,6 +618,7 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
             ValorSolicitado: "",
             TotalDesembolsado: "",
             TotalReembolsado: "",
+            MontanteTotal: "",
             SaldoEmAberto: "",
             QuantidadeDesembolsos: "",
             QuantidadeReembolsos: "",
@@ -611,6 +648,7 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
     { wch: 18 },
     { wch: 18 },
     { wch: 30 },
+    { wch: 18 },
     { wch: 18 },
     { wch: 18 },
     { wch: 18 },
@@ -953,6 +991,21 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
   const importados = [];
 
   /*
+    A taxa é obrigatória no modelo (allowNull: false). Se a planilha não
+    trouxer uma taxa explícita por linha (ex: importação de pedidos ainda
+    não aprovados), usamos a taxa mínima da empresa como estimativa —
+    o mesmo critério usado em pedidoCredito.controller.js e
+    portalMutuario.controller.js. Buscamos a empresa uma única vez, fora
+    do loop, para não repetir a query por linha.
+  */
+  const empresa = await Empresa.findByPk(empresaId, {
+    attributes: ["taxaJurosMin", "taxaJurosMax"],
+  });
+  const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
+  const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
+  const taxaEstimativaPadrao = Number(empresa?.taxaJurosMin ?? 18);
+
+  /*
     Processa linha por linha
   */
   for (let index = 0; index < linhas.length; index++) {
@@ -980,6 +1033,18 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
       linha.ValorSolicitado ??
       linha.valorSolicitado ??
       linha.valor_solicitado ??
+      "";
+
+    const prazoBruto =
+      linha.Prazo ??
+      linha.prazo ??
+      linha.PrazoMeses ??
+      linha.prazoMeses ??
+      "";
+
+    const taxaBruta =
+      linha.Taxa ??
+      linha.taxa ??
       "";
 
     const finalidade = String(
@@ -1061,6 +1126,14 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
       continue;
     }
 
+    if (prazoBruto === "" || prazoBruto === null) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "Prazo (em meses) é obrigatório."
+      });
+      continue;
+    }
+
     if (!finalidade) {
       erros.push({
         linha: numeroLinha,
@@ -1083,6 +1156,50 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
       });
       continue;
     }
+
+    /*
+      Converte prazo (meses)
+    */
+    const prazo = Number(String(prazoBruto).replace(",", "."));
+
+    if (!Number.isInteger(prazo) || prazo <= 0) {
+      erros.push({
+        linha: numeroLinha,
+        erro: "Prazo inválido (deve ser um número inteiro de meses maior que zero)."
+      });
+      continue;
+    }
+
+    /*
+      Converte/valida taxa. Se a linha não trouxer taxa (coluna vazia),
+      usa a estimativa mínima da empresa — mesmo critério das outras
+      formas de criar pedido. Se trouxer, valida contra a faixa da
+      empresa (taxaJurosMin/taxaJurosMax), tal como na aprovação.
+    */
+    let taxa;
+    if (taxaBruta === "" || taxaBruta === null) {
+      taxa = taxaEstimativaPadrao;
+    } else {
+      taxa = Number(String(taxaBruta).replace(",", "."));
+      if (!Number.isFinite(taxa) || taxa <= 0) {
+        erros.push({
+          linha: numeroLinha,
+          erro: "Taxa inválida."
+        });
+        continue;
+      }
+      if (taxa < taxaMin || taxa > taxaMax) {
+        erros.push({
+          linha: numeroLinha,
+          erro: `Taxa deve estar entre ${taxaMin}% e ${taxaMax}% (faixa definida em Configurações > Empresa).`
+        });
+        continue;
+      }
+    }
+
+    const prestacao = calcularPrestacao(valorSolicitado, taxa, prazo);
+    const montanteTotal = prestacao * prazo;
+    const jurosTotal = montanteTotal - valorSolicitado;
 
     /*
       Converte etapa atual
@@ -1157,6 +1274,11 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
       mutuarioId: mutuario.id,
       empresaId,
       valorSolicitado,
+      prazo,
+      taxa,
+      prestacao,
+      jurosTotal,
+      montanteTotal,
       finalidade,
       pacoteFinanciamento: pacoteFinanciamento || null,
       status: status || "SUBMETIDO",

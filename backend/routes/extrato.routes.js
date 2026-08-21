@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/auth.middleware');
-const { getExtratoPedido } = require('../controllers/extrato.controller');
+const { getExtratoPedido, getExtratoPedidoPdf } = require('../controllers/extrato.controller');
 
 /*
     ==========================================================
@@ -11,5 +11,6 @@ const { getExtratoPedido } = require('../controllers/extrato.controller');
 */
 
 router.get('/pedido/:pedidoId', authMiddleware, getExtratoPedido);
+router.get('/pedido/:pedidoId/pdf', authMiddleware, getExtratoPedidoPdf);
 
 module.exports = router;

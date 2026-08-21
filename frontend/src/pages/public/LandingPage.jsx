@@ -1,30 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AppBar, Toolbar, Typography, Button, Container, Grid,
-  Box, Slider, Card, CardContent, Stack, CircularProgress, Alert, TextField
+  Box, Card, CardContent, Stack, Alert, TextField
 } from '@mui/material';
 import { AccountBalanceWallet, Speed, Security, CheckCircleOutline } from '@mui/icons-material';
-import { simularCreditoRequest, criarSolicitacaoAcessoRequest } from '../../api/public.api';
+import { criarSolicitacaoAcessoRequest } from '../../api/public.api';
 import { bootstrapAdminRequest } from '../../api/auth.api';
-//import { simularCalculoCreditoRequest } from '../../api/public.api';
 import { useAuth } from "../../context/AuthContext";
-
-
-// Tempo de espera depois do user parar de mexer no slider, antes de chamar o backend
-const DEBOUNCE_MS = 500;
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, setSession } = useAuth();
-  const [valorSolicitado, setValor] = useState(5000);
-  const [parcelas, setParcelas] = useState(6);
-
-  const [resultado, setResultado] = useState(null); // { prestacao, jurosTotal, montanteTotal, taxa, id }
-  const [loadingSimulacao, setLoadingSimulacao] = useState(false);
-  const [erroSimulacao, setErroSimulacao] = useState("");
-
-  const debounceRef = useRef(null);
 
   // Trial self-service: cria a empresa + admin na hora (7 dias grátis).
   const [trialForm, setTrialForm] = useState({ nomeEmpresa: "", nome: "", email: "", password: "" });
@@ -74,37 +61,6 @@ export default function LandingPage() {
       setAcessoEnviando(false);
     }
   };
-
-  // Dispara a simulação no backend sempre que valor/parcelas mudam,
-  // com debounce para não disparar uma chamada por cada pixel do slider.
-  useEffect(() => {
-    setErroSimulacao("");
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(async () => {
-      try {
-        setLoadingSimulacao(true);
-
-        const data = await simularCreditoRequest({ valorSolicitado, prazo: parcelas });
-
-        setResultado(data);
-
-        // Guarda o id da simulação para, se o user se registar a seguir,
-        // conseguirmos associar esta simulação à conta criada.
-        if (data?.id) {
-          sessionStorage.setItem("simulacaoPendenteId", data.id);
-        }
-      } catch (err) {
-        console.error(err);
-        setErroSimulacao("Não foi possível calcular a simulação. Tenta novamente.");
-      } finally {
-        setLoadingSimulacao(false);
-      }
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(debounceRef.current);
-  }, [valorSolicitado, parcelas]);
 
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -161,170 +117,46 @@ export default function LandingPage() {
         </Container>
       </AppBar>
 
-      {/* 2. Hero Section + Simulador */}
-      <Container maxWidth="lg" sx={{ mt: 8, mb: 8 }}>
-        <Grid container spacing={4} alignItems="center">
+      {/* 2. Hero Section */}
+      <Container maxWidth="md" sx={{ mt: 10, mb: 10, textAlign: 'center' }}>
+        <Typography variant="h2" component="h1" sx={{ fontWeight: 800, color: '#1a237e', mb: 2, fontSize: { xs: '2.25rem', md: '3.25rem' } }}>
+          A plataforma de gestão para a sua financeira.
+        </Typography>
+        <Typography variant="h6" color="textSecondary" sx={{ mb: 4, fontWeight: 400 }}>
+          Pedidos, aprovações, desembolsos, reembolsos e relatórios de microcrédito — tudo num só sistema, com as tuas próprias taxas e equipa.
+        </Typography>
 
-          {/* Texto de Impacto */}
-          <Grid item xs={12} md={6}>
-            <Typography variant="h2" component="h1" sx={{ fontWeight: 800, color: '#1a237e', mb: 2, fontSize: { xs: '2.5rem', md: '3.5rem' } }}>
-              Impulsione o seu negócio hoje.
-            </Typography>
-            <Typography variant="h6" color="textSecondary" sx={{ mb: 4, fontWeight: 400 }}>
-              Microcrédito rápido, sem burocracia e com taxas que cabem no seu bolso. Dinheiro na conta em até 24 horas para microempreendedores.
-            </Typography>
+        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 1 }}>
+          <CheckCircleOutline color="success" />
+          <Typography variant="body1">Sem cartão de crédito para começar</Typography>
+        </Stack>
+        <Stack direction="row" spacing={2} justifyContent="center">
+          <CheckCircleOutline color="success" />
+          <Typography variant="body1">Trial grátis de 7 dias</Typography>
+        </Stack>
 
-            <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-              <CheckCircleOutline color="success" />
-              <Typography variant="body1">Sem taxas escondidas</Typography>
-            </Stack>
-            <Stack direction="row" spacing={2}>
-              <CheckCircleOutline color="success" />
-              <Typography variant="body1">Processo 100% digital</Typography>
-            </Stack>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={4} justifyContent="center">
+          {isAuthenticated ? (
+            <Button variant="contained" size="large" onClick={() => navigate("/portal")}>
+              Ir para o Portal
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              size="large"
+              color="success"
+              onClick={() => scrollToSection("sou-financeira")}
+            >
+              Começar Grátis
+            </Button>
+          )}
+        </Stack>
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={4}>
-              <Button
-                variant="contained"
-                size="large"
-                color="success"
-                onClick={() => scrollToSection("simulador")}
-              >
-                Simular Crédito
-              </Button>
-
-              {isAuthenticated && (
-                <Button variant="contained" onClick={() => navigate("/portal")}>
-                  Ir para o Portal
-                </Button>
-              )}
-            </Stack>
-
-            {!isAuthenticated && (
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
-                Já és cliente de uma financeira? Pede o link de registo a ela.
-              </Typography>
-            )}
-          </Grid>
-
-          {/* Card do Simulador */}
-          <Grid item xs={12} md={6} id="simulador">
-            <Card sx={{ borderRadius: 4, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.08)', p: 2 }}>
-              <CardContent>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 3, color: '#1a237e' }}>
-                  Simule o seu Crédito
-                </Typography>
-
-                {/* Slider de Valor */}
-                <Box sx={{ mb: 4 }}>
-                  <Typography gutterBottom justifyContent="space-between" display="flex">
-                    <span>Quanto precisa?</span>
-                    <strong>MZN {valorSolicitado.toLocaleString()}</strong>
-                  </Typography>
-                  <Slider
-                    value={valorSolicitado}
-                    min={5000}
-                    max={100000}
-                    step={500}
-                    onChange={(e, val) => setValor(val)}
-                    valueLabelDisplay="auto"
-                  />
-                </Box>
-
-                {/* Slider de Parcelas */}
-                <Box sx={{ mb: 4 }}>
-                  <Typography gutterBottom justifyContent="space-between" display="flex">
-                    <span>Em quantas parcelas?</span>
-                    <strong>{parcelas} meses</strong>
-                  </Typography>
-                  <Slider
-                    value={parcelas}
-                    min={3}
-                    max={24}
-                    step={1}
-                    onChange={(e, val) => setParcelas(val)}
-                    valueLabelDisplay="auto"
-                    color="secondary"
-                  />
-                </Box>
-
-                {/* Resultado da Simulação */}
-                {erroSimulacao && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {erroSimulacao}
-                  </Alert>
-                )}
-
-                <Box sx={{ bgcolor: '#f8f9fa', p: 2, borderRadius: 2, mb: 3, position: 'relative', minHeight: 140 }}>
-                  {loadingSimulacao && (
-                    <Box sx={{
-                      position: 'absolute', inset: 0, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center',
-                      bgcolor: 'rgba(255,255,255,0.6)', borderRadius: 2, zIndex: 1,
-                    }}>
-                      <CircularProgress size={22} />
-                    </Box>
-                  )}
-
-                  <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography color="textSecondary">Taxa Aplicada</Typography>
-                    <Typography fontWeight="bold">
-                      {resultado ? `${Number(resultado.taxa).toFixed(1)}% ao ano` : "—"}
-                    </Typography>
-                  </Grid>
-
-                  <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography color="textSecondary">Prazo</Typography>
-                    <Typography fontWeight="bold">{parcelas} meses</Typography>
-                  </Grid>
-
-                  <Grid container justifyContent="space-between" sx={{ mb: 1 }}>
-                    <Typography color="textSecondary">Parcela mensal estimada:</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
-                      {resultado ? `MZN ${Number(resultado.prestacao).toFixed(2)}` : "—"}
-                    </Typography>
-                  </Grid>
-                  <Grid container justifyContent="space-between">
-                    <Typography color="textSecondary">Total a pagar:</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                      {resultado ? `MZN ${Number(resultado.montanteTotal).toFixed(2)}` : "—"}
-                    </Typography>
-                  </Grid>
-                </Box>
-
-                {isAuthenticated ? (
-                  <Button
-                    variant="contained"
-                    color="success"
-                    fullWidth
-                    size="large"
-                    sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
-                    onClick={() => navigate("/portal/criar-pedido")}
-                  >
-                    Solicitar Crédito
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      fullWidth
-                      size="large"
-                      disabled
-                      sx={{ borderRadius: 2, py: 1.5, fontWeight: 'bold' }}
-                    >
-                      Solicitar Crédito
-                    </Button>
-                    <Typography variant="caption" color="textSecondary" display="block" textAlign="center" mt={1}>
-                      Precisas de um convite da tua financeira para te registares.
-                    </Typography>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-        </Grid>
+        {!isAuthenticated && (
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+            Já és cliente de uma financeira? Pede o link de registo a ela.
+          </Typography>
+        )}
       </Container>
 
       {/* 3. Como Funciona */}
@@ -339,10 +171,10 @@ export default function LandingPage() {
               <Card sx={{ borderRadius: 3, height: '100%', boxShadow: '0px 4px 16px rgba(0,0,0,0.06)' }}>
                 <CardContent sx={{ textAlign: 'center', py: 4 }}>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1a237e', mb: 1 }}>
-                    1. Simule
+                    1. Registe-se
                   </Typography>
                   <Typography color="textSecondary">
-                    Escolha o valor e prazo.
+                    Crie a conta da sua financeira.
                   </Typography>
                 </CardContent>
               </Card>

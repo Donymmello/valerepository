@@ -40,6 +40,9 @@ export default function MeuMutuario() {
     );
   }
 
+  const perfilIncompleto =
+    mutuario && (!mutuario.documentoTipo || !mutuario.documentoNumero || !mutuario.nuit || !mutuario.dataNascimento);
+
   return (
     <Box>
       <Typography variant="h4" mb={1}>
@@ -56,6 +59,21 @@ export default function MeuMutuario() {
         </Alert>
       )}
 
+      {perfilIncompleto && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3 }}
+          action={
+            <Button component={RouterLink} to="/portal/editar-perfil" color="inherit" size="small">
+              Completar
+            </Button>
+          }
+        >
+          O teu perfil está incompleto. Documento, NUIT e data de nascimento são necessários antes de
+          poderes submeter um pedido de crédito.
+        </Alert>
+      )}
+
       {mutuario && (
         <Paper sx={{ p: 3 }}>
           <Stack spacing={1.5}>
@@ -63,6 +81,7 @@ export default function MeuMutuario() {
             <Typography><strong>Nome Completo:</strong> {mutuario.nomeCompleto || "-"}</Typography>
             <Typography><strong>Documento Tipo:</strong> {mutuario.documentoTipo || "-"}</Typography>
             <Typography><strong>Documento Número:</strong> {mutuario.documentoNumero || "-"}</Typography>
+            <Typography><strong>NUIT:</strong> {mutuario.nuit || "-"}</Typography>
             <Typography><strong>Data de Nascimento:</strong> {mutuario.dataNascimento || "-"}</Typography>
             <Typography><strong>Telefone:</strong> {mutuario.telefone || "-"}</Typography>
             <Typography><strong>Província:</strong> {mutuario.provincia || "-"}</Typography>

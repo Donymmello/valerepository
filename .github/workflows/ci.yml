@@ -1,0 +1,74 @@
+name: CI
+
+# Aciona em push/PR para as duas branches ativas deste repositório
+# ("mestre" é a branch nominalmente principal; "staged" é onde o
+# trabalho mais recente está a acontecer no momento em que este
+# pipeline foi criado).
+on:
+  push:
+    branches: [mestre, staged]
+  pull_request:
+    branches: [mestre, staged]
+
+jobs:
+  backend:
+    name: Backend (lint + testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes (jest)
+        run: npm test
+
+      # Informativo apenas: há vulnerabilidades pré-existentes (ex: xlsx,
+      # sem correção disponível a montante) que não bloqueiam o pipeline
+      # hoje. Ver RECUPERACAO_BD.md, secção sobre esta configuração de CI.
+      - name: Auditoria de dependências (informativo)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      # Informativo apenas por agora: há ~25 erros pré-existentes (a
+      # maioria da regra react-hooks/set-state-in-effect, que aponta
+      # para o padrão comum "useEffect(() => { carregarX() }, [])" usado
+      # em várias páginas). Corrigir isso é um refactor à parte, não
+      # bloqueia o build. Ver RECUPERACAO_BD.md.
+      - name: Lint (informativo)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Auditoria de dependências (informativo)
+        run: npm audit --audit-level=high
+        continue-on-error: true

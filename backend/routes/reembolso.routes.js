@@ -9,6 +9,7 @@ const {
   getAllReembolsos,
   getReembolsoByCredito,
   obterReembolso,
+  obterComprovativoReembolsoPdf,
 } = require("../controllers/reembolso.controller");
 
 router.post(
@@ -37,6 +38,13 @@ router.get(
      authMiddleware,
      authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
      obterReembolso
+);
+
+router.get(
+    "/:reembolsoId/comprovativo",
+     authMiddleware,
+     authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+     obterComprovativoReembolsoPdf
 );
 
 module.exports = router;

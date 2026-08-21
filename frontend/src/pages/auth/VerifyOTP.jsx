@@ -11,7 +11,6 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { verifyOTPRequest } from "../../api/auth.api";
-import { reclamarSimulacaoRequest } from "../../api/public.api";
 import { useAuth } from "../../context/AuthContext";
 
 export default function VerifyOTP() {
@@ -70,23 +69,8 @@ export default function VerifyOTP() {
 
       // Auto login após verificação bem-sucedida
       if (response.token) {
-        setTimeout(async () => {
+        setTimeout(() => {
           setSession(response.token, response.user);
-
-          // Se o user fez uma simulação de crédito antes de se registar
-          // (na landing page, sem login), associa-a agora à conta criada.
-          // Falha silenciosa: não bloqueia o fluxo de login se isto falhar.
-          const simulacaoPendenteId = sessionStorage.getItem("simulacaoPendenteId");
-          if (simulacaoPendenteId) {
-            try {
-              await reclamarSimulacaoRequest(simulacaoPendenteId);
-            } catch (err) {
-              console.error("Erro ao associar simulação pendente:", err);
-            } finally {
-              sessionStorage.removeItem("simulacaoPendenteId");
-            }
-          }
-
           navigate("/portal");
         }, 1500);
       }

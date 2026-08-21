@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, useSearchParams, Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   AppBar,
@@ -18,6 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
   const [form, setForm] = useState({
@@ -27,6 +28,7 @@ export default function Login() {
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const sessaoExpirada = searchParams.get("sessao") === "expirada";
 
   const handleChange = (event) => {
     setForm((prev) => ({
@@ -106,6 +108,12 @@ export default function Login() {
                 Entre na sua conta para continuar.
               </Typography>
             </Box>
+
+            {!error && sessaoExpirada && (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                A sua sessão expirou. Faça login novamente.
+              </Alert>
+            )}
 
             {error && (
               <Alert severity="error" sx={{ mb: 3 }}>

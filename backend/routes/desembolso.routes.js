@@ -8,6 +8,7 @@ const {
   createDesembolso,
   getDesembolsoByPedido,
   getAllDesembolsos,
+  obterComprovativoDesembolsoPdf,
 } = require("../controllers/desembolso.controller");
 
 router.post(
@@ -27,6 +28,12 @@ router.get(
     "/",
     authMiddleware,
     getAllDesembolsos
-);  
+);
+
+router.get(
+    "/:desembolsoId/comprovativo",
+    authMiddleware,
+    obterComprovativoDesembolsoPdf
+);
 
 module.exports = router;

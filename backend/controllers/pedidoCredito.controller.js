@@ -1,8 +1,9 @@
-const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso, Notificacao, sequelize } = require("../models");
+const { PedidoCredito, Mutuario, User, Empresa, AprovacaoPedido, Desembolso, Reembolso, Credito, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { Op } = require("sequelize");
 const { podeCriarPedido, podeEditarPedido, podeTransitarStatus, STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
+const { notificarStaffDaEmpresa } = require("../services/notificacaoInterna.service");
 
 // =========================================================================
 // HELPERS / UTILS
@@ -18,33 +19,16 @@ function generateNumeroPedido() {
  * Executa apenas 1 query na BD em vez de fazer um loop bloqueante.
  */
 async function criarAlertasPedidoCriado(pedido, transaction) {
-  try {
-    const usuariosInternos = await User.findAll({
-      where: {
-        empresaId: pedido.empresaId,
-        ativo: true,
-        role: { [Op.in]: ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"] },
-      },
-      attributes: ['id'],
-      transaction
-    });
-
-    if (!usuariosInternos.length) return;
-
-    const notificacoes = usuariosInternos.map(usuario => ({
-      userId: usuario.id,
+  await notificarStaffDaEmpresa(
+    {
+      empresaId: pedido.empresaId,
       pedidoId: pedido.id,
       titulo: "Novo Pedido de Crédito Criado",
       mensagem: `Novo pedido de crédito ${pedido.numeroPedido} foi criado. Prazo de avaliação: 7 dias.`,
       tipo: "PEDIDO_CRIADO",
-      lida: false,
-    }));
-
-    // Inserção em massa numa única viagem à BD
-    await Notificacao.bulkCreate(notificacoes, { transaction });
-  } catch (error) {
-    console.error("[Alertas Error]: Falha ao gerar notificações em lote:", error);
-  }
+    },
+    transaction
+  );
 }
 
 // =========================================================================
@@ -86,7 +70,16 @@ async function createPedidoCredito(req, res) {
     // Cálculos Financeiros Lógicos
     const dataSubmissao = new Date();
     const prazoAvaliacao = new Date(dataSubmissao.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const taxa = 18;
+
+    // Estimativa inicial: usa a taxa mínima praticada pela empresa (o
+    // melhor cenário para o mutuário). A taxa final é decidida pelo
+    // analista dentro da faixa da empresa na aprovação de nível 1
+    // (ver aprovacaoPedido.controller.js).
+    const empresa = await Empresa.findByPk(req.user.empresaId, {
+      attributes: ["taxaJurosMin"],
+    });
+    const taxa = Number(empresa?.taxaJurosMin ?? 18);
+
     const prestacao = calcularPrestacao(vSoli, taxa, pMeses);
     const montanteTotal = prestacao * pMeses;
 
@@ -224,19 +217,32 @@ async function getPedidosElegiveisDesembolso(req, res) {
  */
 async function getPedidosElegiveisReembolso(req, res) {
   try {
+    // Reembolso não tem associação direta com PedidoCredito — relaciona-se
+    // através de Credito (Reembolso -> Credito -> PedidoCredito), tal como
+    // corrigido em relatorio.controller.js, extrato.controller.js e
+    // portalExport.controller.js. Um include direto aqui rebentava sempre
+    // com "Reembolso is not associated to PedidoCredito!".
     const pedidos = await PedidoCredito.findAll({
       where: { status: STATUS_PEDIDO.DESEMBOLSADO, empresaId: req.user.empresaId },
       include: [
         { model: Mutuario, as: "mutuario", required: false },
         { model: Desembolso, as: "desembolsos", required: false },
-        { model: Reembolso, as: "reembolsos", required: false },
+        {
+          model: Credito,
+          as: "creditos",
+          required: false,
+          include: [{ model: Reembolso, as: "reembolsos", required: false }],
+        },
       ],
       order: [["id", "DESC"]],
     });
 
     const elegiveis = pedidos.filter((pedido) => {
       const totalDesembolsado = (pedido.desembolsos || []).reduce((acc, item) => acc + Number(item.valorDesembolsado || 0), 0);
-      const totalReembolsado = (pedido.reembolsos || []).reduce((acc, item) => acc + Number(item.valorReembolsado || 0), 0);
+      const totalReembolsado = (pedido.creditos || []).reduce(
+        (acc, credito) => acc + (credito.reembolsos || []).reduce((soma, item) => soma + Number(item.valorReembolsado || 0), 0),
+        0
+      );
       return totalDesembolsado > 0 && totalReembolsado < totalDesembolsado;
     });
 

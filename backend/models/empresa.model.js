@@ -69,6 +69,24 @@ const Empresa = sequelize.define(
       allowNull: true,
       field: "trial_ends_at",
     },
+
+    // Faixa de taxa de juros anual (%) que esta empresa pratica. Usada
+    // como estimativa na submissão do pedido (taxaJurosMin) e como
+    // limites para a taxa final escolhida pelo analista na aprovação
+    // definitiva (nível 3) — ver aprovacaoPedido.controller.js.
+    taxaJurosMin: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: false,
+      defaultValue: 15.0,
+      field: "taxa_juros_min",
+    },
+
+    taxaJurosMax: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: false,
+      defaultValue: 30.0,
+      field: "taxa_juros_max",
+    },
   },
   {
     tableName: "empresas",

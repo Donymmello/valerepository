@@ -5,8 +5,11 @@ const {
   AprovacaoPedido,
   Desembolso,
   Reembolso,
+  Credito,
+  Empresa,
   User,
 } = require("../models");
+const { gerarExtratoPedidoPdf, gerarComprovativoPdf } = require("../services/pdfExport.service");
 
 async function exportarMeusPedidos(req, res) {
   try {
@@ -81,72 +84,122 @@ async function exportarMeusPedidos(req, res) {
   }
 }
 
+/*
+  Busca partilhada entre a exportação em Excel e em PDF do extrato de um
+  pedido — ambas precisam exatamente dos mesmos dados, só divergem na
+  serialização final. Devolve { erro } se algo não for encontrado, para o
+  chamador decidir a resposta HTTP.
+*/
+async function buscarExtratoPedido(req) {
+  const { pedidoId } = req.params;
+
+  const mutuario = await Mutuario.findOne({
+    where: { userId: req.user.id },
+  });
+
+  if (!mutuario) {
+    return { erro: "Mutuário não encontrado." };
+  }
+
+  const pedido = await PedidoCredito.findOne({
+    where: {
+      id: pedidoId,
+      mutuarioId: mutuario.id,
+    },
+    include: [
+      {
+        model: Mutuario,
+        as: "mutuario",
+      },
+      {
+        model: AprovacaoPedido,
+        as: "aprovacoes",
+        required: false,
+        include: [
+          {
+            model: User,
+            as: "aprovador",
+            attributes: ["id", "nome", "email", "role"],
+          },
+        ],
+      },
+      {
+        model: Desembolso,
+        as: "desembolsos",
+        required: false,
+      },
+      {
+        model: Credito,
+        as: "creditos",
+        required: false,
+      },
+    ],
+  });
+
+  if (!pedido) {
+    return { erro: "Pedido não encontrado." };
+  }
+
+  // Reembolso não tem associação direta com PedidoCredito — relaciona-se
+  // através de Credito (Reembolso -> Credito -> PedidoCredito), tal como
+  // corrigido em relatorio.controller.js. Por isso é uma query à parte,
+  // em vez de um include direto no PedidoCredito.findOne acima.
+  const reembolsos = await Reembolso.findAll({
+    include: [
+      {
+        model: Credito,
+        as: "credito",
+        attributes: [],
+        where: { pedidoId: pedido.id },
+        required: true,
+      },
+    ],
+  });
+
+  const num = (v) => Number(v || 0);
+  const creditos = pedido.creditos || [];
+
+  const totalDesembolsado = (pedido.desembolsos || []).reduce(
+    (acc, item) => acc + num(item.valorDesembolsado),
+    0
+  );
+
+  const totalReembolsado = reembolsos.reduce(
+    (acc, item) => acc + num(item.valorReembolsado),
+    0
+  );
+
+  // O montante total a pagar (capital + juros) só existe depois do
+  // desembolso, quando o Crédito é criado a partir de pedido.montanteTotal
+  // (ver credito.service.js). Antes disso não há juros a mostrar.
+  const montanteTotal = creditos.reduce((acc, c) => acc + num(c.montanteTotal), 0);
+
+  // Saldo em dívida real vem do saldoAtual do crédito (que já desconta os
+  // reembolsos de capital + juros); sem crédito ainda, cai para o
+  // desembolsado menos reembolsado (só há capital em jogo nessa fase).
+  const saldoEmDivida = creditos.length
+    ? creditos.reduce((acc, c) => acc + num(c.saldoAtual), 0)
+    : totalDesembolsado - totalReembolsado;
+
+  return {
+    mutuario,
+    pedido,
+    reembolsos,
+    totalDesembolsado,
+    totalReembolsado,
+    montanteTotal,
+    saldoEmDivida,
+  };
+}
+
 async function exportarMeuExtratoPedido(req, res) {
   try {
-    const { pedidoId } = req.params;
-
-    const mutuario = await Mutuario.findOne({
-      where: { userId: req.user.id },
-    });
-
-    if (!mutuario) {
-      return res.status(404).json({
-        message: "Mutuário não encontrado.",
-      });
+    const resultado = await buscarExtratoPedido(req);
+    if (resultado.erro) {
+      return res.status(404).json({ message: resultado.erro });
     }
 
-    const pedido = await PedidoCredito.findOne({
-      where: {
-        id: pedidoId,
-        mutuarioId: mutuario.id,
-      },
-      include: [
-        {
-          model: Mutuario,
-          as: "mutuario",
-        },
-        {
-          model: AprovacaoPedido,
-          as: "aprovacoes",
-          required: false,
-          include: [
-            {
-              model: User,
-              as: "aprovador",
-              attributes: ["id", "nome", "email", "role"],
-            },
-          ],
-        },
-        {
-          model: Desembolso,
-          as: "desembolsos",
-          required: false,
-        },
-        {
-          model: Reembolso,
-          as: "reembolsos",
-          required: false,
-        },
-      ],
-    });
-
-    if (!pedido) {
-      return res.status(404).json({
-        message: "Pedido não encontrado.",
-      });
-    }
-
-    const totalDesembolsado = (pedido.desembolsos || []).reduce(
-      (acc, item) => acc + Number(item.valorDesembolsado || 0),
-      0
-    );
-
-    const totalReembolsado = (pedido.reembolsos || []).reduce(
-      (acc, item) => acc + Number(item.valorReembolsado || 0),
-      0
-    );
-
-    const saldoEmDivida = totalDesembolsado - totalReembolsado;
+    const { pedido, reembolsos, totalDesembolsado, totalReembolsado, montanteTotal, saldoEmDivida } = resultado;
 
     const workbook = XLSX.utils.book_new();
 
@@ -160,6 +213,7 @@ async function exportarMeuExtratoPedido(req, res) {
         EtapaAtual: pedido.etapaAtual || "",
         TotalDesembolsado: totalDesembolsado,
         TotalReembolsado: totalReembolsado,
+        MontanteTotal: montanteTotal,
         SaldoEmDivida: saldoEmDivida,
       },
     ]);
@@ -179,7 +233,7 @@ async function exportarMeuExtratoPedido(req, res) {
     );
 
     const reembolsosSheet = XLSX.utils.json_to_sheet(
-      (pedido.reembolsos || []).map((item) => ({
+      (reembolsos || []).map((item) => ({
         ID: item.id || "",
         ValorReembolsado: item.valorReembolsado || "",
         DataReembolso: item.dataReembolso
@@ -220,7 +274,164 @@ async function exportarMeuExtratoPedido(req, res) {
   }
 }
 
+async function exportarMeuExtratoPedidoPdf(req, res) {
+  try {
+    const resultado = await buscarExtratoPedido(req);
+    if (resultado.erro) {
+      return res.status(404).json({ message: resultado.erro });
+    }
+
+    const { mutuario, pedido, reembolsos, totalDesembolsado, totalReembolsado, montanteTotal, saldoEmDivida } = resultado;
+
+    const empresa = await buscarEmpresaDoUser(req);
+
+    const buffer = await gerarExtratoPedidoPdf({
+      empresa,
+      pedido,
+      mutuario,
+      desembolsos: pedido.desembolsos,
+      reembolsos,
+      totais: { totalDesembolsado, totalReembolsado, montanteTotal, saldoEmDivida },
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=extrato_pedido_${pedido.numeroPedido || pedido.id}.pdf`
+    );
+
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Erro ao exportar extrato do pedido em PDF:", error);
+    return res.status(500).json({
+      message: "Erro interno ao exportar extrato do pedido em PDF.",
+      error: error.message,
+    });
+  }
+}
+
+/*
+  Busca a empresa do utilizador autenticado, para o cabeçalho/marca do
+  PDF (mesma lógica de branding usada em services/notificacaoExterna.service.js).
+*/
+async function buscarEmpresaDoUser(req) {
+  if (!req.user.empresaId) return null;
+  return Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] });
+}
+
+async function exportarComprovativoDesembolsoPdf(req, res) {
+  try {
+    const { desembolsoId } = req.params;
+
+    const mutuario = await Mutuario.findOne({ where: { userId: req.user.id } });
+    if (!mutuario) {
+      return res.status(404).json({ message: "Mutuário não encontrado." });
+    }
+
+    const desembolso = await Desembolso.findOne({
+      where: { id: desembolsoId },
+      include: [
+        {
+          model: PedidoCredito,
+          as: "pedido",
+          where: { mutuarioId: mutuario.id },
+          required: true,
+        },
+      ],
+    });
+
+    if (!desembolso) {
+      return res.status(404).json({ message: "Comprovativo não encontrado." });
+    }
+
+    const empresa = await buscarEmpresaDoUser(req);
+
+    const buffer = await gerarComprovativoPdf({
+      empresa,
+      tipo: "DESEMBOLSO",
+      transacao: desembolso,
+      pedido: desembolso.pedido,
+      mutuario,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=comprovativo_desembolso_${desembolso.referencia || desembolso.id}.pdf`
+    );
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Erro ao exportar comprovativo de desembolso:", error);
+    return res.status(500).json({
+      message: "Erro interno ao exportar comprovativo de desembolso.",
+      error: error.message,
+    });
+  }
+}
+
+async function exportarComprovativoReembolsoPdf(req, res) {
+  try {
+    const { reembolsoId } = req.params;
+
+    const mutuario = await Mutuario.findOne({ where: { userId: req.user.id } });
+    if (!mutuario) {
+      return res.status(404).json({ message: "Mutuário não encontrado." });
+    }
+
+    // Reembolso -> Credito -> PedidoCredito (mesma cadeia usada em
+    // buscarExtratoPedido) — não há atalho direto para o pedido.
+    const reembolso = await Reembolso.findOne({
+      where: { id: reembolsoId },
+      include: [
+        {
+          model: Credito,
+          as: "credito",
+          required: true,
+          include: [
+            {
+              model: PedidoCredito,
+              as: "pedido",
+              where: { mutuarioId: mutuario.id },
+              required: true,
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!reembolso) {
+      return res.status(404).json({ message: "Comprovativo não encontrado." });
+    }
+
+    const empresa = await buscarEmpresaDoUser(req);
+
+    const buffer = await gerarComprovativoPdf({
+      empresa,
+      tipo: "REEMBOLSO",
+      transacao: reembolso,
+      pedido: reembolso.credito?.pedido,
+      mutuario,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=comprovativo_reembolso_${reembolso.referencia || reembolso.id}.pdf`
+    );
+    return res.status(200).send(buffer);
+  } catch (error) {
+    console.error("Erro ao exportar comprovativo de reembolso:", error);
+    return res.status(500).json({
+      message: "Erro interno ao exportar comprovativo de reembolso.",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   exportarMeusPedidos,
   exportarMeuExtratoPedido,
+  exportarMeuExtratoPedidoPdf,
+  exportarComprovativoDesembolsoPdf,
+  exportarComprovativoReembolsoPdf,
 };

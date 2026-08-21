@@ -31,6 +31,7 @@ export default function CriarPedido() {
     pacoteFinanciamento: "",
     prazo: "",
 
+    taxa: "",
     prestacao: "",
     jurosTotal: "",
     montanteTotal: "",
@@ -61,6 +62,7 @@ export default function CriarPedido() {
             ...prev,
             valorSolicitado: String(maisRecente.valorSolicitado),
             prazo: String(maisRecente.prazo),
+            taxa: Number(maisRecente.taxa).toFixed(2),
             prestacao: Number(maisRecente.prestacao).toFixed(2),
             jurosTotal: Number(maisRecente.jurosTotal).toFixed(2),
             montanteTotal: Number(maisRecente.montanteTotal).toFixed(2),
@@ -108,6 +110,7 @@ export default function CriarPedido() {
     ...prev,
     valorSolicitado: "",
     prazo: "",
+    taxa: "",
     prestacao: "",
     jurosTotal: "",
     montanteTotal: "",
@@ -127,6 +130,7 @@ export default function CriarPedido() {
 
       setForm((prev) => ({
         ...prev,
+        taxa: Number(resultado.taxa).toFixed(2),
         prestacao: Number(resultado.prestacao).toFixed(2),
         jurosTotal: Number(resultado.jurosTotal).toFixed(2),
         montanteTotal: Number(resultado.montanteTotal).toFixed(2),
@@ -188,6 +192,10 @@ export default function CriarPedido() {
         </Typography>
       </Box>
 
+      <Alert severity="info" sx={{ mb: 3 }}>
+        A taxa de juros apresentada abaixo é uma estimativa. A taxa final do seu crédito é definida na aprovação, e pode variar consoante o seu histórico e a avaliação de risco.
+      </Alert>
+
       {loadingSimulacao && (
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
           <CircularProgress size={18} />
@@ -228,7 +236,7 @@ export default function CriarPedido() {
           </Stack>
 
           <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}>
+            <Grid item xs={6} sm={2.4}>
               <Typography variant="caption" color="text.secondary">
                 Valor
               </Typography>
@@ -237,7 +245,7 @@ export default function CriarPedido() {
               </Typography>
             </Grid>
 
-            <Grid item xs={6} sm={3}>
+            <Grid item xs={6} sm={2.4}>
               <Typography variant="caption" color="text.secondary">
                 Prazo
               </Typography>
@@ -246,7 +254,16 @@ export default function CriarPedido() {
               </Typography>
             </Grid>
 
-            <Grid item xs={6} sm={3}>
+            <Grid item xs={6} sm={2.4}>
+              <Typography variant="caption" color="text.secondary">
+                Taxa Estimada
+              </Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                {Number(simulacao.taxa).toFixed(2)}% a.a.
+              </Typography>
+            </Grid>
+
+            <Grid item xs={6} sm={2.4}>
               <Typography variant="caption" color="text.secondary">
                 Prestação Mensal
               </Typography>
@@ -255,7 +272,7 @@ export default function CriarPedido() {
               </Typography>
             </Grid>
 
-            <Grid item xs={6} sm={3}>
+            <Grid item xs={6} sm={2.4}>
               <Typography variant="caption" color="text.secondary">
                 Total a Pagar
               </Typography>
@@ -266,7 +283,7 @@ export default function CriarPedido() {
           </Grid>
 
           <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-            O valor solicitado abaixo foi preenchido automaticamente. Pode ajustá-lo se necessário.
+            O valor solicitado abaixo foi preenchido automaticamente. Pode ajustá-lo se necessário. A taxa apresentada é uma estimativa — pode variar na aprovação final, consoante o histórico e a avaliação de risco (ver aviso abaixo).
           </Typography>
         </Paper>
       )}
@@ -331,6 +348,19 @@ export default function CriarPedido() {
                 type="number"
                 value={form.prazo}
                 onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Taxa Estimada (% a.a.)"
+                name="taxa"
+                value={form.taxa}
+                InputProps={{
+                  readOnly: true,
+                }}
+                helperText="Estimativa — a taxa final é decidida na aprovação, dentro da faixa praticada pela financeira."
               />
             </Grid>
 

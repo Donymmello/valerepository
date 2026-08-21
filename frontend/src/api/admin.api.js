@@ -247,6 +247,27 @@ export const getExtratoPedidoInternoRequest = async (pedidoId) => {
   return response.data;
 };
 
+export const exportarExtratoPedidoPdfRequest = async (pedidoId) => {
+  const response = await api.get(`/extrato/pedido/${pedidoId}/pdf`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarComprovativoDesembolsoPdfRequest = async (desembolsoId) => {
+  const response = await api.get(`/desembolsos/${desembolsoId}/comprovativo`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
+export const exportarComprovativoReembolsoPdfRequest = async (reembolsoId) => {
+  const response = await api.get(`/reembolsos/${reembolsoId}/comprovativo`, {
+    responseType: "blob",
+  });
+  return response.data;
+};
+
 /*
   ==========================================================
   IMPORTS/EXPORTS
