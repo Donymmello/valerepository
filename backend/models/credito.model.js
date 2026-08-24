@@ -116,6 +116,19 @@ const sequelize = require("../config/db");
         allowNull: true,
       },
 
+      // true para créditos criados pela importação de "saldo de
+      // abertura" (ver credito.service.js, criarCreditoImportado) — um
+      // crédito que já existia antes deste sistema (caderno/Excel do
+      // cliente) e entrou com o saldo devedor de hoje, não com o
+      // histórico completo de parcelas desde o início. Serve para
+      // suporte/relatórios saberem que aquele contrato não nasceu no
+      // fluxo normal pedido -> aprovação -> desembolso.
+      importado: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+
       createdBy: {
         type: DataTypes.INTEGER,
         allowNull: false,

@@ -1,19 +1,20 @@
 services:
   credito: # <--- ESTE NOME TEM DE SER IGUAL AO DB_HOST DO .ENV!
-    image: mysql:8.0
-    container_name: meu_mysql
+    image: postgres:16-alpine
+    container_name: meu_postgres
     env_file:
       - ./backend/.env
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}
-      MYSQL_DATABASE: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - dados_mysql:/var/lib/mysql
+      - dados_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASS}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -36,6 +37,21 @@ services:
       credito:
         condition: service_healthy
 
+  # Interface visual para a base de dados (Postgres). Acede em
+  # http://localhost:8080 — servidor "credito", utilizador/password/BD
+  # vêm do teu backend/.env (DB_USER/DB_PASS/DB_NAME).
+  adminer:
+    image: adminer:4
+    container_name: meu_adminer
+    restart: on-failure
+    environment:
+      ADMINER_DEFAULT_SERVER: credito
+    ports:
+      - "8080:8080"
+    depends_on:
+      credito:
+        condition: service_healthy
+
   # 3. FRONTEND (React + Vite)
   web_frontend:
     build: ./frontend
@@ -49,4 +65,4 @@ services:
       - api_backend
 
 volumes:
-  dados_mysql: # Garante que os dados do banco não sumam quando o container para
+  dados_postgres: # Garante que os dados do banco não sumam quando o container para

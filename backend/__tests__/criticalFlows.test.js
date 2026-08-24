@@ -123,10 +123,9 @@ describe("OTP", () => {
     expect(diffMin).toBeLessThan(30.1);
   });
 
-  test.todo(
-    "pedir OTP / verificar OTP / auto-login — depende de EmailVerificationToken + envio de email reais; " +
-    "precisa de teste de integração com BD, não é isolável em unit test sem mockar o próprio comportamento a testar"
-  );
+  // Coberto por __tests__/authIntegration.test.js (integração, BD real via
+  // sqlite em memória) — não era isolável aqui sem mockar o próprio
+  // comportamento a testar.
 });
 
 describe("Pedido Creation Flow", () => {
@@ -278,10 +277,14 @@ describe("Data Integrity", () => {
     logSpy.mockRestore();
   });
 
-  test.todo(
-    "impedir registos duplicados (email/documento) — imposto por UNIQUE constraint na BD; " +
-    "precisa de teste de integração contra uma BD real, .validate() sozinho não o apanha"
-  );
+  // Coberto por __tests__/authIntegration.test.js (integração, BD real).
+  // Achado ao escrever esse teste: a deteção de duplicado (email/nuit) é
+  // feita por um `findOne` de aplicação, não por UNIQUE constraint na BD
+  // — só User.email tem `unique: true` global no modelo.
+  // Mutuario.codigoMutuario e PedidoCredito.numeroPedido têm um índice
+  // único composto (empresa_id, código) — único só dentro da mesma
+  // empresa, de propósito (multi-tenant). documentoNumero/nuit não têm
+  // nenhuma constraint a nível de BD. Ver RECUPERACAO_BD.md.
 
   // "validar dados de entrada" e "impor constraints de negócio" já estão cobertos
   // acima, de forma real: ver "Pedido Creation Flow" (campos obrigatórios,

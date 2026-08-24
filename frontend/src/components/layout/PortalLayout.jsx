@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export default function PortalLayout({ children }) {
   const { user, logout } = useAuth();

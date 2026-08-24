@@ -21,6 +21,7 @@ const {
     exportarRelatorioFinanceiro,
     importarMutuarios,
     importarPedidos,
+    importarCreditos,
 
 } = require("../controllers/excell.controller");
 
@@ -83,6 +84,20 @@ router.post(
   authorizeRoles("ADMIN", "GESTOR"),
   upload.single("file"),
   importarPedidos
+);
+
+/**
+ * IMPORTAÇÃO DE CRÉDITOS EXISTENTES ("saldo de abertura")
+ * Cria diretamente o crédito (pedido-invólucro + desembolso + crédito),
+ * não passa pelo fluxo normal de aprovação — só ADMIN/GESTOR, mesmo
+ * critério dos outros dois importadores.
+ */
+router.post(
+  "/import/creditos",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR"),
+  upload.single("file"),
+  importarCreditos
 );
 
 module.exports = router;

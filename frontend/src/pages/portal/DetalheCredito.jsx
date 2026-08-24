@@ -49,6 +49,17 @@ const getChipColor = (estado) => {
   }
 };
 
+const getParcelaChipColor = (estado) => {
+  switch (estado) {
+    case "PAGO":
+      return "success";
+    case "ATRASADO":
+      return "error";
+    default:
+      return "warning";
+  }
+};
+
 export default function DetalheCredito() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -215,27 +226,36 @@ export default function DetalheCredito() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {credito.parcelas.map((parcela) => (
-                    <TableRow key={parcela.id}>
-                      <TableCell>{parcela.numeroParcela}</TableCell>
-                      <TableCell>{formatCurrency(parcela.valorPrevisto)}</TableCell>
-                      <TableCell>{formatDate(parcela.dataVencimento)}</TableCell>
-                      <TableCell>{formatCurrency(parcela.valorPago)}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={parcela.estado}
-                          color={
-                            parcela.estado === "PAGO"
-                              ? "success"
-                              : parcela.estado === "ATRASADO"
-                              ? "error"
-                              : "warning"
-                          }
-                          size="small"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {credito.parcelas.map((parcela) => {
+                    // "Vencida" calculado pela data, não só pelo campo
+                    // `estado` — este só passa a ATRASADO quando há um
+                    // pagamento parcial registado contra a parcela; sem
+                    // isso, uma parcela vencida fica presa em PENDENTE
+                    // indefinidamente (mesma lógica já usada no Dashboard
+                    // e no detalhe do crédito no backoffice).
+                    const vencida =
+                      parcela.estado !== "PAGO" &&
+                      new Date(parcela.dataVencimento) < new Date();
+
+                    return (
+                      <TableRow
+                        key={parcela.id}
+                        sx={vencida ? { bgcolor: "rgba(211, 47, 47, 0.08)" } : undefined}
+                      >
+                        <TableCell>{parcela.numeroParcela}</TableCell>
+                        <TableCell>{formatCurrency(parcela.valorPrevisto)}</TableCell>
+                        <TableCell>{formatDate(parcela.dataVencimento)}</TableCell>
+                        <TableCell>{formatCurrency(parcela.valorPago)}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={vencida ? "VENCIDA" : parcela.estado}
+                            color={vencida ? "error" : getParcelaChipColor(parcela.estado)}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

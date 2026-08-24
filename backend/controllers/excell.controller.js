@@ -318,6 +318,48 @@ async function importarPedidos(req, res) {
   }
 }
 
+/*
+  ===========================================================
+  * Controller responsável por importar créditos já existentes
+  * ("saldo de abertura") via Excel — migração
+  ===========================================================
+*/
+async function importarCreditos(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Nenhum ficheiro Excel foi enviado."
+      });
+    }
+
+    const resultado = await excellService.importarExcellCreditos({
+      fileBuffer: req.file.buffer,
+      userId: req.user?.id || null,
+      empresaId: req.user.empresaId,
+    });
+
+    await registrarLogAuditoria({
+      userId: req.user?.id || null,
+      acao: "IMPORTAR_CREDITOS",
+      entidade: "Credito",
+      entidadeId: null,
+      descricao: `Importação Excel de créditos existentes (saldo de abertura) concluída. Importados: ${resultado.totalImportados}, erros: ${resultado.totalErros}.`
+    });
+
+    return res.status(200).json({
+      message: "Importação de créditos concluída.",
+      resultado,
+    });
+  } catch (error) {
+    console.error("Erro ao importar créditos:", error);
+
+    return res.status(500).json({
+      message: "Erro interno ao importar créditos via Excel.",
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
     exportarMutuarios,
     exportarPedidos,
@@ -326,4 +368,5 @@ module.exports = {
     exportarRelatorioFinanceiro,
     importarMutuarios,
     importarPedidos,
+    importarCreditos,
 }

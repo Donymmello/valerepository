@@ -17,8 +17,9 @@ import {
   exportarRelatorioFinanceiroExcelRequest,
   importarMutuariosExcelRequest,
   importarPedidosExcelRequest,
+  importarCreditosExcelRequest,
 } from "../../../api/admin.api";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 
 function downloadBlob(blob, fileName) {
   const url = window.URL.createObjectURL(blob);
@@ -38,6 +39,7 @@ export default function ExcelImportExport() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [loadingAction, setLoadingAction] = useState("");
+  const [importErrors, setImportErrors] = useState([]);
 
   const podeImportar = ["ADMIN", "GESTOR"].includes(user?.role);
 
@@ -67,13 +69,21 @@ export default function ExcelImportExport() {
     try {
       setLoadingAction(actionKey);
       setError("");
+      setImportErrors([]);
 
       const resultado = await requestFn(file);
+      const resumo = resultado?.resultado;
 
       setSuccessMessage(
-        `${resultado?.message || "Importação concluída."}`
+        resumo
+          ? `${resultado?.message || "Importação concluída."} (${resumo.totalImportados} importados, ${resumo.totalErros} erros de ${resumo.totalLidos} linhas)`
+          : resultado?.message || "Importação concluída."
       );
       setSuccessOpen(true);
+
+      if (resumo?.erros?.length) {
+        setImportErrors(resumo.erros);
+      }
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao importar ficheiro Excel.");
@@ -96,6 +106,26 @@ export default function ExcelImportExport() {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
+        </Alert>
+      )}
+
+      {importErrors.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 3 }} onClose={() => setImportErrors([])}>
+          <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Algumas linhas não foram importadas:
+          </Typography>
+          <Stack component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {importErrors.slice(0, 20).map((item, index) => (
+              <Typography component="li" variant="body2" key={index}>
+                Linha {item.linha}: {item.erro}
+              </Typography>
+            ))}
+          </Stack>
+          {importErrors.length > 20 && (
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              ...e mais {importErrors.length - 20} erro(s).
+            </Typography>
+          )}
         </Alert>
       )}
 
@@ -255,6 +285,39 @@ export default function ExcelImportExport() {
                     }
                   />
                 </Button>
+              </Box>
+
+              <Box>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  disabled={loadingAction === "import-creditos"}
+                >
+                  {loadingAction === "import-creditos" ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Importar Créditos Existentes"
+                  )}
+                  <input
+                    hidden
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={(event) =>
+                      executarImportacao(
+                        "import-creditos",
+                        importarCreditosExcelRequest,
+                        event
+                      )
+                    }
+                  />
+                </Button>
+                <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
+                  Para migrar empréstimos que já estavam em curso antes deste sistema (caderno/Excel
+                  do cliente). Colunas: CodigoMutuario, ValorOriginal, Prazo, DataDesembolso,
+                  ParcelasPagas (obrigatórias); Taxa, Prestacao, SaldoAtual, NumeroContrato,
+                  Observacoes (opcionais). O mutuário tem de já estar cadastrado no sistema. Entra
+                  com o saldo devedor de hoje — não recria o histórico de parcelas já pagas.
+                </Typography>
               </Box>
             </Stack>
           </Paper>

@@ -11,7 +11,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { verifyOTPRequest } from "../../api/auth.api";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export default function VerifyOTP() {
   const location = useLocation();

@@ -1,6 +1,18 @@
 const XLSX = require("xlsx");
-const { Mutuario, PedidoCredito, Desembolso, Reembolso, Credito, Empresa } = require("../models");
+const { Mutuario, PedidoCredito, Desembolso, Reembolso, Credito, Empresa, sequelize } = require("../models");
 const calcularPrestacao = require("../utils/calCredito");
+const { generateReferencia } = require("../utils/generateCode");
+const creditoService = require("./credito.service");
+
+// Mesmo gerador usado em pedidoCredito.controller.js/portalMutuario.controller.js
+// (não está centralizado num util partilhado — replicado aqui de propósito,
+// como nos outros dois sítios, para não criar acoplamento novo por uma função
+// de 3 linhas).
+function generateNumeroPedido() {
+  const now = new Date();
+  const format = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  return `PED-${format}-${Math.floor(100000 + Math.random() * 900000)}`;
+}
 
 /*
   ===========================================================
@@ -870,10 +882,13 @@ async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por código de mutuário
+      Verifica duplicado por código de mutuário — só dentro da mesma
+      empresa (tenant). O código só precisa de ser único por empresa,
+      não em toda a plataforma (ver migration
+      20260824130000-tenant-scope-unique-codes.js).
     */
     const mutuarioExistentePorCodigo = await Mutuario.findOne({
-      where: { codigoMutuario }
+      where: { codigoMutuario, empresaId }
     });
 
     if (mutuarioExistentePorCodigo) {
@@ -885,11 +900,13 @@ async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por documento, quando existir
+      Verifica duplicado por documento, quando existir — também
+      isolado por empresa. Um mesmo BI pode legitimamente ser cliente
+      de duas empresas de crédito diferentes.
     */
     if (documentoNumero) {
       const mutuarioExistentePorDocumento = await Mutuario.findOne({
-        where: { documentoNumero }
+        where: { documentoNumero, empresaId }
       });
 
       if (mutuarioExistentePorDocumento) {
@@ -1237,10 +1254,11 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por número do pedido
+      Verifica duplicado por número do pedido — isolado por empresa,
+      mesmo motivo do codigoMutuario acima.
     */
     const pedidoExistente = await PedidoCredito.findOne({
-      where: { numeroPedido }
+      where: { numeroPedido, empresaId }
     });
 
     if (pedidoExistente) {
@@ -1312,6 +1330,257 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
   };
 }
 
+/*
+  ===========================================================
+  * Service responsável por importar créditos já existentes
+  * ("saldo de abertura") via Excel — migração de empréstimos
+  * que já estavam em curso antes deste sistema (caderno/Excel
+  * do cliente), não novos pedidos.
+  ===========================================================
+
+  Ao contrário de importarExcellPedidos (que só cria um PedidoCredito
+  "em aberto"), esta função cria o crédito de facto — PedidoCredito
+  (invólucro, já DESEMBOLSADO), Desembolso e Credito, com o saldo
+  devedor de HOJE, não recalculado desde o início. As parcelas já
+  pagas antes da migração não são recriadas uma a uma — só as que
+  ainda faltam pagar, ver credito.service.js (criarCreditoImportado).
+*/
+async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
+  const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+  const primeiraFolha = workbook.SheetNames[0];
+
+  if (!primeiraFolha) {
+    throw new Error("O ficheiro Excel não possui folhas válidas.");
+  }
+
+  const worksheet = workbook.Sheets[primeiraFolha];
+  const linhas = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+  if (!linhas.length) {
+    return {
+      totalLidos: 0,
+      totalImportados: 0,
+      totalErros: 0,
+      erros: [],
+      importados: [],
+    };
+  }
+
+  const erros = [];
+  const importados = [];
+
+  // Mesmo critério de fallback de taxa usado em importarExcellPedidos.
+  const empresa = await Empresa.findByPk(empresaId, {
+    attributes: ["taxaJurosMin", "taxaJurosMax"],
+  });
+  const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
+  const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
+  const taxaEstimativaPadrao = Number(empresa?.taxaJurosMin ?? 18);
+
+  for (let index = 0; index < linhas.length; index++) {
+    const linha = linhas[index];
+    const numeroLinha = index + 2;
+
+    const codigoMutuario = String(
+      linha.CodigoMutuario || linha.codigoMutuario || linha.codigo_mutuario || ""
+    ).trim();
+
+    const valorOriginalBruto =
+      linha.ValorOriginal ?? linha.valorOriginal ?? linha.valor_original ?? "";
+
+    const prazoBruto = linha.Prazo ?? linha.prazo ?? "";
+
+    const taxaBruta = linha.Taxa ?? linha.taxa ?? "";
+
+    const prestacaoBruta =
+      linha.Prestacao ?? linha.prestacao ?? "";
+
+    const dataDesembolsoBruta = String(
+      linha.DataDesembolso || linha.dataDesembolso || linha.data_desembolso || ""
+    ).trim();
+
+    const parcelasPagasBruto =
+      linha.ParcelasPagas ?? linha.parcelasPagas ?? linha.parcelas_pagas ?? "0";
+
+    const saldoAtualBruto =
+      linha.SaldoAtual ?? linha.saldoAtual ?? linha.saldo_atual ?? "";
+
+    const numeroContrato = String(
+      linha.NumeroContrato || linha.numeroContrato || linha.numero_contrato || ""
+    ).trim();
+
+    const observacoes = String(
+      linha.Observacoes || linha.observacoes || ""
+    ).trim();
+
+    /*
+      Validações obrigatórias
+    */
+    if (!codigoMutuario) {
+      erros.push({ linha: numeroLinha, erro: "CodigoMutuario é obrigatório." });
+      continue;
+    }
+
+    if (valorOriginalBruto === "" || valorOriginalBruto === null) {
+      erros.push({ linha: numeroLinha, erro: "ValorOriginal é obrigatório." });
+      continue;
+    }
+
+    if (prazoBruto === "" || prazoBruto === null) {
+      erros.push({ linha: numeroLinha, erro: "Prazo (total de parcelas) é obrigatório." });
+      continue;
+    }
+
+    if (!dataDesembolsoBruta) {
+      erros.push({ linha: numeroLinha, erro: "DataDesembolso é obrigatória (data real do desembolso original)." });
+      continue;
+    }
+
+    const valorOriginal = Number(String(valorOriginalBruto).replace(",", "."));
+    if (Number.isNaN(valorOriginal) || valorOriginal <= 0) {
+      erros.push({ linha: numeroLinha, erro: "ValorOriginal inválido." });
+      continue;
+    }
+
+    const prazo = Number(String(prazoBruto).replace(",", "."));
+    if (!Number.isInteger(prazo) || prazo <= 0) {
+      erros.push({ linha: numeroLinha, erro: "Prazo inválido (deve ser um número inteiro de meses maior que zero)." });
+      continue;
+    }
+
+    const dataDesembolso = new Date(dataDesembolsoBruta);
+    if (Number.isNaN(dataDesembolso.getTime())) {
+      erros.push({ linha: numeroLinha, erro: "DataDesembolso inválida." });
+      continue;
+    }
+
+    const parcelasPagas = Number(String(parcelasPagasBruto).replace(",", "."));
+    if (!Number.isInteger(parcelasPagas) || parcelasPagas < 0) {
+      erros.push({ linha: numeroLinha, erro: "ParcelasPagas inválido (deve ser um número inteiro maior ou igual a zero)." });
+      continue;
+    }
+    if (parcelasPagas > prazo) {
+      erros.push({ linha: numeroLinha, erro: "ParcelasPagas não pode ser maior que Prazo." });
+      continue;
+    }
+
+    let taxa;
+    if (taxaBruta === "" || taxaBruta === null) {
+      taxa = taxaEstimativaPadrao;
+    } else {
+      taxa = Number(String(taxaBruta).replace(",", "."));
+      if (!Number.isFinite(taxa) || taxa <= 0) {
+        erros.push({ linha: numeroLinha, erro: "Taxa inválida." });
+        continue;
+      }
+      if (taxa < taxaMin || taxa > taxaMax) {
+        erros.push({
+          linha: numeroLinha,
+          erro: `Taxa deve estar entre ${taxaMin}% e ${taxaMax}% (faixa definida em Configurações > Empresa).`,
+        });
+        continue;
+      }
+    }
+
+    // Prestação: se a planilha não trouxer o valor real da prestação
+    // (recomendado, para refletir o contrato real), calcula pela
+    // fórmula padrão — igual ao resto do sistema.
+    let prestacao;
+    if (prestacaoBruta === "" || prestacaoBruta === null) {
+      prestacao = calcularPrestacao(valorOriginal, taxa, prazo);
+    } else {
+      prestacao = Number(String(prestacaoBruta).replace(",", "."));
+      if (!Number.isFinite(prestacao) || prestacao <= 0) {
+        erros.push({ linha: numeroLinha, erro: "Prestacao inválida." });
+        continue;
+      }
+    }
+
+    const montanteTotal = Number((prestacao * prazo).toFixed(2));
+    const jurosTotal = Number((montanteTotal - valorOriginal).toFixed(2));
+
+    let saldoAtual = null;
+    if (saldoAtualBruto !== "" && saldoAtualBruto !== null) {
+      saldoAtual = Number(String(saldoAtualBruto).replace(",", "."));
+      if (!Number.isFinite(saldoAtual) || saldoAtual < 0) {
+        erros.push({ linha: numeroLinha, erro: "SaldoAtual inválido." });
+        continue;
+      }
+    }
+
+    /*
+      Localiza o mutuário pelo código, isolado por empresa
+    */
+    const mutuario = await Mutuario.findOne({ where: { codigoMutuario, empresaId } });
+    if (!mutuario) {
+      erros.push({ linha: numeroLinha, erro: `Mutuário com código '${codigoMutuario}' não encontrado.` });
+      continue;
+    }
+
+    /*
+      Cria PedidoCredito (invólucro) + Desembolso + Credito numa
+      transação — se algo falhar a meio, nada fica meio-criado.
+    */
+    try {
+      const credito = await sequelize.transaction(async (t) => {
+        const pedidoInvolucro = await PedidoCredito.create({
+          numeroPedido: generateNumeroPedido(),
+          mutuarioId: mutuario.id,
+          empresaId,
+          valorSolicitado: valorOriginal,
+          finalidade: "Crédito importado do sistema anterior (migração de saldo de abertura).",
+          prazo,
+          taxa,
+          prestacao,
+          jurosTotal,
+          montanteTotal,
+          status: "DESEMBOLSADO",
+          dataSubmissao: dataDesembolso,
+          createdBy: userId,
+        }, { transaction: t });
+
+        const desembolso = await Desembolso.create({
+          pedidoId: pedidoInvolucro.id,
+          empresaId,
+          valorDesembolsado: valorOriginal,
+          dataDesembolso,
+          meioPagamento: "TRANSFERENCIA",
+          referencia: await generateReferencia(),
+          observacoes: "Desembolso registado retroativamente (importação de crédito existente).",
+          createdBy: userId,
+        }, { transaction: t });
+
+        return creditoService.criarCreditoImportado(
+          pedidoInvolucro,
+          desembolso,
+          userId,
+          { parcelasPagas, saldoAtual, observacoes: observacoes || null, numeroContrato: numeroContrato || null },
+          { transaction: t }
+        );
+      });
+
+      importados.push({
+        id: credito.id,
+        numeroContrato: credito.numeroContrato,
+        codigoMutuario: mutuario.codigoMutuario,
+        nomeMutuario: mutuario.nomeCompleto,
+        saldoAtual: credito.saldoAtual,
+        estado: credito.estado,
+      });
+    } catch (error) {
+      erros.push({ linha: numeroLinha, erro: `Erro ao criar crédito: ${error.message}` });
+    }
+  }
+
+  return {
+    totalLidos: linhas.length,
+    totalImportados: importados.length,
+    totalErros: erros.length,
+    erros,
+    importados,
+  };
+}
+
 module.exports = {
   gerarExcellMutuarios,
   gerarExcellPedidos,
@@ -1320,4 +1589,5 @@ module.exports = {
   gerarExcellRelatorioFinanceiro,
   importarExcellMutuarios,
   importarExcellPedidos,
+  importarExcellCreditos,
 };

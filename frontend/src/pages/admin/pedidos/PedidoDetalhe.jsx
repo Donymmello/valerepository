@@ -30,7 +30,7 @@ import {
   getPedidoByIdRequest,
 } from "../../../api/admin.api";
 import { formatCurrency, formatDate } from "../../../utils/formatters";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 import PedidoRequisitosSection from "../../../pages/admin/pedidos/PedidoRequisitosSection";
 import ComprovativoBackofficeSection from "../../../pages/admin/ComprovativoBackofficeSection";
 import PageHeader from "../../../components/common/PageHeader";

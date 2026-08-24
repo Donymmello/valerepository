@@ -22,7 +22,7 @@ import {
   getRequisitosByPedidoRequest,
   validarRequisitoPedidoRequest,
 } from "../../../api/admin.api";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 import { formatDate } from "../../../utils/formatters";
 
 function getEstadoColor(estado) {
@@ -177,7 +177,7 @@ function RequisitoAnexos({ pedidoRequisitoId }) {
   COMPONENTE PRINCIPAL
   ==========================================================
 */
-export default function PedidoRequisitosSection({ pedidoId, pedidoStatus, onUpdated }) {
+export default function PedidoRequisitosSection({ pedidoId, onUpdated }) {
   const { user } = useAuth();
 
   const [requisitosPedido, setRequisitosPedido] = useState([]);

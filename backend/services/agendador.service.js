@@ -16,6 +16,10 @@
   dia, para todas as empresas com acesso ativo (mesmo critério de
   utils/empresaAccess.js — não vale a pena gastar SMS/email a avisar
   mutuários de uma empresa suspensa ou com trial expirado).
+
+  Também marca créditos como INCUMPRIMENTO (30 dias de atraso numa
+  parcela) e recupera de volta para ATIVO os que deixaram de qualificar
+  — ver verificarIncumprimentoEmpresa em services/credito.service.js.
 */
 
 const cron = require("node-cron");
@@ -32,6 +36,7 @@ async function executarParaTodasEmpresas() {
   const { Empresa } = require("../models");
   const { executarVerificacaoPagamento } = require("../controllers/alertaPagamento.controller");
   const { executarVerificacaoPrazo } = require("../controllers/alertaPrazo.controller");
+  const { verificarIncumprimentoEmpresa } = require("./credito.service");
 
   const empresas = await Empresa.findAll({
     attributes: ["id", "nome", "estado", "trialEndsAt"],
@@ -39,6 +44,8 @@ async function executarParaTodasEmpresas() {
 
   let totalPagamento = 0;
   let totalPrazo = 0;
+  let totalIncumprimentoMarcados = 0;
+  let totalIncumprimentoRecuperados = 0;
 
   for (const empresa of empresas) {
     const acesso = avaliarAcessoEmpresa(empresa);
@@ -65,12 +72,26 @@ async function executarParaTodasEmpresas() {
         error: error.message,
       });
     }
+
+    try {
+      const resultadoIncumprimento = await verificarIncumprimentoEmpresa(empresa.id);
+      totalIncumprimentoMarcados += resultadoIncumprimento.marcados;
+      totalIncumprimentoRecuperados += resultadoIncumprimento.recuperados;
+    } catch (error) {
+      logger.error("Falha ao verificar incumprimento de créditos (agendador)", {
+        empresaId: empresa.id,
+        empresaNome: empresa.nome,
+        error: error.message,
+      });
+    }
   }
 
   logger.info("Agendador de alertas concluído", {
     empresasVerificadas: empresas.length,
     alertasPagamentoCriados: totalPagamento,
     alertasPrazoCriados: totalPrazo,
+    creditosMarcadosIncumprimento: totalIncumprimentoMarcados,
+    creditosRecuperadosDeIncumprimento: totalIncumprimentoRecuperados,
   });
 }
 

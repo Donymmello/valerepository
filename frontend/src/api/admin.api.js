@@ -328,6 +328,17 @@ export const importarPedidosExcelRequest = async (file) => {
   return response.data;
 };
 
+// Importação de créditos já existentes ("saldo de abertura") — migração
+// de empréstimos que já estavam em curso antes deste sistema.
+export const importarCreditosExcelRequest = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await api.post("/import/creditos", formData);
+
+  return response.data;
+};
+
 /*
   ==========================================================
   ALERTAS DE PRAZOS

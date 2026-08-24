@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -19,12 +20,13 @@ import {
   listarUtilizadoresEmpresaRequest,
   atualizarEstadoUtilizadorRequest,
 } from "../../../api/admin.api";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 import { formatDate } from "../../../utils/formatters";
 
 // Página de configurações da empresa (tenant): perfil + utilizadores internos.
 export default function EmpresaConfiguracoes() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const podeEditar = user?.role === "ADMIN";
 
   const [loading, setLoading] = useState(true);
@@ -256,9 +258,21 @@ export default function EmpresaConfiguracoes() {
       {/* Utilizadores internos */}
       {["ADMIN", "GESTOR"].includes(user?.role) && (
         <Paper elevation={0} sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3, border: "1px solid #e0e0e0" }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-            Utilizadores Internos
-          </Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Utilizadores Internos
+            </Typography>
+            {podeEditar && (
+              <Button
+                variant="contained"
+                size="small"
+                sx={{ borderRadius: 2, fontWeight: "bold" }}
+                onClick={() => navigate("/interno/register-interno")}
+              >
+                Adicionar Utilizador
+              </Button>
+            )}
+          </Stack>
 
           {usuariosError && <Alert severity="error" sx={{ mb: 3 }}>{usuariosError}</Alert>}
 

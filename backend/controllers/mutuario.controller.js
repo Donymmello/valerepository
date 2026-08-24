@@ -156,12 +156,14 @@ async function getAllMutuarios(req, res) {
             {
               model: ParcelaPagamento,
               as: "parcelas",
-              attributes: ["id", "estado"],
+              attributes: ["id", "estado", "dataVencimento"],
               required: false,
             },
           ],
         }),
       ]);
+
+      const hoje = new Date();
 
       for (const pedido of pedidos) {
         const situacao = situacaoPorMutuario[pedido.mutuarioId];
@@ -181,8 +183,17 @@ async function getAllMutuarios(req, res) {
           situacao.creditosIncumprimento += 1;
         }
         situacao.saldoEmDivida += Number(credito.saldoAtual || 0);
+        // "Em atraso" calculado pela data de vencimento (não só pelo campo
+        // `estado`, que só passa a ATRASADO quando alguém regista um
+        // pagamento parcial contra a parcela — ver atualizarParcelaAposReembolso
+        // em credito.service.js). Uma parcela vencida sem nenhum pagamento
+        // registado fica PENDENTE para sempre nesse campo, por isso usar só
+        // `estado === "ATRASADO"` subcontava parcelas realmente vencidas.
+        // Mesma lógica usada em relatorio.controller.js (dashboard) e em
+        // ReembolsosList.jsx (tabela de parcelas vencidas).
         situacao.parcelasEmAtraso += (credito.parcelas || []).filter(
-          (parcela) => parcela.estado === "ATRASADO"
+          (parcela) =>
+            parcela.estado !== "PAGO" && new Date(parcela.dataVencimento) < hoje
         ).length;
       }
     }

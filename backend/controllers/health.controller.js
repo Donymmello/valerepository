@@ -11,19 +11,23 @@ const os = require('os');
  * Verifica conexão com banco de dados
  */
 async function checkDatabase() {
+  // Lido diretamente do Sequelize em vez de escrito à mão, para não
+  // ficar desatualizado se o dialeto da BD mudar (ex: MySQL -> Postgres).
+  const dialeto = sequelize.getDialect();
+
   try {
     await sequelize.authenticate();
     return {
       status: 'healthy',
       responseTime: 'OK',
-      database: 'MySQL',
+      database: dialeto,
       connection: 'Active',
     };
   } catch (error) {
     return {
       status: 'unhealthy',
       error: error.message,
-      database: 'MySQL',
+      database: dialeto,
       connection: 'Failed',
     };
   }

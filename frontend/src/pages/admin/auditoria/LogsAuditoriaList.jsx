@@ -20,7 +20,7 @@ import {
   getLogAuditoriaByIdRequest,
   getMeusLogsAuditoriaRequest,
 } from "../../../api/admin.api";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 import { formatDate } from "../../../utils/formatters";
 
 export default function LogsAuditoriaList() {

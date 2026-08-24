@@ -3,7 +3,7 @@ const logger = require("../utils/logger");
 
 /**
  * SINCRONIZAÇÃO DA BASE DE DADOS
- * Alinha os modelos do Sequelize com as tabelas do MySQL em ambiente de desenvolvimento.
+ * Alinha os modelos do Sequelize com as tabelas da BD em ambiente de desenvolvimento.
  */
 async function syncDatabase() {
   const sync = process.env.DB_SYNC === "true";
@@ -30,10 +30,18 @@ async function syncDatabase() {
     logger.info("Base de dados sincronizada com sucesso.", { alter });
   } catch (error) {
     // Garante que o erro de infraestrutura é registado detalhadamente sem deitar o servidor abaixo às cegas
+    // error.parent.sqlMessage é específico do driver mysql2 — o driver
+    // pg (Postgres) usa .message/.detail em vez disso. Verificamos os
+    // dois para a mensagem de erro continuar detalhada em qualquer dialeto.
     logger.error("Erro crítico ao sincronizar a base de dados:", {
       error: error.message,
       stack: error.stack,
-      original: error.parent?.sqlMessage || error.original?.sqlMessage || null,
+      original:
+        error.parent?.sqlMessage ||
+        error.parent?.detail ||
+        error.parent?.message ||
+        error.original?.sqlMessage ||
+        null,
     });
     
     // Opcional: Em inicializações críticas, podes querer forçar o encerramento do processo

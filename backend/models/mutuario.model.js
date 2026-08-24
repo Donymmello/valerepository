@@ -15,10 +15,12 @@ const Mutuario = sequelize.define(
       primaryKey: true,
     },
 
+    // Nota: NÃO é `unique: true` aqui — o código só precisa de ser único
+    // dentro da mesma empresa (tenant), não em toda a plataforma. Ver o
+    // índice composto abaixo, em `indexes`.
     codigoMutuario: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true,
       field: "codigo_mutuario",
     },
 
@@ -106,6 +108,13 @@ const Mutuario = sequelize.define(
     tableName: "mutuarios",
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [
+      {
+        unique: true,
+        fields: ["empresa_id", "codigo_mutuario"],
+        name: "mutuarios_empresa_id_codigo_mutuario_unique",
+      },
+    ],
   }
 );
 

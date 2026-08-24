@@ -106,7 +106,6 @@ export default function ExtratoPedido() {
   }
 
   const creditos = dados?.pedido?.creditos || [];
-  const parcelas = creditos.flatMap((c) => c.parcelas || []);
   const reembolsos = creditos.flatMap((c) => c.reembolsos || []);
 
   return (

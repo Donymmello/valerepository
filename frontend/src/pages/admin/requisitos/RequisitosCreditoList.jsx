@@ -19,7 +19,7 @@ import {
   getAllRequisitosRequest,
   updateRequisitoRequest,
 } from "../../../api/admin.api";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../context/useAuth";
 
 export default function RequisitosCreditoList() {
   const { user } = useAuth();

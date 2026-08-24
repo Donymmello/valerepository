@@ -14,10 +14,11 @@ const PedidoCredito = sequelize.define(
       primaryKey: true,
     },
 
+    // Nota: NÃO é `unique: true` aqui — igual ao codigoMutuario, só
+    // precisa de ser único dentro da mesma empresa. Ver `indexes` abaixo.
     numeroPedido: {
       type: DataTypes.STRING(50),
       allowNull: false,
-      unique: true,
       field: "numero_pedido",
     },
 
@@ -135,6 +136,13 @@ const PedidoCredito = sequelize.define(
     tableName: "pedidos_credito",
     createdAt: "created_at",
     updatedAt: "updated_at",
+    indexes: [
+      {
+        unique: true,
+        fields: ["empresa_id", "numero_pedido"],
+        name: "pedidos_credito_empresa_id_numero_pedido_unique",
+      },
+    ],
   }
 );
 

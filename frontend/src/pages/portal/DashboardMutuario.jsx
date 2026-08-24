@@ -16,7 +16,7 @@ import {
   Person as PersonIcon,
   Receipt as ReceiptIcon,
 } from "@mui/icons-material";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import {
   getMeuMutuarioRequest,
   getMeusPedidosRequest,

@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 const DEFAULT_LINKS = [
   { label: "Dashboard", to: "/interno" },
@@ -25,6 +25,10 @@ const DEFAULT_LINKS = [
   { label: "Reembolsos", to: "/interno/reembolsos" },
   { label: "Relatórios", to: "/interno/relatorios" },
   { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
+  // Rota /interno/excel já existia e aceita ADMIN/GESTOR/ANALISTA/DIRETOR
+  // (ver AppRoutes.jsx), mas não tinha link nenhum na navegação — só
+  // era possível chegar lá digitando o URL à mão.
+  { label: "Excel", to: "/interno/excel" },
 ];
 
 // variant="minimal" (usado pelo painel SUPERADMIN): mesma casca de

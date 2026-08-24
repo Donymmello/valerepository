@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -19,7 +18,6 @@ import { CalculateOutlined as CalculateOutlinedIcon, Close as CloseIcon } from "
 import { getMinhasSimulacoesRequest } from "../../api/public.api";
 
 export default function Simulacoes() {
-  const navigate = useNavigate();
   const [simulacoes, setSimulacoes] = useState([]);
   const [loading, setLoading] = useState(true);
 

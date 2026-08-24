@@ -11,15 +11,19 @@
   Idempotente — seguro correr mais de uma vez, tal como as anteriores.
 */
 
+const { enumJaTemValores } = require("../utils/migrationHelpers");
+
 const TIPOS_ATUAIS = ["ALERTA_PRAZO", "ALERTA_PAGAMENTO", "APROVACAO", "REJEICAO", "SISTEMA", "REQUISITO", "PEDIDO_CRIADO"];
 const TIPOS_ANTERIORES = ["ALERTA_PRAZO", "APROVACAO", "REJEICAO", "SISTEMA", "REQUISITO"];
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    const notificacoesDesc = await queryInterface.describeTable("notificacoes");
-    const tipoAtual = notificacoesDesc.tipo?.type || "";
+    const jaTemTodos = await enumJaTemValores(queryInterface, "notificacoes", "tipo", [
+      "ALERTA_PAGAMENTO",
+      "PEDIDO_CRIADO",
+    ]);
 
-    if (!tipoAtual.includes("ALERTA_PAGAMENTO") || !tipoAtual.includes("PEDIDO_CRIADO")) {
+    if (!jaTemTodos) {
       await queryInterface.changeColumn("notificacoes", "tipo", {
         type: Sequelize.ENUM(...TIPOS_ATUAIS),
         allowNull: false,

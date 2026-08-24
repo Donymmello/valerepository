@@ -380,6 +380,22 @@ async function createMeuPedido(req, res) {
       });
     }
 
+    // Estilo Txuna: sem juro de mora, mas bloqueia crédito novo enquanto
+    // houver um crédito em incumprimento por regularizar (ver secção 20/22
+    // do RECUPERACAO_BD.md).
+    const temCreditoEmIncumprimento = await CreditoService.mutuarioTemCreditoEmIncumprimento(
+      mutuario.id,
+      req.user.empresaId
+    );
+
+    if (temCreditoEmIncumprimento) {
+      return res.status(403).json({
+        message:
+          "Não é possível submeter um novo pedido enquanto tiver um crédito em incumprimento. Regularize o pagamento em atraso para voltar a pedir crédito.",
+        creditoEmIncumprimento: true,
+      });
+    }
+
     const dataSubmissao = new Date();
 
     // Prazos padrão: 7 dias (não podem ser alterados)

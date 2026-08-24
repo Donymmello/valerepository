@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link as RouterLink, useNavigate } from "react-router-dom";
+import { useParams, Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -41,7 +41,6 @@ function TabPanel({ value, index, children }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function DetalhePedido() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const [pedido, setPedido] = useState(null);
   const [loading, setLoading] = useState(true);

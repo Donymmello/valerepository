@@ -12,7 +12,7 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import PageHeader from "../../components/common/PageHeader";
 
 // Página interna (backoffice) — sem header/footer público
@@ -44,12 +44,10 @@ export default function RegisterUser() {
 
     try {
       await registerUser(form);
-      const role = form?.role?.toUpperCase();
-      if (role === "MUTUARIO" || role === "USER") {
-        navigate("/portal");
-      } else {
-        navigate("/login");
-      }
+      // Página só é usada dentro do backoffice (/interno/register-interno,
+      // só para ADMIN) — o utilizador que está a submeter continua com a
+      // sessão dele, não faz sentido mandá-lo para /login.
+      navigate("/interno/empresa");
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao registar utilizador.");

@@ -7,7 +7,7 @@ import {
 import { AccountBalanceWallet, Speed, Security, CheckCircleOutline } from '@mui/icons-material';
 import { criarSolicitacaoAcessoRequest } from '../../api/public.api';
 import { bootstrapAdminRequest } from '../../api/auth.api';
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 
 export default function LandingPage() {
   const navigate = useNavigate();

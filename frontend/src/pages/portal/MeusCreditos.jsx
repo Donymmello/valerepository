@@ -24,10 +24,6 @@ export default function MeusCreditos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    carregarCreditos();
-  }, []);
-
   const carregarCreditos = async () => {
     try {
       setLoading(true);
@@ -42,6 +38,10 @@ export default function MeusCreditos() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    carregarCreditos();
+  }, []);
 
   // Separar créditos por estado
   const creditosAtivos = creditos.filter((c) => c.estado === "ATIVO");

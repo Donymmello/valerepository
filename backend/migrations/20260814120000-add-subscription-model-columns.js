@@ -10,6 +10,8 @@
   manualmente antes.
 */
 
+const { enumJaTemValores } = require("../utils/migrationHelpers");
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     const usersDesc = await queryInterface.describeTable("users");
@@ -25,7 +27,7 @@ module.exports = {
       });
     }
 
-    if (!String(usersDesc.role.type).includes("SUPERADMIN")) {
+    if (!(await enumJaTemValores(queryInterface, "users", "role", ["SUPERADMIN"]))) {
       await queryInterface.changeColumn("users", "role", {
         type: Sequelize.ENUM("SUPERADMIN", "ADMIN", "GESTOR", "ANALISTA", "DIRETOR", "MUTUARIO", "USER"),
         allowNull: false,
@@ -35,7 +37,7 @@ module.exports = {
 
     const empresasDesc = await queryInterface.describeTable("empresas");
 
-    if (!String(empresasDesc.estado.type).includes("TESTE")) {
+    if (!(await enumJaTemValores(queryInterface, "empresas", "estado", ["TESTE"]))) {
       await queryInterface.changeColumn("empresas", "estado", {
         type: Sequelize.ENUM("TESTE", "ATIVA", "SUSPENSA", "CANCELADA"),
         defaultValue: "TESTE",
