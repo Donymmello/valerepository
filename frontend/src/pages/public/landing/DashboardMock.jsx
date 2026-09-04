@@ -48,7 +48,7 @@ export default function DashboardMock() {
         <ChromeDot color="#fbbf24" />
         <ChromeDot color="#34d399" />
         <Typography variant="caption" sx={{ ml: 1.5, color: "text.disabled", fontWeight: 500 }}>
-          tshemba.vektarmz.com/interno
+          tshemba.vektramz.com/interno
         </Typography>
       </Stack>
 

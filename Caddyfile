@@ -7,7 +7,7 @@
 # docker-compose.yml) e este bloco é acrescentado ao Caddyfile REAL, que
 # fica em /opt/vektra-site/Caddyfile na VPS (fora deste repo).
 #
-# tshemba.vektarmz.com {
+# tshemba.vektramz.com {
 #     handle /api/* {
 #         reverse_proxy meu_backend:5000
 #     }

@@ -4,7 +4,7 @@ Este documento resume o estado e a linha de raciocinio do projeto para facilitar
 
 ## Objetivo
 
-Sistema web multi-tenant para gestao de credito, nome de marca "Tshemba", produto da Vektar Technologies MZ (empresa-mae, www.vektarmz.com), cobrindo o ciclo de:
+Sistema web multi-tenant para gestao de credito, nome de marca "Tshemba", produto da Vektar Technologies MZ (empresa-mae, www.vektramz.com), cobrindo o ciclo de:
 
 1. registo do mutuario;
 2. simulacao de credito;

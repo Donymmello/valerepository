@@ -20,7 +20,7 @@ import { createTheme } from "@mui/material/styles";
 // ficheiros diferentes, mudar de nome outra vez só precisa de mudar aqui.
 export const NOME_PLATAFORMA = "Tshemba";
 
-// Nome da empresa-mãe, dona do domínio vektarmz.com. Usado no rodapé
+// Nome da empresa-mãe, dona do domínio vektramz.com. Usado no rodapé
 // (copyright) e em qualquer sítio que precise da razão social, em vez
 // do nome do produto.
 export const NOME_EMPRESA = "Vektar Technologies MZ";

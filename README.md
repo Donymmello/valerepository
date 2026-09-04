@@ -1,6 +1,6 @@
 # 💳 Tshemba (SaaS Multi-Tenant de Gestão de Crédito)
 
-> Produto da Vektar Technologies MZ (empresa-mãe, www.vektarmz.com).
+> Produto da Vektar Technologies MZ (empresa-mãe, www.vektramz.com).
 
 Plataforma web para gestão de crédito/microcrédito, com separação entre **portal do mutuário** e **backoffice administrativo**, desenhada para servir várias financeiras (tenants) na mesma instalação, cada uma com os seus próprios utilizadores, mutuários e dados isolados.
 
