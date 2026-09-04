@@ -1,17 +1,21 @@
-# Reverse proxy + HTTPS automático (Let's Encrypt) para o Tshemba.
-# Caddy renova o certificado sozinho, desde que:
-#   1. este domínio já aponte (DNS, registo A) para o IP desta VPS;
-#   2. as portas 80 e 443 estejam abertas no firewall da VPS.
+# REFERÊNCIA, não é usado pelo docker-compose.yml deste repo.
 #
-# /api/* vai para o backend Node, o resto vai para o frontend (SPA) servido
-# pelo Nginx dentro do container web_frontend.
-
-tshemba.vektarmz.com {
-    handle /api/* {
-        reverse_proxy api_backend:5000
-    }
-
-    handle {
-        reverse_proxy web_frontend:80
-    }
-}
+# A VPS de produção já tem um Caddy partilhado a servir outros projetos
+# (vektra-site, kuava-pos), preso às portas 80/443 do host. Por isso o
+# Tshemba não sobe o seu próprio Caddy, em vez disso os containers
+# api_backend/web_frontend ligam-se à rede Docker externa "web" (ver
+# docker-compose.yml) e este bloco é acrescentado ao Caddyfile REAL, que
+# fica em /opt/vektra-site/Caddyfile na VPS (fora deste repo).
+#
+# tshemba.vektarmz.com {
+#     handle /api/* {
+#         reverse_proxy meu_backend:5000
+#     }
+#
+#     handle {
+#         reverse_proxy frontend:80
+#     }
+# }
+#
+# Depois de editar o Caddyfile real na VPS:
+#   docker exec vektra-site-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile

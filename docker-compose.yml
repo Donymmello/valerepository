@@ -29,9 +29,10 @@ services:
     container_name: meu_backend
     restart: on-failure
     ports:
-      # Só localhost: em produção o tráfego externo entra pelo Caddy (ver
-      # serviço "caddy" abaixo), que fala com este serviço pela rede interna
-      # do Docker (api_backend:5000), não precisa de porta pública.
+      # Só localhost: em produção o tráfego externo entra pelo Caddy
+      # partilhado da VPS (fora deste repo, ver RECUPERACAO_BD.md), que
+      # fala com este serviço pela rede Docker externa "web" (nome do
+      # container: meu_backend), não precisa de porta pública aqui.
       - "127.0.0.1:5000:5000"
     # Adiciona esta linha abaixo para o Docker injetar o teu .env no container!
     env_file:
@@ -44,6 +45,9 @@ services:
     depends_on:
       credito:
         condition: service_healthy
+    networks:
+      - default
+      - web
     mem_limit: 512m
     mem_reservation: 256m
 
@@ -77,39 +81,31 @@ services:
     container_name: frontend
     restart: on-failure
     ports:
-      # Só localhost: em produção o Caddy é que fala com este serviço pela
-      # rede interna (web_frontend:80). Em dev local sem Caddy, continua
-      # acessível em http://localhost:8081.
+      # Só localhost: em produção o Caddy partilhado da VPS é que fala com
+      # este serviço pela rede Docker externa "web" (nome do container:
+      # frontend). Em dev local sem esse Caddy, continua acessível em
+      # http://localhost:8081.
       - "127.0.0.1:8081:80"
     depends_on:
       - api_backend
-    mem_limit: 128m
-
-  # 4. REVERSE PROXY + HTTPS (Caddy)
-  # Único serviço com porta pública (80/443). Fala com api_backend e
-  # web_frontend pela rede interna do Docker (nomes de serviço, não
-  # localhost). Emite e renova certificados Let's Encrypt sozinho, desde
-  # que o domínio em Caddyfile já aponte (DNS) para o IP desta VPS.
-  caddy:
-    image: caddy:2-alpine
-    container_name: caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_dados:/data
-      - caddy_config:/config
-    depends_on:
-      - api_backend
-      - web_frontend
+    networks:
+      - default
+      - web
     mem_limit: 128m
 
 volumes:
   dados_postgres: # Garante que os dados do banco não sumam quando o container para
-  caddy_dados: # Certificados TLS emitidos pelo Let's Encrypt
-  caddy_config:
+
+# Rede externa do Caddy partilhado da VPS (já existe fora deste projeto,
+# um único Caddy serve vários projetos/domínios na mesma máquina). Ligamos
+# api_backend e web_frontend a ela para o Caddy conseguir fazer
+# reverse_proxy para "meu_backend:5000" e "frontend:80". Ver
+# RECUPERACAO_BD.md para o bloco de configuração adicionado ao Caddyfile
+# partilhado (fora deste repo, em /opt/vektra-site/Caddyfile na VPS).
+networks:
+  default:
+  web:
+    external: true
 
 # Nota sobre mem_limit: isto usa `docker compose up` "standalone" (não Swarm),
 # por isso o limite tem de ser `mem_limit`/`mem_reservation` no nível do
