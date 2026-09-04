@@ -8,6 +8,7 @@ const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/emailService");
 const { avaliarAcessoEmpresa, MENSAGENS } = require("../utils/empresaAccess");
+const { invalidarCacheEmpresa } = require("../utils/empresaCache");
 
 // =========================================================================
 // HELPERS / UTILS (Padrão de Resposta Interno)
@@ -321,11 +322,13 @@ const registerMutuario = async (req, res) => {
       return res.status(400).json({ message: "Convite inválido, expirado ou já utilizado." });
     }
 
-    // Procura por conflitos numa única viagem à Base de Dados
+    // Procura por conflitos numa única viagem à Base de Dados.
+    // Mutuario isolado por empresa, mesmo motivo do
+    // registerMutuarioRequestOTP logo abaixo neste ficheiro.
     const [existingUser, existingMutuario] = await Promise.all([
       User.findOne({ where: { email }, attributes: ['id'] }),
       Mutuario.findOne({
-        where: { [Op.or]: [{ nuit }, { documentoNumero }] },
+        where: { empresaId: convite.empresaId, [Op.or]: [{ nuit }, { documentoNumero }] },
         attributes: ['id', 'nuit', 'documentoNumero']
       })
     ]);
@@ -436,6 +439,10 @@ const login = async (req, res) => {
       if (!acesso.permitido) {
         if (acesso.trialExpirouAgora) {
           await Empresa.update({ estado: "SUSPENSA" }, { where: { id: user.empresa.id } });
+          // Mesma cache partilhada de utils/empresaCache.js, invalida
+          // para o próximo pedido já ver o estado atualizado, em vez de
+          // esperar a TTL de 60s.
+          invalidarCacheEmpresa(user.empresa.id);
         }
         return res.status(403).json({ message: MENSAGENS[acesso.motivo], motivo: acesso.motivo });
       }
@@ -549,7 +556,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
     const {
       token, nome, email, password, nomeCompleto, telefone,
       // Documento/NUIT/data de nascimento/morada já não são exigidos no
-      // registo — o mutuário completa isto depois em "Completar Perfil"
+      // registo, o mutuário completa isto depois em "Completar Perfil"
       // (ver portalMutuario.controller.js, updateMeuMutuario). Se vierem
       // preenchidos mesmo assim (ex: chamada direta à API), aceitam-se.
       documentoTipo, documentoNumero, nuit, dataNascimento, provincia,
@@ -571,6 +578,12 @@ const registerMutuarioRequestOTP = async (req, res) => {
     // Pesquisa simultânea de duplicações para travar antes do OTP.
     // nuit/documentoNumero são opcionais agora, por isso só entram na
     // verificação de duplicado quando realmente preenchidos.
+    // Email fica global de propósito (User.email é unique: true na BD,
+    // o login é só por email, sem escolher empresa primeiro). Já
+    // nuit/documentoNumero têm de ser isolados por empresa: a mesma
+    // pessoa pode legitimamente ser cliente de duas financeiras
+    // diferentes (mesmo padrão já corrigido no importador Excel, ver
+    // RECUPERACAO_BD.md secção 26).
     const condicoesDuplicado = [];
     if (nuit) condicoesDuplicado.push({ nuit });
     if (documentoNumero) condicoesDuplicado.push({ documentoNumero });
@@ -579,7 +592,7 @@ const registerMutuarioRequestOTP = async (req, res) => {
       User.findOne({ where: { email }, attributes: ['id'] }),
       condicoesDuplicado.length
         ? Mutuario.findOne({
-            where: { [Op.or]: condicoesDuplicado },
+            where: { [Op.and]: [{ empresaId: convite.empresaId }, { [Op.or]: condicoesDuplicado }] },
             attributes: ['id', 'nuit', 'documentoNumero']
           })
         : null,
@@ -678,7 +691,7 @@ const verifyOTPAndRegister = async (req, res) => {
         descricao: `Mutuário registado com verificação de email. User ID ${user.id}, Mutuário ID ${mutuario.id}.`,
       }, { transaction: t });
 
-      // O registo pede só o essencial — avisa aqui, uma vez, para
+      // O registo pede só o essencial, avisa aqui, uma vez, para
       // completar o perfil (documento/NUIT/data de nascimento) antes de
       // pedir crédito. Substitui banners espalhados pelo portal; a
       // página "Meu Perfil" continua a mostrar o aviso enquanto faltar.

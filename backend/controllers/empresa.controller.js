@@ -1,6 +1,7 @@
 const { Empresa, User } = require("../models");
 const { Op } = require("sequelize");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const { invalidarCacheEmpresa } = require("../utils/empresaCache");
 
 /*
   ==========================================================
@@ -44,7 +45,7 @@ async function getMinhaEmpresa(req, res) {
   ATUALIZAR PERFIL DA PRÓPRIA EMPRESA
   ==========================================================
   Apenas ADMIN. Campos editáveis: nome, nuit, email, telefone, logo.
-  slug/plano/estado ficam de fora — são geridos a outro nível
+  slug/plano/estado ficam de fora, são geridos a outro nível
   (mudar o slug quebraria links de convite já partilhados; plano
   e estado são normalmente controlados pela plataforma, não pelo
   próprio tenant).
@@ -98,6 +99,11 @@ async function atualizarMinhaEmpresa(req, res) {
       taxaJurosMax: novaTaxaMax,
     });
 
+    // utils/empresaCache.js cacheia nome/taxas (entre outros campos) por
+    // 60s, este endpoint é precisamente quem os muda, por isso precisa
+    // de invalidar. Antes desta cache existir isto não era necessário.
+    invalidarCacheEmpresa(empresa.id);
+
     await registrarLogAuditoria({
       userId: req.user.id,
       acao: "ATUALIZAR_EMPRESA",
@@ -120,7 +126,7 @@ async function atualizarMinhaEmpresa(req, res) {
   ==========================================================
   LISTAR UTILIZADORES INTERNOS DA EMPRESA
   ==========================================================
-  ADMIN/GESTOR. Só devolve roles internas (backoffice) — os
+  ADMIN/GESTOR. Só devolve roles internas (backoffice), os
   utilizadores do portal (USER/MUTUARIO) já são geridos via
   mutuario/vincularMutuario.
 */

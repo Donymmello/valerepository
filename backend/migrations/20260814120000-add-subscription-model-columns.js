@@ -19,7 +19,7 @@ module.exports = {
     if (usersDesc.empresa_id.allowNull === false) {
       // Nota: incluir "references" aqui faz o MySQL/Sequelize gerar um
       // ALTER TABLE que não aplica a mudança de allowNull, sem dar erro
-      // nenhum. Não é preciso de qualquer forma — não estamos a mexer
+      // nenhum. Não é preciso de qualquer forma, não estamos a mexer
       // na foreign key, só na obrigatoriedade da coluna.
       await queryInterface.changeColumn("users", "empresa_id", {
         type: Sequelize.INTEGER,

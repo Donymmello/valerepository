@@ -6,7 +6,7 @@
   pagamento (parcelas a vencer/vencidas) só corriam se alguém entrasse
   manualmente numa página e carregasse num botão "Verificar". Para
   alertas de prazo isso pelo menos tinha um botão em /interno/alertas-prazo;
-  para alertas de pagamento nem botão existia — o endpoint estava pronto
+  para alertas de pagamento nem botão existia, o endpoint estava pronto
   mas nunca era chamado por ninguém, por isso nenhum mutuário alguma vez
   recebeu aviso de parcela a vencer ou vencida (nem in-app, nem por
   email/SMS, já que o despacho externo depende de uma Notificacao ser
@@ -14,12 +14,12 @@
 
   Este serviço corre as duas verificações automaticamente, uma vez por
   dia, para todas as empresas com acesso ativo (mesmo critério de
-  utils/empresaAccess.js — não vale a pena gastar SMS/email a avisar
+  utils/empresaAccess.js, não vale a pena gastar SMS/email a avisar
   mutuários de uma empresa suspensa ou com trial expirado).
 
   Também marca créditos como INCUMPRIMENTO (30 dias de atraso numa
   parcela) e recupera de volta para ATIVO os que deixaram de qualificar
-  — ver verificarIncumprimentoEmpresa em services/credito.service.js.
+ , ver verificarIncumprimentoEmpresa em services/credito.service.js.
 */
 
 const cron = require("node-cron");
@@ -31,7 +31,7 @@ const FUSO_HORARIO = process.env.CRON_ALERTAS_TIMEZONE || "Africa/Maputo";
 
 async function executarParaTodasEmpresas() {
   // Requires feitos aqui dentro (não no topo do ficheiro) para evitar
-  // carregar models/controllers antes de estarem prontos — este serviço
+  // carregar models/controllers antes de estarem prontos, este serviço
   // é iniciado a partir de server.js, depois da ligação à BD.
   const { Empresa } = require("../models");
   const { executarVerificacaoPagamento } = require("../controllers/alertaPagamento.controller");

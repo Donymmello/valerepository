@@ -2,7 +2,7 @@ import api from "./axios";
 
 /*
   ==========================================================
-  API SUPERADMIN — GESTÃO DA PLATAFORMA
+  API SUPERADMIN, GESTÃO DA PLATAFORMA
   ==========================================================
 */
 

@@ -16,6 +16,9 @@ node_modules/
 frontend/dist
 backend/dist
 
+# backups de BD (scripts/backup-db.sh) — dados reais de clientes, nunca commitar
+/backups
+
 # misc
 .DS_Store
 .env.local

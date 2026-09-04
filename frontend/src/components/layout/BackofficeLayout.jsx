@@ -26,13 +26,13 @@ const DEFAULT_LINKS = [
   { label: "Relatórios", to: "/interno/relatorios" },
   { label: "Alertas de Prazo", to: "/interno/alertas-prazo" },
   // Rota /interno/excel já existia e aceita ADMIN/GESTOR/ANALISTA/DIRETOR
-  // (ver AppRoutes.jsx), mas não tinha link nenhum na navegação — só
+  // (ver AppRoutes.jsx), mas não tinha link nenhum na navegação, só
   // era possível chegar lá digitando o URL à mão.
   { label: "Excel", to: "/interno/excel" },
 ];
 
 // variant="minimal" (usado pelo painel SUPERADMIN): mesma casca de
-// layout (AppBar + barra de navegação), sem notificações/avatar — só
+// layout (AppBar + barra de navegação), sem notificações/avatar, só
 // um chip com o nome do utilizador.
 export default function BackofficeLayout({
   children,
@@ -81,7 +81,7 @@ export default function BackofficeLayout({
             gap: 2,
           }}
         >
-          {/* Logo — clicável, mantem na home deste layout */}
+          {/* Logo, clicável, mantem na home deste layout */}
           <Stack
             spacing={0.5}
             sx={{ cursor: "pointer" }}

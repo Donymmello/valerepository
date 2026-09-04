@@ -11,13 +11,13 @@ const {
   ParcelaPagamento,
   User,
   Anexo,
-  Empresa,
 } = require("../models");
 const CreditoService = require("../services/credito.service");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
 const { notificarStaffDaEmpresa } = require("../services/notificacaoInterna.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 /*
   ==========================================================
@@ -121,7 +121,7 @@ async function updateMeuMutuario(req, res) {
       distrito,
       localResidencia,
       email,
-      // Campos de identificação (KYC) — só chegam a ser gravados se o
+      // Campos de identificação (KYC), só chegam a ser gravados se o
       // mutuário ainda não os tiver preenchido (ver bloco abaixo). Isto
       // permite "Completar Perfil" sem abrir a porta a alterar um
       // documento/NUIT já declarado por conta própria.
@@ -157,8 +157,16 @@ async function updateMeuMutuario(req, res) {
       if (querDefinirNuit) condicoesDuplicado.push({ nuit });
       if (querDefinirNumero) condicoesDuplicado.push({ documentoNumero });
 
+      // Isolado por empresa, a mesma pessoa pode legitimamente ser
+      // cliente de duas financeiras diferentes (mesmo padrão corrigido
+      // em auth.controller.js/registerMutuarioRequestOTP e no
+      // importador Excel; ver RECUPERACAO_BD.md secções 26 e 29).
       const duplicado = await Mutuario.findOne({
-        where: { [Op.or]: condicoesDuplicado, id: { [Op.ne]: mutuario.id } },
+        where: {
+          empresaId: mutuario.empresaId,
+          [Op.or]: condicoesDuplicado,
+          id: { [Op.ne]: mutuario.id },
+        },
         attributes: ["id", "nuit", "documentoNumero"],
       });
 
@@ -371,7 +379,7 @@ async function createMeuPedido(req, res) {
     }
 
     // O registo pede só o essencial, mas antes de pedir crédito a
-    // identificação (KYC) tem de estar completa — é o ponto em que a
+    // identificação (KYC) tem de estar completa, é o ponto em que a
     // relação de crédito de facto começa (ver nota em RECUPERACAO_BD.md).
     if (!mutuario.documentoTipo || !mutuario.documentoNumero || !mutuario.nuit || !mutuario.dataNascimento) {
       return res.status(400).json({
@@ -407,10 +415,8 @@ async function createMeuPedido(req, res) {
 
     // Estimativa inicial: taxa mínima da empresa (mesma lógica usada em
     // pedidoCredito.controller.js). A taxa final é definida na aprovação
-    // de nível 1 — ver aprovacaoPedido.controller.js.
-    const empresa = await Empresa.findByPk(req.user.empresaId, {
-      attributes: ["taxaJurosMin"],
-    });
+    // de nível 1, ver aprovacaoPedido.controller.js.
+    const empresa = await obterEmpresaCacheada(req.user.empresaId);
     const taxa = Number(empresa?.taxaJurosMin ?? 18);
 
     const prestacao = calcularPrestacao(
@@ -454,7 +460,7 @@ async function createMeuPedido(req, res) {
       descricao: `Pedido ${pedido.numeroPedido} criado pelo próprio mutuário autenticado.`,
     });
 
-    // Avisa o staff interno — mesmo alerta que já existia quando um
+    // Avisa o staff interno, mesmo alerta que já existia quando um
     // funcionário cria o pedido em nome do mutuário (ver
     // pedidoCredito.controller.js), só que este é o caminho mais comum:
     // o próprio mutuário a submeter pelo portal.

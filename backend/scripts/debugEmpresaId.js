@@ -1,5 +1,5 @@
 /*
-  Script de diagnóstico temporário — corre só o changeColumn de
+  Script de diagnóstico temporário, corre só o changeColumn de
   empresa_id com logging de SQL ativo, para vermos exatamente o que é
   executado e que erro (se algum) a base de dados devolve.
 

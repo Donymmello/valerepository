@@ -61,7 +61,7 @@ async function criarCredito(pedido, desembolso, userId, options = {}) {
 }
 
 /**
- * Cria um crédito a partir de um "saldo de abertura" — para migrar um
+ * Cria um crédito a partir de um "saldo de abertura", para migrar um
  * empréstimo que já existia antes deste sistema (caderno/Excel do
  * cliente), em vez de recriar o histórico completo de parcelas desde o
  * início.
@@ -69,11 +69,11 @@ async function criarCredito(pedido, desembolso, userId, options = {}) {
  * Ao contrário de criarCredito() (fluxo normal, sempre começa do zero,
  * todas as parcelas PENDENTE), aqui: o saldo devedor e o total já pago
  * vêm de fora (o estado real de hoje, não recalculado), e só as
- * parcelas AINDA POR PAGAR são criadas — as `parcelasPagas` primeiras
+ * parcelas AINDA POR PAGAR são criadas, as `parcelasPagas` primeiras
  * são omitidas (ficam só resumidas num texto em `observacoes`). Ver
  * discussão em RECUPERACAO_BD.md, secção sobre migração de dados.
  *
- * `pedido` aqui não é um pedido real que passou por aprovação — é um
+ * `pedido` aqui não é um pedido real que passou por aprovação, é um
  * "pedido-invólucro" (status DESEMBOLSADO desde o início) criado só
  * para o crédito ter de onde herdar valorSolicitado/prazo/taxa/etc.,
  * mantendo a mesma estrutura de dados do resto do sistema.
@@ -127,7 +127,7 @@ async function criarCreditoImportado(pedido, desembolso, userId, dadosAbertura =
   }, options);
 
   // Gera o plano completo (igual ao fluxo normal) e descarta as
-  // primeiras `parcelasPagas` — assim a numeração e as datas de
+  // primeiras `parcelasPagas`, assim a numeração e as datas de
   // vencimento das parcelas restantes continuam corretas (ex: "parcela
   // 4 de 12", vencendo 4 meses depois do início real do contrato).
   const todasParcelas = generateCodParcela({
@@ -268,12 +268,12 @@ async function buscarMeuCredito(creditoId, mutuarioId) {
  *
  * Antes desta função, `ESTADO_CREDITO.INCUMPRIMENTO` existia no ENUM e
  * era lido pelo Dashboard e pela situação dos mutuários, mas nunca era
- * escrito em lado nenhum do código — ver `podeMarcarIncumprimento()` em
+ * escrito em lado nenhum do código, ver `podeMarcarIncumprimento()` em
  * utils/regrasCredito.js, que ficou só como comentário de planeamento.
  * Por isso o contador de "créditos em incumprimento" mostrava sempre 0.
  *
  * Chamada diariamente pelo agendador (services/agendador.service.js),
- * por empresa — mesmo padrão dos alertas de prazo/pagamento.
+ * por empresa, mesmo padrão dos alertas de prazo/pagamento.
  */
 async function verificarIncumprimentoEmpresa(empresaId, limiarDias = 30) {
   const limite = new Date();
@@ -331,7 +331,7 @@ async function verificarIncumprimentoEmpresa(empresaId, limiarDias = 30) {
 
 /**
  * Verifica se o mutuário tem algum crédito em INCUMPRIMENTO nesta
- * empresa — usado para bloquear a submissão de novos pedidos de crédito
+ * empresa, usado para bloquear a submissão de novos pedidos de crédito
  * (abordagem "estilo Txuna": sem juro de mora, só restringe acesso a
  * crédito novo até regularizar o que está em atraso).
  */

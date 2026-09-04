@@ -44,9 +44,11 @@ const Desembolso = sequelize.define(
       allowNull: true,
       field: "numero_transacao",
     },
+    // Sem unique:true de coluna, mesmo bug do numeroContrato em
+    // Credito (índice único GLOBAL numa plataforma multi-tenant).
+    // Unicidade real é por empresa, ver indexes abaixo.
     referencia: {
       type: DataTypes.STRING(50),
-      unique: true,
       allowNull: true,
       field: "referencia",
     },
@@ -67,6 +69,15 @@ const Desembolso = sequelize.define(
     tableName: "desembolsos",
     createdAt: "created_at",
     updatedAt: false,
+    indexes: [
+      {
+        unique: true,
+        fields: ["empresa_id", "referencia"],
+        name: "desembolsos_empresa_id_referencia_unique",
+      },
+      { fields: ["empresa_id"] },
+      { fields: ["pedido_id"] },
+    ],
   }
 );
 

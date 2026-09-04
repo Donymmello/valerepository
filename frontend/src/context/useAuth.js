@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
   componente AuthProvider, e o Fast Refresh do Vite só funciona bem
   quando um ficheiro exporta só componentes (regra
   react-refresh/only-export-components). O objeto de contexto vive aqui
-  — não num ficheiro de componente — para os dois lados poderem
+ , não num ficheiro de componente, para os dois lados poderem
   importá-lo sem violar essa regra.
 */
 export const AuthContext = createContext(null);

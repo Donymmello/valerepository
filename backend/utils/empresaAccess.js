@@ -4,7 +4,7 @@
   ==========================================================
   Avalia se uma empresa (tenant) ainda tem acesso ao sistema,
   a partir de uma instância/objecto já carregado (não faz queries
-  aqui — quem chama decide se precisa de ir buscar à BD).
+  aqui, quem chama decide se precisa de ir buscar à BD).
 */
 
 const ESTADOS_BLOQUEADOS = ["SUSPENSA", "CANCELADA"];

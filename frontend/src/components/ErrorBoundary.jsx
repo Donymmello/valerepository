@@ -4,7 +4,7 @@ import { Box, Button, Container, Paper, Stack, Typography } from "@mui/material"
 /*
   Apanha erros de render não tratados em qualquer componente abaixo dele
   na árvore, para mostrar um ecrã de erro amigável em vez de a aplicação
-  ficar em branco. Tem de ser um componente de classe — é a única forma
+  ficar em branco. Tem de ser um componente de classe, é a única forma
   de implementar um error boundary em React.
 */
 export default class ErrorBoundary extends Component {

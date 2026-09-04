@@ -4,7 +4,7 @@
   Adiciona a faixa de taxa de juros (min/max) por empresa, para
   substituir a taxa fixa de 18% que estava hardcoded em todo o
   sistema (pedidoCredito.controller.js). Idempotente, tal como a
-  migration 20260814120000 — seguro correr mais que uma vez.
+  migration 20260814120000, seguro correr mais que uma vez.
 */
 
 module.exports = {

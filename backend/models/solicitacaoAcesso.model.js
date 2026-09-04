@@ -4,7 +4,7 @@ const sequelize = require("../config/db");
 /*
   Pedido de acesso à plataforma feito por uma empresa interessada,
   a partir do formulário público da landing page. Não cria nada
-  sozinho — fica registado para o SUPERADMIN rever e, se fizer
+  sozinho, fica registado para o SUPERADMIN rever e, se fizer
   sentido, criar a Empresa manualmente (bootstrap-admin).
 */
 const SolicitacaoAcesso = sequelize.define(

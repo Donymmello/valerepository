@@ -54,7 +54,7 @@ export default function PortalLayout({ children }) {
             gap: 2,
           }}
         >
-          {/* Logo — clicável, vai para landing */}
+          {/* Logo, clicável, vai para landing */}
           <Stack
             spacing={0.5}
             sx={{ cursor: "pointer" }}

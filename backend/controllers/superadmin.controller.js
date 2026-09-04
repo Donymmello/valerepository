@@ -1,10 +1,11 @@
 const { Op, fn, col } = require("sequelize");
 const { Empresa, User } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
+const { invalidarCacheEmpresa } = require("../utils/empresaCache");
 
 /*
   ==========================================================
-  CONTROLLER SUPERADMIN — GESTÃO DE EMPRESAS (TENANTS)
+  CONTROLLER SUPERADMIN, GESTÃO DE EMPRESAS (TENANTS)
   ==========================================================
   Acesso restrito ao role SUPERADMIN (ver routes/superadmin.routes.js).
   É aqui que o dono da plataforma vê todas as empresas e controla
@@ -124,6 +125,12 @@ async function atualizarEmpresaSuperadmin(req, res) {
     }
 
     await empresa.update(updates);
+
+    // utils/empresaCache.js cacheia a linha inteira da empresa por 60s,
+    // invalida sempre que este endpoint muda algo, para a mudança ter
+    // efeito imediato em vez de esperar a TTL expirar (importa sobretudo
+    // para "estado", que controla acesso).
+    invalidarCacheEmpresa(empresa.id);
 
     await registrarLogAuditoria({
       userId: req.user.id,

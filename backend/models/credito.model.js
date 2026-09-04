@@ -13,10 +13,14 @@ const sequelize = require("../config/db");
         primaryKey: true,
       },
 
+      // Sem unique:true aqui, era um índice único GLOBAL, que impedia
+      // duas empresas diferentes de usarem o mesmo número de contrato
+      // (mesmo bug já corrigido em codigo_mutuario/numero_pedido, ver
+      // migration 20260824130000). A unicidade real é por empresa,
+      // aplicada no índice composto abaixo (indexes: empresa_id + numero_contrato).
       numeroContrato: {
         type: DataTypes.STRING(30),
         allowNull: false,
-        unique: true,
       },
 
       pedidoId: {
@@ -117,7 +121,7 @@ const sequelize = require("../config/db");
       },
 
       // true para créditos criados pela importação de "saldo de
-      // abertura" (ver credito.service.js, criarCreditoImportado) — um
+      // abertura" (ver credito.service.js, criarCreditoImportado), um
       // crédito que já existia antes deste sistema (caderno/Excel do
       // cliente) e entrou com o saldo devedor de hoje, não com o
       // histórico completo de parcelas desde o início. Serve para
@@ -138,6 +142,19 @@ const sequelize = require("../config/db");
       tableName: "creditos",
       underscored: true,
       timestamps: true,
+      indexes: [
+        // Unicidade por empresa (substitui o unique:true global de numeroContrato).
+        {
+          unique: true,
+          fields: ["empresa_id", "numero_contrato"],
+          name: "creditos_empresa_id_numero_contrato_unique",
+        },
+        // A esmagadora maioria das queries filtra por empresa + estado
+        // (ex.: listar créditos ATIVOS da empresa), ver credito.controller.js.
+        { fields: ["empresa_id", "estado"] },
+        { fields: ["mutuario_id"] },
+        { fields: ["pedido_id"] },
+      ],
     }
   );
 

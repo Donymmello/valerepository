@@ -2,12 +2,12 @@
   ==========================================================
   GERAÇÃO DE PDF (extrato de pedido, comprovativos)
   ==========================================================
-  Usa pdfkit — gera o PDF diretamente em Node, sem depender de um browser
+  Usa pdfkit, gera o PDF diretamente em Node, sem depender de um browser
   (ao contrário de soluções tipo puppeteer). Mantém-se leve e fácil de
   correr dentro do container do backend.
 
   Cada "gerarXPdf" devolve uma Promise<Buffer>, pronta a mandar como
-  resposta HTTP (res.send(buffer)) — o mesmo padrão que o excell.service.js
+  resposta HTTP (res.send(buffer)), o mesmo padrão que o excell.service.js
   já usa para os ficheiros .xlsx.
 */
 
@@ -48,7 +48,7 @@ function desenharCabecalho(doc, { empresaNome, titulo, subtitulo }) {
   doc
     .fontSize(9)
     .fillColor(CORES.textoSecundario)
-    .text(empresaNome || "Vale do Zambeze", { align: "right" });
+    .text(empresaNome || process.env.PLATFORM_NAME || "Tshemba", { align: "right" });
 
   doc.moveDown(0.5);
 
@@ -136,9 +136,9 @@ function desenharTabela(doc, { colunas, linhas }) {
 }
 
 /*
-  Extrato do pedido — resumo + tabelas de desembolsos e reembolsos.
+  Extrato do pedido, resumo + tabelas de desembolsos e reembolsos.
   Usado tanto pelo portal (meu extrato) como, se um dia fizer sentido,
-  pelo backoffice — o formato dos dados de entrada é o mesmo que já é
+  pelo backoffice, o formato dos dados de entrada é o mesmo que já é
   usado para montar o Excel (ver portalExport.controller.js).
 */
 async function gerarExtratoPedidoPdf({ empresa, pedido, mutuario, desembolsos, reembolsos, totais }) {

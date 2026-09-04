@@ -8,7 +8,7 @@
   SequelizeMeta, e tentaria recriar tabelas que já existem.
 
   Este script corre só a migration da subscrição diretamente. É seguro
-  correr mais de uma vez — cada passo verifica o estado atual antes de
+  correr mais de uma vez, cada passo verifica o estado atual antes de
   alterar.
 
   Uso (dentro do container do backend):

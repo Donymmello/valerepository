@@ -30,7 +30,7 @@ async function syncDatabase() {
     logger.info("Base de dados sincronizada com sucesso.", { alter });
   } catch (error) {
     // Garante que o erro de infraestrutura é registado detalhadamente sem deitar o servidor abaixo às cegas
-    // error.parent.sqlMessage é específico do driver mysql2 — o driver
+    // error.parent.sqlMessage é específico do driver mysql2, o driver
     // pg (Postgres) usa .message/.detail em vez disso. Verificamos os
     // dois para a mensagem de erro continuar detalhada em qualquer dialeto.
     logger.error("Erro crítico ao sincronizar a base de dados:", {

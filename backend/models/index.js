@@ -323,7 +323,7 @@ ConvitePortal.belongsTo(User, {
   para a lógica de despacho (quem recebe, por que canal, etc.).
 
   O despacho só acontece depois da transação em que a notificação foi
-  criada ter mesmo confirmado (transaction.afterCommit) — para não enviar
+  criada ter mesmo confirmado (transaction.afterCommit), para não enviar
   um SMS/email referente a algo que acabou por ser revertido.
 */
 const { despacharNotificacaoExterna } = require("../services/notificacaoExterna.service");

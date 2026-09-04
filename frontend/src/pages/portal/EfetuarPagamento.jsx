@@ -47,7 +47,7 @@ export default function EfetuarPagamento() {
     <Paper sx={{ p: 3, borderRadius: 3 }}><Stack spacing={2}>
       <TextField select label="Parcela a pagar" value={parcelaId} onChange={(e) => { setParcelaId(e.target.value); setMessage(""); }} fullWidth>
         <MenuItem value="">Selecionar parcela</MenuItem>
-        {parcelasDisponiveis.map((p) => <MenuItem value={p.id} key={p.id}>Parcela {p.numeroParcela} — saldo {formatCurrency(p.saldoParcela)}</MenuItem>)}
+        {parcelasDisponiveis.map((p) => <MenuItem value={p.id} key={p.id}>Parcela {p.numeroParcela}, saldo {formatCurrency(p.saldoParcela)}</MenuItem>)}
       </TextField>
       {parcela && <ComprovativoSection parcela={parcela} disabled={temPendente} onEnviar={enviar} />}
       {temPendente && <Alert severity="warning">Ja existe um comprovativo pendente para esta parcela.</Alert>}
@@ -61,7 +61,7 @@ export default function EfetuarPagamento() {
             <Stack key={c.id} direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
               <Chip label={`Parcela ${c.parcela?.numeroParcela ?? "-"}`} size="small" variant="outlined" color="primary" />
               <Chip label={c.estado} size="small" color={ESTADO_COR[c.estado] || "default"} />
-              <Typography variant="caption" color="text.secondary">{c.nome} — enviado em {formatDate(c.created_at)}</Typography>
+              <Typography variant="caption" color="text.secondary">{c.nome}, enviado em {formatDate(c.created_at)}</Typography>
             </Stack>
           ))}
         </Stack>

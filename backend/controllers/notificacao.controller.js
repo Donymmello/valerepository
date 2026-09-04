@@ -88,6 +88,11 @@ async function getMinhasNotificacoes(req, res) {
         userId: req.user.id,
       },
       order: [["created_at", "DESC"]],
+      // Esta lista já é por utilizador (não por empresa), por isso o
+      // risco de crescimento descontrolado é bem menor que os outros,
+      // mesmo assim, trava de segurança para não devolver um histórico
+      // ilimitado a um utilizador muito antigo.
+      limit: 200,
     });
 
     return res.status(200).json(notificacoes);

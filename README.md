@@ -1,6 +1,6 @@
-# 💳 Sistema de Gestão de Crédito (SaaS Multi-Tenant)
+# 💳 Tshemba (SaaS Multi-Tenant de Gestão de Crédito)
 
-> Nome do produto por definir.
+> Produto da Vektar Technologies MZ (empresa-mãe, www.vektarmz.com).
 
 Plataforma web para gestão de crédito/microcrédito, com separação entre **portal do mutuário** e **backoffice administrativo**, desenhada para servir várias financeiras (tenants) na mesma instalação, cada uma com os seus próprios utilizadores, mutuários e dados isolados.
 
@@ -35,9 +35,9 @@ Plataforma web para gestão de crédito/microcrédito, com separação entre **p
 
 O sistema apoia o ciclo completo de crédito, desde o registo do mutuário até ao encerramento do pedido após liquidação (ou até à recuperação de um incumprimento), com:
 
-1. **Portal do Mutuário** — registo autónomo (com verificação por OTP), simulação de crédito, submissão e acompanhamento de pedidos, consulta de extrato e créditos, exportação em PDF/Excel.
-2. **Backoffice Administrativo** — gestão de pedidos, mutuários, aprovação por níveis, requisitos, desembolsos, reembolsos, relatórios, auditoria, e um painel de configuração por empresa.
-3. **Painel Superadmin** — gestão das empresas (tenants) que usam a plataforma: criação, planos, estado de subscrição (trial/ativa/suspensa/cancelada).
+1. **Portal do Mutuário**, registo autónomo (com verificação por OTP), simulação de crédito, submissão e acompanhamento de pedidos, consulta de extrato e créditos, exportação em PDF/Excel.
+2. **Backoffice Administrativo**, gestão de pedidos, mutuários, aprovação por níveis, requisitos, desembolsos, reembolsos, relatórios, auditoria, e um painel de configuração por empresa.
+3. **Painel Superadmin**, gestão das empresas (tenants) que usam a plataforma: criação, planos, estado de subscrição (trial/ativa/suspensa/cancelada).
 
 ---
 
@@ -46,7 +46,7 @@ O sistema apoia o ciclo completo de crédito, desde o registo do mutuário até 
 Cada financeira que usa a plataforma é uma **Empresa** (tenant), isolada das restantes:
 
 - Todos os dados de negócio (mutuários, pedidos, créditos, notificações, requisitos, logs) são filtrados por `empresaId`.
-- Uma empresa nova nasce com **7 dias de trial** (`estado = "TESTE"`), depois passa a `ATIVA`, `SUSPENSA` ou `CANCELADA` — controlado pelo SUPERADMIN.
+- Uma empresa nova nasce com **7 dias de trial** (`estado = "TESTE"`), depois passa a `ATIVA`, `SUSPENSA` ou `CANCELADA`, controlado pelo SUPERADMIN.
 - `SUSPENSA`/`CANCELADA`/trial expirado bloqueiam o acesso de todos os utilizadores dessa empresa, exceto o SUPERADMIN (que não pertence a nenhuma empresa).
 - Cada empresa tem a sua própria **faixa de taxa de juros** (`taxaJurosMin`/`taxaJurosMax`), configurável em `/interno/empresa`.
 - Duas formas de criar uma empresa: self-service pela landing page (trial grátis), ou diretamente pelo painel SUPERADMIN.
@@ -129,7 +129,7 @@ Cada financeira que usa a plataforma é uma **Empresa** (tenant), isolada das re
 - node-cron (agendador de verificações diárias)
 - Resend (email) + Africa's Talking (SMS)
 - pdfkit (geração de PDF)
-- xlsx (exportação/importação de Excel — migração para `exceljs` planeada, ver Próximos Passos)
+- xlsx (exportação/importação de Excel, migração para `exceljs` planeada, ver Próximos Passos)
 
 ### Infraestrutura
 - Docker + Docker Compose (PostgreSQL, backend, frontend)
@@ -177,9 +177,9 @@ frontend/
 Autenticação via JWT, autorização por perfil (`role`).
 
 ### Perfis existentes
-- **SUPERADMIN** — dono da plataforma, gere as empresas clientes, não pertence a nenhuma empresa
-- **ADMIN / GESTOR / ANALISTA / DIRETOR** — staff interno de uma empresa, com permissões diferentes por ação
-- **USER / MUTUARIO** — utilizador final, cliente de crédito de uma empresa
+- **SUPERADMIN**, dono da plataforma, gere as empresas clientes, não pertence a nenhuma empresa
+- **ADMIN / GESTOR / ANALISTA / DIRETOR**, staff interno de uma empresa, com permissões diferentes por ação
+- **USER / MUTUARIO**, utilizador final, cliente de crédito de uma empresa
 
 ### Regras adotadas
 - `register-mutuario`/registo por OTP criam apenas `USER`
@@ -218,17 +218,17 @@ Abordagem "estilo Txuna" (inspirada em serviços de microcrédito móvel já usa
 
 - Um crédito passa automaticamente a **INCUMPRIMENTO** quando tem uma parcela por pagar vencida há mais de 30 dias (verificado diariamente pelo agendador).
 - Enquanto em incumprimento, o mutuário **não pode submeter novos pedidos de crédito** pelo portal.
-- Assim que deixa de ter parcelas nessas condições (regularizou o atraso), o crédito volta automaticamente a `ATIVO` e o acesso é restaurado — no próximo ciclo diário do agendador.
+- Assim que deixa de ter parcelas nessas condições (regularizou o atraso), o crédito volta automaticamente a `ATIVO` e o acesso é restaurado, no próximo ciclo diário do agendador.
 - Critério de desbloqueio ainda em aberto: hoje é só "regularizar = desbloqueia". Considerar período de carência ou revisão manual para reincidência é uma decisão de negócio pendente (ver Próximos Passos).
 
 ---
 
 ## 🔔 Notificações
 
-- **Fonte única**: qualquer `Notificacao` criada em qualquer parte do código passa automaticamente por um hook que despacha email/SMS — não é preciso (nem se deve) chamar isso manualmente em cada sítio.
-- **Só mutuários recebem email/SMS externo** — notificações para staff interno ficam só in-app, para controlar custo.
+- **Fonte única**: qualquer `Notificacao` criada em qualquer parte do código passa automaticamente por um hook que despacha email/SMS, não é preciso (nem se deve) chamar isso manualmente em cada sítio.
+- **Só mutuários recebem email/SMS externo**, notificações para staff interno ficam só in-app, para controlar custo.
 - **Agendador diário**: corre para todas as empresas com acesso ativo, verifica parcelas a vencer/vencidas, prazos de pedidos, e incumprimento de créditos.
-- Sem chaves de API configuradas (Resend/Africa's Talking), tudo cai para log em consola — não bloqueia o funcionamento em desenvolvimento.
+- Sem chaves de API configuradas (Resend/Africa's Talking), tudo cai para log em consola, não bloqueia o funcionamento em desenvolvimento.
 
 ---
 
@@ -241,7 +241,7 @@ Abordagem "estilo Txuna" (inspirada em serviços de microcrédito móvel já usa
 - Um pedido não pode ser aprovado com requisitos obrigatórios pendentes ou rejeitados
 - Apenas pedidos aprovados podem ser desembolsados; apenas desembolsados podem receber reembolsos
 - Quando o saldo do crédito chega a zero, é liquidado automaticamente
-- Parcela vencida é calculada pela data de vencimento, não só por um campo gravado — evita subcontagem quando não há pagamentos parciais registados
+- Parcela vencida é calculada pela data de vencimento, não só por um campo gravado, evita subcontagem quando não há pagamentos parciais registados
 - Crédito em incumprimento bloqueia novos pedidos (sem juro de mora), até regularizar
 - O sistema regista logs de auditoria das ações críticas
 
@@ -313,8 +313,8 @@ cd backend
 npm test
 ```
 
-- **Unitários** (`__tests__/criticalFlows.test.js`, `empresaAccess.test.js`) — models mockados, cobrem regras de negócio, permissões e utilitários.
-- **Integração** (`__tests__/authIntegration.test.js`) — corre contra sqlite em memória (BD real, não mocks), cobre o fluxo de registo por OTP e a deteção de registos duplicados.
+- **Unitários** (`__tests__/criticalFlows.test.js`, `empresaAccess.test.js`), models mockados, cobrem regras de negócio, permissões e utilitários.
+- **Integração** (`__tests__/authIntegration.test.js`), corre contra sqlite em memória (BD real, não mocks), cobre o fluxo de registo por OTP e a deteção de registos duplicados.
 
 ---
 
@@ -329,7 +329,7 @@ GitHub Actions (`.github/workflows/ci.yml`), acionado em push/PR:
 
 ## 📊 Estado Atual do Projeto
 
-Backend e frontend cobrem o ciclo completo: multi-tenancy, autenticação, KYC, simulação e submissão de pedidos, aprovação por níveis, desembolso/reembolso, deteção automática de atraso e incumprimento, notificações in-app/email/SMS, exportação PDF/Excel, auditoria, painel superadmin, e pipeline de CI. Em fase pré-produção — ver pendências abaixo antes de considerar 100% pronto para clientes reais.
+Backend e frontend cobrem o ciclo completo: multi-tenancy, autenticação, KYC, simulação e submissão de pedidos, aprovação por níveis, desembolso/reembolso, deteção automática de atraso e incumprimento, notificações in-app/email/SMS, exportação PDF/Excel, auditoria, painel superadmin, e pipeline de CI. Em fase pré-produção, ver pendências abaixo antes de considerar 100% pronto para clientes reais.
 
 ---
 
@@ -346,7 +346,7 @@ Backend e frontend cobrem o ciclo completo: multi-tenancy, autenticação, KYC, 
 
 ## 📝 Changelog
 
-### Pré-Produção — Agosto 2026
+### Pré-Produção, Agosto 2026
 
 **Multi-tenancy e Subscrição**
 - Modelo de dados de subscrição: Empresa (tenant) com trial de 7 dias, estados TESTE/ATIVA/SUSPENSA/CANCELADA
@@ -367,7 +367,7 @@ Backend e frontend cobrem o ciclo completo: multi-tenancy, autenticação, KYC, 
 - Interceptor de sessão expirada (401) no frontend, com redireção e aviso
 - `ErrorBoundary` global no frontend
 - Remoção de dependência morta (`mongoose`)
-- Correção de vulnerabilidade `uuid` (bump para v11.1.1 — a v12+ quebra `require()` em CommonJS)
+- Correção de vulnerabilidade `uuid` (bump para v11.1.1, a v12+ quebra `require()` em CommonJS)
 
 **Crédito e Incumprimento**
 - Deteção de parcela vencida por data (corrige subcontagem quando não há pagamento parcial registado)
@@ -378,7 +378,7 @@ Backend e frontend cobrem o ciclo completo: multi-tenancy, autenticação, KYC, 
 
 **Notificações**
 - Serviço de despacho externo (email via Resend, SMS via Africa's Talking), acionado automaticamente por qualquer `Notificacao` criada
-- Agendador diário (node-cron): alertas de parcela a vencer/vencida, prazos de pedido, e verificação de incumprimento — antes dependia de alguém clicar manualmente num botão
+- Agendador diário (node-cron): alertas de parcela a vencer/vencida, prazos de pedido, e verificação de incumprimento, antes dependia de alguém clicar manualmente num botão
 - Notificações internas ao staff em pedido criado, requisito anexado, comprovativo enviado
 - Correção de ENUM incompleto em `notificacoes.tipo` (`PEDIDO_CRIADO`, `ALERTA_PAGAMENTO` em falta)
 

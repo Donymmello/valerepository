@@ -53,7 +53,7 @@ export default function DetalhePedido() {
   const [loadingExtrato, setLoadingExtrato] = useState(false);
   const [erroExtrato, setErroExtrato] = useState("");
 
-  // Comprovativos — o pedido não tem o crédito embutido na resposta,
+  // Comprovativos, o pedido não tem o crédito embutido na resposta,
   // por isso vamos buscar aos meus créditos e filtrar pelo pedidoId.
   const [creditoDoPedido, setCreditoDoPedido] = useState(undefined); // undefined = ainda não procurado, null = não existe
   const [loadingCredito, setLoadingCredito] = useState(false);
@@ -125,7 +125,7 @@ export default function DetalhePedido() {
   }
 
   // O extrato devolve { pedido, resumoFinanceiro }, não campos soltos de
-  // desembolsos/reembolsos no topo — os reembolsos, em particular, só
+  // desembolsos/reembolsos no topo, os reembolsos, em particular, só
   // existem aninhados em pedido.creditos[].reembolsos (Reembolso não se
   // liga diretamente a PedidoCredito).
   const desembolsosDoExtrato = extrato?.pedido?.desembolsos || [];
@@ -394,8 +394,8 @@ export default function DetalhePedido() {
                   </Stack>
                 ) : (
                   <Typography color="text.secondary">
-                    Ainda não existe nenhum crédito associado a este pedido —
-                    os comprovativos só podem ser enviados depois do
+                    Ainda não existe nenhum crédito associado a este pedido.
+                    Os comprovativos só podem ser enviados depois do
                     desembolso.
                   </Typography>
                 )}

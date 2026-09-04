@@ -76,7 +76,7 @@ export default function ReembolsosList() {
   }, []);
 
   // Permite chegar aqui já com o crédito (e, opcionalmente, a parcela)
-  // pré-selecionados — usado pelo botão "Registar Pagamento" da página de
+  // pré-selecionados, usado pelo botão "Registar Pagamento" da página de
   // detalhe do crédito e pela tabela de parcelas em atraso abaixo.
   useEffect(() => {
     if (!creditosElegiveis.length) return;
@@ -407,7 +407,7 @@ export default function ReembolsosList() {
             <MenuItem value="">Selecionar</MenuItem>
             {creditosElegiveis.map((credito) => (
               <MenuItem key={credito.id} value={credito.id}>
-                {credito.numeroContrato} — {credito.mutuario?.nomeCompleto || "Sem mutuário"}
+                {credito.numeroContrato}, {credito.mutuario?.nomeCompleto || "Sem mutuário"}
               </MenuItem>
             ))}
           </TextField>
@@ -475,8 +475,8 @@ export default function ReembolsosList() {
                 .find((c) => String(c.id) === String(form.creditoId))
                 ?.parcelas?.map((parcela) => (
                   <MenuItem key={parcela.id} value={parcela.id}>
-                    Parcela #{parcela.numeroParcela} — Vencimento:{" "}
-                    {formatDate(parcela.dataVencimento)} — Saldo:{" "}
+                    Parcela #{parcela.numeroParcela}, Vencimento:{" "}
+                    {formatDate(parcela.dataVencimento)}, Saldo:{" "}
                     {formatCurrency(parcela.saldoParcela)}
                   </MenuItem>
                 ))}

@@ -1,12 +1,12 @@
 /**
  * Testes de integração para os fluxos marcados como `test.todo` em
- * criticalFlows.test.js — casos que dependem de comportamento real da
+ * criticalFlows.test.js, casos que dependem de comportamento real da
  * base de dados e não são isoláveis num unit test com mocks (ex: uma
  * transação real, uma UNIQUE constraint real, um `findOne` de deteção
  * de duplicado).
  *
  * Diferença para criticalFlows.test.js: aqui os models NÃO são
- * mockados — corre contra o Sequelize real, ligado a um sqlite em
+ * mockados, corre contra o Sequelize real, ligado a um sqlite em
  * memória (ver config/db.js, ativado quando NODE_ENV=test). Só o
  * envio de email e o despacho externo de notificações (SMS/email via
  * Resend/Africa's Talking) são mockados, porque são efeitos externos
@@ -25,7 +25,7 @@ jest.mock("../utils/emailService", () => ({
 process.env.JWT_SECRET = process.env.JWT_SECRET || "segredo-de-teste-nao-usar-em-producao";
 
 // O default do jest (5000ms) é apertado demais para sequelize.sync({force:true})
-// contra um sqlite em memória dentro de Docker — cria/recria todas as
+// contra um sqlite em memória dentro de Docker, cria/recria todas as
 // tabelas e índices do sistema (incluindo os compostos novos), e varia
 // bastante consoante a máquina. Aplica-se ao ficheiro todo (beforeAll,
 // afterAll e cada teste), não só ao sync.
@@ -83,15 +83,15 @@ async function criarConviteValido(empresaId, criadoPor) {
 beforeAll(async () => {
   // Trava de segurança: sync({force:true}) apaga e recria TODAS as
   // tabelas. Isto só pode correr contra o sqlite em memória de teste
-  // (ver config/db.js) — nunca contra a BD real. Já aconteceu de
+  // (ver config/db.js), nunca contra a BD real. Já aconteceu de
   // NODE_ENV=test não chegar a este processo (o .env do Docker define
   // NODE_ENV=development, e isso ganha se o comando não forçar
-  // NODE_ENV=test explicitamente — ver package.json, script "test").
+  // NODE_ENV=test explicitamente, ver package.json, script "test").
   // Esta verificação existe para nunca mais isso passar despercebido.
   if (sequelize.getDialect() !== "sqlite") {
     throw new Error(
       `Recusado: authIntegration.test.js só pode correr contra sqlite em memória, não contra '${sequelize.getDialect()}'. ` +
-      `Confirma que NODE_ENV=test está definido (o script "test" do package.json já força isto — não corras "jest" diretamente sem ele).`
+      `Confirma que NODE_ENV=test está definido (o script "test" do package.json já força isto, não corras "jest" diretamente sem ele).`
     );
   }
 
@@ -203,7 +203,7 @@ describe("Fluxo de registo por OTP (integração, BD real)", () => {
     const tokenRow1 = await EmailVerificationToken.findOne({ where: { email: email1 } });
     await verifyOTPAndRegister({ body: { email: email1, otp: tokenRow1.otp } }, mockRes());
 
-    // Segunda tentativa pede OTP com o mesmo convite (já usado) — a etapa 1
+    // Segunda tentativa pede OTP com o mesmo convite (já usado), a etapa 1
     // já deve rejeitar, sem chegar a criar token nenhum.
     const resOtp2 = mockRes();
     await registerMutuarioRequestOTP(
@@ -278,15 +278,13 @@ describe("Bloqueio de registos duplicados (integração, BD real)", () => {
     expect(res.json.mock.calls[0][0].message).toMatch(/nuit/i);
   });
 
-  // ACHADO (não corrigido aqui, só documentado): a deteção de duplicado em
-  // registerMutuarioRequestOTP verifica nuit/documentoNumero SEM isolar por
-  // empresaId — ao contrário de validarIntegridadeMutuario (usada em
-  // mutuario.controller.js), que faz explicitamente
-  // "unicidade de documento é por empresa (tenant), não global". Na prática,
-  // duas empresas diferentes (tenants sem relação nenhuma) não conseguem
-  // ter cada uma um mutuário com o mesmo nuit, mesmo sendo pessoas
-  // diferentes em empresas diferentes. Ver RECUPERACAO_BD.md.
-  test("ACHADO: bloqueia por nuit duplicado mesmo entre empresas diferentes (dedupe não isolado por tenant)", async () => {
+  // Corrigido: a deteção de duplicado em registerMutuarioRequestOTP passou a
+  // isolar por empresaId (igual a validarIntegridadeMutuario, em
+  // mutuario.controller.js). Este teste substituiu o antigo "ACHADO" que
+  // documentava o bug, agora confirma que o mesmo nuit em empresas
+  // (tenants) diferentes NÃO bloqueia, porque são pessoas/relações
+  // diferentes. Ver RECUPERACAO_BD.md secção 26/29.
+  test("permite o mesmo nuit em empresas diferentes (dedupe isolado por tenant)", async () => {
     const { empresa: empresaA } = await criarEmpresaComAdmin();
     const { empresa: empresaB, admin: adminB } = await criarEmpresaComAdmin();
     const conviteB = await criarConviteValido(empresaB.id, adminB.id);
@@ -310,8 +308,33 @@ describe("Bloqueio de registos duplicados (integração, BD real)", () => {
       res
     );
 
-    // Comportamento atual documentado (potencialmente indesejado): bloqueia
-    // mesmo sendo uma empresa (tenant) completamente diferente.
+    // Empresas diferentes, mesmo nuit, não é duplicado real, tem de passar.
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test("continua a bloquear com 409 o mesmo nuit dentro da mesma empresa", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin();
+    const convite = await criarConviteValido(empresa.id, admin.id);
+    const nuit = `NUIT${idUnico()}`;
+
+    await Mutuario.create({
+      codigoMutuario: `MUT-${idUnico()}`,
+      empresaId: empresa.id,
+      nomeCompleto: "Existente Na Mesma Empresa",
+      nuit,
+    });
+
+    const res = mockRes();
+    await registerMutuarioRequestOTP(
+      {
+        body: {
+          token: convite.token, nome: "novo4", email: `novo4-${idUnico()}@teste.com`, password: "senha1234",
+          nomeCompleto: "Tentativa Duplicada Mesma Empresa", telefone: "840000003", nuit,
+        },
+      },
+      res
+    );
+
     expect(res.status).toHaveBeenCalledWith(409);
   });
 });

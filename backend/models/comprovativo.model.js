@@ -4,7 +4,7 @@ const sequelize = require("../config/db");
 /*
   Modelo Comprovativo:
   Guarda os comprovativos de pagamento enviados pelo mutuário.
-  Ligado directamente ao pedido — o mutuário envia antes do
+  Ligado directamente ao pedido, o mutuário envia antes do
   backoffice registar o reembolso, servindo como prova de pagamento.
 */
 const Comprovativo = sequelize.define(
@@ -103,6 +103,12 @@ const Comprovativo = sequelize.define(
     tableName: "comprovativos",
     createdAt: "created_at",
     updatedAt: false,
+    indexes: [
+      { fields: ["credito_id"] },
+      { fields: ["parcela_id"] },
+      { fields: ["pedido_id"] },
+      { fields: ["user_id"] },
+    ],
   }
 );
 

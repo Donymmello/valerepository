@@ -15,6 +15,7 @@ import {
   Divider,
 } from "@mui/material";
 import { useAuth } from "../../context/useAuth";
+import { NOME_PLATAFORMA } from "../../theme";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function Login() {
               sx={{ fontWeight: "bold", color: "#1a237e", cursor: "pointer" }}
               onClick={() => navigate("/")}
             >
-              Sistema de Gestão de Crédito
+              {NOME_PLATAFORMA}
             </Typography>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -94,7 +95,7 @@ export default function Login() {
         </Container>
       </AppBar>
 
-      {/* Conteúdo principal — centrado verticalmente */}
+      {/* Conteúdo principal, centrado verticalmente */}
       <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", py: 6 }}>
         <Container maxWidth="sm">
           <Paper elevation={0} sx={{ p: { xs: 3, sm: 5 }, borderRadius: 4, border: "1px solid #e0e0e0" }}>
@@ -178,7 +179,7 @@ export default function Login() {
       <Box sx={{ bgcolor: "#1a237e", color: "#ffffff", py: 3 }}>
         <Container maxWidth="lg">
           <Typography variant="body2" align="center">
-            &copy; {new Date().getFullYear()} Sistema de Gestão de Crédito. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
+            &copy; {new Date().getFullYear()} {NOME_PLATAFORMA}. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
           </Typography>
         </Container>
       </Box>

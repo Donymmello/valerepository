@@ -57,6 +57,13 @@ const ParcelaPagamento = sequelize.define(
     {
         tableName: "parcelas_pagamento",
         underscored: true,
+        indexes: [
+            // Query mais quente do sistema: alertas de vencimento/atraso
+            // (alertaPagamento.controller.js) e relatórios filtram sempre
+            // por empresa + estado, muitas vezes com dataVencimento também.
+            { fields: ["empresa_id", "estado", "data_vencimento"] },
+            { fields: ["credito_id"] },
+        ],
     }
 );
 

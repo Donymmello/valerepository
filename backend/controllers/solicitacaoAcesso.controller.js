@@ -7,7 +7,7 @@ const ESTADOS_VALIDOS = ["PENDENTE", "CONTACTADO", "CONVERTIDO", "REJEITADO"];
   CRIAR SOLICITAÇÃO DE ACESSO (PÚBLICO)
   ==========================================================
   Chamado a partir do formulário "Quero usar a plataforma" da
-  landing page. Não autentica nada nem cria Empresa/User — só
+  landing page. Não autentica nada nem cria Empresa/User, só
   regista o interesse para o SUPERADMIN rever manualmente.
 */
 async function criarSolicitacaoAcesso(req, res) {

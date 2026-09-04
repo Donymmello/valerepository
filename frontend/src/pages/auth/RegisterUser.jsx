@@ -15,7 +15,7 @@ import {
 import { useAuth } from "../../context/useAuth";
 import PageHeader from "../../components/common/PageHeader";
 
-// Página interna (backoffice) — sem header/footer público
+// Página interna (backoffice), sem header/footer público
 export default function RegisterUser() {
   const navigate = useNavigate();
   const { registerUser } = useAuth();
@@ -45,7 +45,7 @@ export default function RegisterUser() {
     try {
       await registerUser(form);
       // Página só é usada dentro do backoffice (/interno/register-interno,
-      // só para ADMIN) — o utilizador que está a submeter continua com a
+      // só para ADMIN), o utilizador que está a submeter continua com a
       // sessão dele, não faz sentido mandá-lo para /login.
       navigate("/interno/empresa");
     } catch (err) {

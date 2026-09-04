@@ -6,7 +6,7 @@ require("dotenv").config();
   O Sequelize vai usar essas credenciais para se conectar.
 
   Em testes (NODE_ENV=test), liga a um sqlite em memória em vez do
-  Postgres real — permite testes de integração reais (BD de verdade,
+  Postgres real, permite testes de integração reais (BD de verdade,
   não mocks) sem precisar de Postgres a correr no ambiente de CI/sandbox.
   Ver __tests__/authIntegration.test.js.
 */

@@ -328,7 +328,7 @@ export const importarPedidosExcelRequest = async (file) => {
   return response.data;
 };
 
-// Importação de créditos já existentes ("saldo de abertura") — migração
+// Importação de créditos já existentes ("saldo de abertura"), migração
 // de empréstimos que já estavam em curso antes deste sistema.
 export const importarCreditosExcelRequest = async (file) => {
   const formData = new FormData();
@@ -372,7 +372,7 @@ export const getAnexosByRequisitoRequest = async (pedidoRequisitoId) => {
 /**
  * Faz o download de um anexo via axios (envia o header Authorization automaticamente)
  * e devolve um blob. O authMiddleware só aceita token via header, por isso não dá
- * para usar um <a href> simples — o browser não envia esse header numa navegação directa.
+ * para usar um <a href> simples, o browser não envia esse header numa navegação directa.
  */
 export const downloadAnexoRequest = async (anexoId) => {
   const response = await api.get(`/anexos/${anexoId}/download`, {
@@ -447,7 +447,7 @@ export const getCreditosComReembolsoRequest = async (creditoId) => {
 
 /*
   ==========================================================
-  EMPRESA (TENANT) — PERFIL E UTILIZADORES INTERNOS
+  EMPRESA (TENANT), PERFIL E UTILIZADORES INTERNOS
   ==========================================================
 */
 

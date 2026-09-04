@@ -2,45 +2,6 @@ const { Op } = require('sequelize');
 const { PedidoCredito, Notificacao, User, Mutuario } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 
-/*
-  ==========================================================
-  FUNÇÃO AUXILIAR PARA CRIAR NOTIFICAÇÃO SEM DUPLICAR
-  ==========================================================
-  Regra forte:
-  - verifica por userId + pedidoId + tipo + titulo + lida=false
-*/
-async function criarNotificacao({
-    userId,
-    pedidoId = null,
-    titulo, mensagem,
-    tipo = "ALERTA_PRAZO"
-}) {
-    if (!userId) return null;
-
-    const notificacaoExistente = await Notificacao.findOne({
-        where: {
-            userId,
-            pedidoId,
-            titulo,
-            tipo,
-            lida: false,
-        },
-    });
-
-    if (notificacaoExistente) {
-        return null;
-    }
-
-    const novaNotificacao = await Notificacao.create({
-        userId,
-        pedidoId,
-        titulo,
-        mensagem,
-        tipo,
-    });
-
-}
-
 async function obterDestinatariosInternos(empresaId) {
     return User.findAll({
         where: {
@@ -133,84 +94,118 @@ async function executarVerificacaoPrazo(empresaId, { registarAuditoria = false, 
             ]
         });
 
-        const alertasCriados = [];
+        /*
+          Antes: para cada pedido × cada destinatário interno, 1 findOne
+          + (às vezes) 1 create, um loop duplo aninhado, O(pedidos ×
+          internos) round-trips sequenciais à BD. Com poucos pedidos e
+          poucos internos já dava dezenas de queries; cresce rápido.
 
-        // Criar notificações para pedidos em avaliação
+          Agora: monta todos os candidatos (pedido × destinatário) em
+          memória primeiro, faz 1 query para saber quais notificações
+          "não lidas" já existem, e cria as que faltam num único
+          bulkCreate.
+        */
+        const candidatos = [];
 
-        for (const pedido of pedidosAvaliacao) {
-            const prazo = new Date(pedido.prazoAvaliacao);
-            const vencido = prazo < hoje;
+        function montarCandidatos(pedidos, campoPrazo, tituloVencido, tituloProximo, montarMensagem, tipoResultado) {
+            for (const pedido of pedidos) {
+                const prazo = new Date(pedido[campoPrazo]);
+                const vencido = prazo < hoje;
+                const titulo = vencido ? tituloVencido : tituloProximo;
+                const mensagem = montarMensagem(pedido, vencido);
 
-            const titulo = vencido
-                ? "Prazo de Avaliação Vencido"
-                : "Prazo de Avaliação Próximo";
-
-            const mensagem = vencido
-                ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de avaliação.`
-                : `O pedido ${pedido.numeroPedido} tem o prazo de avaliação a vencer em breve.`;
-
-
-            let criadoParaAlguem = false;
-
-            for (const interno of destinatariosInternos) {
-                const notificacaoCriada = await criarNotificacao({
-                    userId: interno.id,
-                    pedidoId: pedido.id,
-                    titulo,
-                    mensagem,
-                    tipo: "ALERTA_PRAZO",
-                });
-
-                if (notificacaoCriada) {
-                    criadoParaAlguem = true;
+                for (const interno of destinatariosInternos) {
+                    candidatos.push({
+                        userId: interno.id,
+                        pedidoId: pedido.id,
+                        numeroPedido: pedido.numeroPedido,
+                        titulo,
+                        mensagem,
+                        vencido,
+                        tipoResultado,
+                    });
                 }
-            }
-
-            if (criadoParaAlguem) {
-                alertasCriados.push({
-                    pedidoId: pedido.id,
-                    numeroPedido: pedido.numeroPedido,
-                    tipo: "AVALIACAO",
-                    vencido,
-                });
             }
         }
 
-        for (const pedido of pedidosValidacao) {
-            const prazo = new Date(pedido.prazoValidacao);
-            const vencido = prazo < hoje;
+        montarCandidatos(
+            pedidosAvaliacao,
+            "prazoAvaliacao",
+            "Prazo de Avaliação Vencido",
+            "Prazo de Avaliação Próximo",
+            (pedido, vencido) =>
+                vencido
+                    ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de avaliação.`
+                    : `O pedido ${pedido.numeroPedido} tem o prazo de avaliação a vencer em breve.`,
+            "AVALIACAO"
+        );
 
-            const titulo = vencido
-                ? "Prazo de Validação Vencido"
-                : "Prazo de Validação Próximo";
+        montarCandidatos(
+            pedidosValidacao,
+            "prazoValidacao",
+            "Prazo de Validação Vencido",
+            "Prazo de Validação Próximo",
+            (pedido, vencido) =>
+                vencido
+                    ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de validação.`
+                    : `O pedido ${pedido.numeroPedido} tem o prazo de validação a vencer em breve.`,
+            "VALIDACAO"
+        );
 
-            const mensagem = vencido
-                ? `O pedido ${pedido.numeroPedido} ultrapassou o prazo de validação.`
-                : `O pedido ${pedido.numeroPedido} tem o prazo de validação a vencer em breve.`;
+        const alertasCriados = [];
 
-            let criadoParaAlguem = false;
+        if (candidatos.length) {
+            const userIds = [...new Set(candidatos.map((c) => c.userId))];
+            const pedidoIds = [...new Set(candidatos.map((c) => c.pedidoId))];
 
-            for (const interno of destinatariosInternos) {
-                const notificacaoCriada = await criarNotificacao({
-                    userId: interno.id,
-                    pedidoId: pedido.id,
-                    titulo,
-                    mensagem,
+            const existentes = await Notificacao.findAll({
+                where: {
+                    userId: { [Op.in]: userIds },
+                    pedidoId: { [Op.in]: pedidoIds },
                     tipo: "ALERTA_PRAZO",
-                });
+                    lida: false,
+                },
+                attributes: ["userId", "pedidoId", "titulo"],
+                raw: true,
+            });
+            const chavesExistentes = new Set(
+                existentes.map((n) => `${n.userId}|${n.pedidoId}|${n.titulo}`)
+            );
 
-                if (notificacaoCriada) {
-                    criadoParaAlguem = true;
-                }
+            const paraCriar = [];
+            for (const candidato of candidatos) {
+                const chave = `${candidato.userId}|${candidato.pedidoId}|${candidato.titulo}`;
+                if (chavesExistentes.has(chave)) continue;
+                chavesExistentes.add(chave);
+                paraCriar.push(candidato);
             }
 
-            if (criadoParaAlguem) {
-                alertasCriados.push({
-                    pedidoId: pedido.id,
-                    numeroPedido: pedido.numeroPedido,
-                    tipo: "VALIDACAO",
-                    vencido,
-                });
+            if (paraCriar.length) {
+                await Notificacao.bulkCreate(
+                    paraCriar.map((c) => ({
+                        userId: c.userId,
+                        pedidoId: c.pedidoId,
+                        titulo: c.titulo,
+                        mensagem: c.mensagem,
+                        tipo: "ALERTA_PRAZO",
+                    }))
+                );
+
+                // Um alerta reportado por pedido+grupo (não por destinatário),
+                // igual ao comportamento original (criadoParaAlguem).
+                const pedidosReportados = new Set();
+                for (const c of paraCriar) {
+                    const chavePedido = `${c.pedidoId}|${c.tipoResultado}`;
+                    if (pedidosReportados.has(chavePedido)) continue;
+                    pedidosReportados.add(chavePedido);
+
+                    alertasCriados.push({
+                        pedidoId: c.pedidoId,
+                        numeroPedido: c.numeroPedido,
+                        tipo: c.tipoResultado,
+                        vencido: c.vencido,
+                    });
+                }
             }
         }
 

@@ -4,22 +4,24 @@
   ==========================================================
   Ponto único que transforma uma Notificacao (in-app) em email/SMS reais.
   É chamado pelo hook afterCreate/afterBulkCreate do modelo Notificacao
-  (ver models/index.js) — não pelos controllers diretamente. Isto garante
+  (ver models/index.js), não pelos controllers diretamente. Isto garante
   que qualquer sítio do código que crie uma Notificacao (hoje já são uns
   6 controllers diferentes) passa automaticamente por aqui, sem termos de
   lembrar de ligar cada um manualmente.
 
   Fornecedores: Resend (email) e Africa's Talking (SMS), escolhidos por
   decisão do utilizador. Em desenvolvimento (ou sem as chaves de API
-  configuradas), tudo cai para log em consola — mesmo padrão já usado em
+  configuradas), tudo cai para log em consola, mesmo padrão já usado em
   utils/emailService.js.
 
   Nota sobre a marca: as notificações saem em nome da empresa (o nome da
   financeira aparece no "From" do email e no início da mensagem SMS), mas
   usam a infraestrutura partilhada da plataforma (um domínio de email, um
-  Sender ID de SMS) — decisão explícita para não exigir que cada empresa
+  Sender ID de SMS), decisão explícita para não exigir que cada empresa
   configure o próprio domínio/Sender ID. Ver RECUPERACAO_BD.md.
 */
+
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 const isDevelopment = process.env.NODE_ENV !== "production" || process.env.SKIP_EMAIL_VERIFICATION === "true";
 
@@ -70,7 +72,7 @@ function normalizarTelefoneMz(telefone) {
 }
 
 async function enviarEmail({ to, empresaNome, assunto, mensagem }) {
-  const remetenteEmail = process.env.RESEND_FROM_EMAIL || "notificacoes@valedozambeze.com";
+  const remetenteEmail = process.env.RESEND_FROM_EMAIL || "notificacoes@exemplo.com";
   const remetente = `${empresaNome} <${remetenteEmail}>`;
   const client = getResendClient();
 
@@ -132,7 +134,7 @@ async function enviarSms({ to, empresaNome, mensagem }) {
 /*
   Ponto de entrada chamado pelo hook do modelo Notificacao. Recebe a
   instância recém-criada, resolve o destinatário e despacha email/SMS.
-  Nunca lança erro — uma falha aqui não pode derrubar o fluxo que criou
+  Nunca lança erro, uma falha aqui não pode derrubar o fluxo que criou
   a notificação (ex: aprovar um pedido não pode falhar por causa de um
   problema no envio de SMS).
 
@@ -141,12 +143,12 @@ async function enviarSms({ to, empresaNome, mensagem }) {
   registar o hook, e um require de "../models" no topo do ficheiro criaria
   uma dependência circular (index.js -> este serviço -> index.js, ainda a
   meio de ser montado). Feito lazy, dentro da função, o require só corre
-  quando uma notificação real é criada — a essa altura os models já estão
+  quando uma notificação real é criada, a essa altura os models já estão
   todos carregados.
 */
 async function despacharNotificacaoExterna(notificacao) {
   try {
-    const { User, Mutuario, Empresa } = require("../models");
+    const { User, Mutuario } = require("../models");
 
     const user = await User.findByPk(notificacao.userId, {
       attributes: ["id", "email", "role", "empresaId"],
@@ -155,13 +157,16 @@ async function despacharNotificacaoExterna(notificacao) {
 
     // Só mutuários recebem email/SMS externo. Staff interno (ADMIN,
     // GESTOR, ANALISTA, DIRETOR) já vive dentro do backoffice e usa as
-    // notificações in-app — evita gerar custo de SMS em alertas internos
+    // notificações in-app, evita gerar custo de SMS em alertas internos
     // que por vezes são criados em massa (ex: "novo pedido" para vários
     // membros da equipa de uma vez).
     if (!["USER", "MUTUARIO"].includes(user.role)) return;
 
+    // Este é o disparo mais frequente das 5 leituras de Empresa.nome que
+    // existiam no código (corre a cada notificação despachada), o
+    // principal beneficiário da cache partilhada em utils/empresaCache.js.
     const [empresa, mutuario] = await Promise.all([
-      user.empresaId ? Empresa.findByPk(user.empresaId, { attributes: ["nome"] }) : null,
+      obterEmpresaCacheada(user.empresaId),
       Mutuario.findOne({ where: { userId: user.id }, attributes: ["telefone", "email"] }),
     ]);
 

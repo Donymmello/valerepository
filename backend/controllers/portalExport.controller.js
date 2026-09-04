@@ -6,10 +6,10 @@ const {
   Desembolso,
   Reembolso,
   Credito,
-  Empresa,
   User,
 } = require("../models");
 const { gerarExtratoPedidoPdf, gerarComprovativoPdf } = require("../services/pdfExport.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 async function exportarMeusPedidos(req, res) {
   try {
@@ -86,7 +86,7 @@ async function exportarMeusPedidos(req, res) {
 
 /*
   Busca partilhada entre a exportação em Excel e em PDF do extrato de um
-  pedido — ambas precisam exatamente dos mesmos dados, só divergem na
+  pedido, ambas precisam exatamente dos mesmos dados, só divergem na
   serialização final. Devolve { erro } se algo não for encontrado, para o
   chamador decidir a resposta HTTP.
 */
@@ -140,7 +140,7 @@ async function buscarExtratoPedido(req) {
     return { erro: "Pedido não encontrado." };
   }
 
-  // Reembolso não tem associação direta com PedidoCredito — relaciona-se
+  // Reembolso não tem associação direta com PedidoCredito, relaciona-se
   // através de Credito (Reembolso -> Credito -> PedidoCredito), tal como
   // corrigido em relatorio.controller.js. Por isso é uma query à parte,
   // em vez de um include direto no PedidoCredito.findOne acima.
@@ -316,7 +316,7 @@ async function exportarMeuExtratoPedidoPdf(req, res) {
 */
 async function buscarEmpresaDoUser(req) {
   if (!req.user.empresaId) return null;
-  return Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] });
+  return obterEmpresaCacheada(req.user.empresaId);
 }
 
 async function exportarComprovativoDesembolsoPdf(req, res) {
@@ -379,7 +379,7 @@ async function exportarComprovativoReembolsoPdf(req, res) {
     }
 
     // Reembolso -> Credito -> PedidoCredito (mesma cadeia usada em
-    // buscarExtratoPedido) — não há atalho direto para o pedido.
+    // buscarExtratoPedido), não há atalho direto para o pedido.
     const reembolso = await Reembolso.findOne({
       where: { id: reembolsoId },
       include: [

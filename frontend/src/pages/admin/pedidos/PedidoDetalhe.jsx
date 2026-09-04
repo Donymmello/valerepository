@@ -70,7 +70,7 @@ export default function PedidoDetalhe() {
   // Aprovação de nível 1 é a etapa de análise de risco (ANALISTA,
   // ou GESTOR/ADMIN a agir nessa etapa): é aqui que a taxa de juros é
   // definida, dentro da faixa da empresa. Os níveis 2 e 3 (GESTOR,
-  // DIRETOR/ADMIN) só confirmam ou rejeitam — não têm autoridade para
+  // DIRETOR/ADMIN) só confirmam ou rejeitam, não têm autoridade para
   // redefinir a taxa já fixada no nível 1.
   const definindoTaxaNestaEtapa = Number(form.nivel) === 1 && form.decisao === "APROVADO";
 
@@ -162,7 +162,7 @@ export default function PedidoDetalhe() {
   }
 
   // O extrato devolve { pedido, resumoFinanceiro }, não campos soltos de
-  // desembolsos/reembolsos no topo — os reembolsos, em particular, só
+  // desembolsos/reembolsos no topo, os reembolsos, em particular, só
   // existem aninhados em pedido.creditos[].reembolsos (Reembolso não se
   // liga diretamente a PedidoCredito).
   const desembolsosDoExtrato = extrato?.pedido?.desembolsos || [];

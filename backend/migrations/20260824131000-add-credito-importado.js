@@ -2,12 +2,12 @@
 
 /*
   Adiciona a coluna `importado` (boolean, default false) à tabela
-  `creditos` — marca créditos criados pela importação de "saldo de
+  `creditos`, marca créditos criados pela importação de "saldo de
   abertura" (migração de empréstimos que já existiam antes deste
   sistema). Ver credito.service.js (criarCreditoImportado) e
   excell.service.js (importarExcellCreditos).
 
-  Idempotente — segue o mesmo padrão das outras migrations deste
+  Idempotente, segue o mesmo padrão das outras migrations deste
   projeto (describeTable antes de mexer).
 */
 

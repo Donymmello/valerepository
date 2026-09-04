@@ -16,7 +16,7 @@ import { ContentCopy as ContentCopyIcon } from "@mui/icons-material";
 import { createConvitePortalRequest } from "../../api/auth.api";
 import { formatDate } from "../../utils/formatters";
 
-// Página interna (backoffice) — gera convites de registo para mutuários (controlo de KYC)
+// Página interna (backoffice), gera convites de registo para mutuários (controlo de KYC)
 export default function ConvitesPortal() {
   const [validadeDias, setValidadeDias] = useState(7);
   const [error, setError] = useState("");
@@ -60,7 +60,7 @@ export default function ConvitesPortal() {
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Gera um link de registo para um novo mutuário. Sem este link, ninguém
-          consegue criar conta no portal (controlo de KYC) — o registo público
+          consegue criar conta no portal (controlo de KYC), o registo público
           aberto está desativado.
         </Typography>
       </Box>

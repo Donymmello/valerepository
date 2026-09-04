@@ -88,7 +88,7 @@ export default function DashboardInterno() {
 
   // Prioriza quem precisa de atenção (incumprimento, depois atraso, depois
   // maior saldo em dívida) para o resumo do dashboard não ficar uma lista
-  // solta sem critério — a lista completa e pesquisável continua em
+  // solta sem critério, a lista completa e pesquisável continua em
   // /interno/mutuarios.
   const mutuariosOrdenados = useMemo(() => {
     return [...mutuarios].sort((a, b) => {
@@ -122,13 +122,13 @@ export default function DashboardInterno() {
         <LoadingState />
       ) : (
         <>
-          {/* Aviso de atenção necessária — só aparece quando há algo a tratar */}
+          {/* Aviso de atenção necessária, só aparece quando há algo a tratar */}
           {temAtencaoNecessaria && (
             <Alert severity="warning" sx={{ mb: 3 }}>
               <Stack direction="row" spacing={3} flexWrap="wrap">
                 {parcelasVencidas > 0 && (
                   <Typography variant="body2">
-                    <strong>{parcelasVencidas}</strong> parcela{parcelasVencidas !== 1 ? "s" : ""} vencida{parcelasVencidas !== 1 ? "s" : ""} por cobrar —{" "}
+                    <strong>{parcelasVencidas}</strong> parcela{parcelasVencidas !== 1 ? "s" : ""} vencida{parcelasVencidas !== 1 ? "s" : ""} por cobrar:{" "}
                     <RouterLink to="/interno/reembolsos">ver parcelas em atraso</RouterLink>
                   </Typography>
                 )}

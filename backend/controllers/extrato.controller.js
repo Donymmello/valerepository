@@ -7,9 +7,9 @@ const {
   Credito,
   ParcelaPagamento,
   AprovacaoPedido,
-  Empresa,
 } = require("../models");
 const { gerarExtratoPedidoPdf } = require("../services/pdfExport.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 /*
   ==========================================================
@@ -25,7 +25,7 @@ const { gerarExtratoPedidoPdf } = require("../services/pdfExport.service");
 */
 /*
   Busca partilhada entre a consulta JSON (getExtratoPedido, usada pelo
-  ecrã ExtratoPedidoInterno.jsx) e a exportação em PDF — ambas precisam
+  ecrã ExtratoPedidoInterno.jsx) e a exportação em PDF, ambas precisam
   exatamente dos mesmos dados.
 */
 async function buscarExtratoPedidoInterno(req) {
@@ -136,7 +136,7 @@ async function getExtratoPedidoPdf(req, res) {
     const reembolsos = creditos.flatMap((c) => c.reembolsos || []);
 
     const empresa = req.user.empresaId
-      ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+      ? await obterEmpresaCacheada(req.user.empresaId)
       : null;
 
     const buffer = await gerarExtratoPedidoPdf({

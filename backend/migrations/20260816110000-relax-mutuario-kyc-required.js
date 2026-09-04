@@ -3,15 +3,15 @@
 /*
   Torna documento_tipo, documento_numero, nuit e data_nascimento
   opcionais na tabela mutuarios. Antes eram obrigatórios logo no
-  registo do mutuário (RegisterMutuario.jsx) — agora o registo pede só
+  registo do mutuário (RegisterMutuario.jsx), agora o registo pede só
   o essencial (nome, email, password, nome completo, telefone) e estes
   campos de identificação (KYC) passam a poder ser preenchidos depois,
   em "Completar Perfil" (ver portalMutuario.controller.js,
   updateMeuMutuario). A submissão de um pedido de crédito continua a
-  exigir o perfil completo (ver createMeuPedido) — só o registo em si
+  exigir o perfil completo (ver createMeuPedido), só o registo em si
   ficou mais leve.
 
-  Idempotente — seguro correr mais de uma vez, tal como as anteriores.
+  Idempotente, seguro correr mais de uma vez, tal como as anteriores.
 */
 
 module.exports = {

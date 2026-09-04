@@ -2,17 +2,17 @@
 
 /*
   Bug encontrado: codigo_mutuario (mutuarios) e numero_pedido
-  (pedidos_credito) tinham `unique: true` a nível de coluna — um índice
+  (pedidos_credito) tinham `unique: true` a nível de coluna, um índice
   único GLOBAL, em toda a plataforma. Isto está errado num sistema
   multi-tenant: o código só precisa de ser único dentro da mesma
   empresa, não entre empresas diferentes. Na prática, impedia (ou, no
-  caso do documento_numero — que nem tinha constraint na BD, só
-  verificação na aplicação — deixava passar) duas empresas distintas de
+  caso do documento_numero, que nem tinha constraint na BD, só
+  verificação na aplicação, deixava passar) duas empresas distintas de
   usarem o mesmo código, e o importador de Excel (excell.service.js)
   tinha o mesmo problema nas suas verificações de duplicado em memória.
 
   Esta migration troca os dois índices únicos de coluna simples por
-  índices únicos compostos (empresa_id, código) — o mesmo padrão já
+  índices únicos compostos (empresa_id, código), o mesmo padrão já
   usado para email de convite, etc.
 
   Idempotente: verifica os índices existentes antes de mexer, para
@@ -43,7 +43,7 @@ async function removerIndiceSeExistir(queryInterface, tabela, colunas) {
   /*
     O `unique: true` de coluna, quando a tabela é criada por
     createTable(model.rawAttributes) (ver migrations/00000000000000-baseline.js),
-    vira uma UNIQUE CONSTRAINT no Postgres — não um índice solto — mesmo
+    vira uma UNIQUE CONSTRAINT no Postgres, não um índice solto, mesmo
     que apareça no showIndex() como se fosse um índice normal. O
     Postgres não deixa fazer DROP INDEX diretamente num índice que é a
     "casa" de uma constraint (erro real visto em produção: "cannot drop

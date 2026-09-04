@@ -5,10 +5,10 @@
   notificacoes.tipo. Já eram usados no código (pedidoCredito.controller.js
   e alertaPagamento.controller.js) e já tinham suporte no frontend
   (Notificacoes.jsx, MinhasNotificacoes.jsx), mas nunca tinham sido
-  adicionados ao ENUM real da coluna — qualquer notificação desses dois
+  adicionados ao ENUM real da coluna, qualquer notificação desses dois
   tipos falhava na validação do MySQL. Ver nota em models/notificacao.model.js.
 
-  Idempotente — seguro correr mais de uma vez, tal como as anteriores.
+  Idempotente, seguro correr mais de uma vez, tal como as anteriores.
 */
 
 const { enumJaTemValores } = require("../utils/migrationHelpers");

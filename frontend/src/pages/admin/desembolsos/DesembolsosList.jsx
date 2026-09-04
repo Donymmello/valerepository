@@ -14,7 +14,7 @@ import {
 import {
   createDesembolsoRequest,
   getAllDesembolsosRequest,
-  getAllPedidosRequest,
+  getPedidosElegiveisDesembolsoRequest,
 } from "../../../api/admin.api";
 import { formatCurrency, formatDate } from "../../../utils/formatters";
 import PageHeader from "../../../components/common/PageHeader";
@@ -45,26 +45,28 @@ export default function DesembolsosList() {
       setLoading(true);
       setError("");
 
-      const [resDesembolsos, resPedidos] = await Promise.all([
+      // Antes: carregava TODOS os pedidos (getAllPedidosRequest) e filtrava
+      // status === "APROVADO" no cliente, duplicava, de forma frágil, a
+      // mesma lógica que já existe (e é mais correta, porque também
+      // exclui pedidos já com desembolso) no endpoint dedicado
+      // pedidos-credito/elegiveis-desembolso (ver
+      // getPedidosElegiveisDesembolso em pedidoCredito.controller.js).
+      // Ficava também dependente de getAllPedidosRequest devolver a lista
+      // inteira, sem limite algum.
+      const [resDesembolsos, resPedidosElegiveis] = await Promise.all([
         getAllDesembolsosRequest(),
-        getAllPedidosRequest(),
+        getPedidosElegiveisDesembolsoRequest(),
       ]);
 
       // CORREÇÃO: Garante a extração correta caso a API retorne { data: [...] } ou direto o array
       const desembolsosData = resDesembolsos?.data ?? resDesembolsos;
-      const pedidosData = resPedidos?.data ?? resPedidos;
+      const pedidosElegiveisData = resPedidosElegiveis?.data ?? resPedidosElegiveis;
 
       const listaDesembolsos = Array.isArray(desembolsosData) ? desembolsosData : [];
-      const listaPedidos = Array.isArray(pedidosData) ? pedidosData : [];
-
-      // CORREÇÃO: Mapeia de forma tolerante a 'status' ou 'estado' do pedido
-      const elegiveis = listaPedidos.filter((pedido) => {
-        const status = pedido?.status || pedido?.estado;
-        return status === "APROVADO";
-      });
+      const listaPedidosElegiveis = Array.isArray(pedidosElegiveisData) ? pedidosElegiveisData : [];
 
       setDesembolsos(listaDesembolsos);
-      setPedidosElegiveis(elegiveis);
+      setPedidosElegiveis(listaPedidosElegiveis);
     } catch (err) {
       console.error(err);
       setError(
@@ -208,7 +210,7 @@ export default function DesembolsosList() {
             <MenuItem value="">Selecionar</MenuItem>
             {pedidosElegiveis.map((pedido) => (
               <MenuItem key={pedido.id} value={pedido.id}>
-                {pedido?.numeroPedido} — {pedido?.mutuario?.nomeCompleto || "Sem mutuário"}
+                {pedido?.numeroPedido}, {pedido?.mutuario?.nomeCompleto || "Sem mutuário"}
               </MenuItem>
             ))}
           </TextField>

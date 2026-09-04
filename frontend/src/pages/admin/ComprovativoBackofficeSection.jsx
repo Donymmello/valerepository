@@ -105,7 +105,7 @@ function FormValidacao({ comprativoId, onSuccess, onCancel }) {
           size="small"
         >
           <MenuItem value="">Selecionar</MenuItem>
-          <MenuItem value="VALIDADO">Validar — criar reembolso</MenuItem>
+          <MenuItem value="VALIDADO">Validar, criar reembolso</MenuItem>
           <MenuItem value="REJEITADO">Rejeitar</MenuItem>
         </TextField>
 
@@ -192,7 +192,7 @@ function FormValidacao({ comprativoId, onSuccess, onCancel }) {
 /**
  * Props:
  *   pedidoId  {string|number}
- *   onUpdated {function}  — callback para recarregar dados do pedido pai
+ *   onUpdated {function} , callback para recarregar dados do pedido pai
  */
 export default function ComprovativoBackofficeSection({ pedidoId, onUpdated }) {
   const [comprovativos, setComprovativos] = useState([]);

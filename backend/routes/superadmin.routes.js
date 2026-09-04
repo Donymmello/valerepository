@@ -12,7 +12,7 @@ const {
 
 /*
   ==========================================================
-  ROTAS SUPERADMIN — GESTÃO DE EMPRESAS (TENANTS)
+  ROTAS SUPERADMIN, GESTÃO DE EMPRESAS (TENANTS)
   ==========================================================
   GET   /api/superadmin/empresas      -> listar todas as empresas
   GET   /api/superadmin/empresas/:id  -> detalhe de uma empresa

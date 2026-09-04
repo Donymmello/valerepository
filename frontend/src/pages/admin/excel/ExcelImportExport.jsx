@@ -316,7 +316,7 @@ export default function ExcelImportExport() {
                   do cliente). Colunas: CodigoMutuario, ValorOriginal, Prazo, DataDesembolso,
                   ParcelasPagas (obrigatórias); Taxa, Prestacao, SaldoAtual, NumeroContrato,
                   Observacoes (opcionais). O mutuário tem de já estar cadastrado no sistema. Entra
-                  com o saldo devedor de hoje — não recria o histórico de parcelas já pagas.
+                  com o saldo devedor de hoje, não recria o histórico de parcelas já pagas.
                 </Typography>
               </Box>
             </Stack>

@@ -1,13 +1,24 @@
 /*
-podeRegistrarReembolso()
-├── podeLiquidarCredito()
-├── podeRenegociarCredito()
-├── podeAmortizarCredito()
-├── podeCancelarCredito()
-├── podeMarcarIncumprimento()
-├── podeReestruturarCredito()
+  Este ficheiro tinha uma lista de 6 funções "por criar" que nunca foram
+  atualizadas à medida que o resto do sistema evoluiu, ficou a dar a
+  entender que nada disto existia, quando na verdade 2 dos 4 estados de
+  Credito já são geridos automaticamente, só que por fora desta camada
+  de regras (o que também não deixa de ser um problema à parte, ver
+  nota em ESTADO_CREDITO abaixo). Estado real de cada uma:
 
-depois criar isso
+  - podeMarcarIncumprimento(), a decisão já existe, mas não é uma
+    permissão de utilizador: é automática, por threshold de dias em
+    atraso, correndo todo dia no agendador. Ver
+    verificarIncumprimentoEmpresa() em services/credito.service.js.
+  - "podeLiquidarCredito", idem: automático quando o saldo chega a
+    zero (services/credito.service.js, atualizarSaldo/registarReembolso),
+    não uma ação que um utilizador escolhe fazer.
+  - podeRenegociarCredito(), podeAmortizarCredito(),
+    podeCancelarCredito(), podeReestruturarCredito(), estas sim
+    continuam por construir. REESTRUTURADO existe no ENUM e é lido em
+    relatorio.controller.js, mas não há nenhum fluxo no sistema que
+    escreva esse estado, é um valor "morto" até um destes fluxos ser
+    implementado.
 */
 
 
@@ -19,6 +30,9 @@ const PERFIS = {
   USER: "USER",
 };
 
+// Tem de ficar sempre igual ao ENUM em models/credito.model.js, não há
+// nenhuma verificação automática disso, é responsabilidade de quem editar
+// um dos dois lembrar-se do outro.
 const ESTADO_CREDITO = {
   ATIVO: "ATIVO",
   LIQUIDADO: "LIQUIDADO",

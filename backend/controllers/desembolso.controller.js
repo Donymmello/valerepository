@@ -1,9 +1,10 @@
-const { Desembolso, PedidoCredito, Mutuario, Empresa, User, sequelize } = require("../models");
+const { Desembolso, PedidoCredito, Mutuario, User, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateReferencia } = require("../utils/generateCode");
 const creditoService = require("../services/credito.service");
 const { asyncHandler } = require("../middleware/errorHandler.middleware");
 const { gerarComprovativoPdf } = require("../services/pdfExport.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 const {
   podeDesembolsarPedido,
   podeTransitarStatus,
@@ -134,7 +135,7 @@ const getDesembolsoByPedido = asyncHandler(async (req, res) => {
 
 /**
  * COMPROVATIVO EM PDF DE UM DESEMBOLSO (BACKOFFICE)
- * Reaproveita o mesmo serviço de PDF usado no portal do mutuário —
+ * Reaproveita o mesmo serviço de PDF usado no portal do mutuário,
  * aqui o acesso é restrito por empresaId (staff), não por mutuarioId.
  */
 const obterComprovativoDesembolsoPdf = asyncHandler(async (req, res) => {
@@ -156,7 +157,7 @@ const obterComprovativoDesembolsoPdf = asyncHandler(async (req, res) => {
   }
 
   const empresa = req.user.empresaId
-    ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+    ? await obterEmpresaCacheada(req.user.empresaId)
     : null;
 
   const buffer = await gerarComprovativoPdf({

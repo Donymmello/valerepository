@@ -2,11 +2,11 @@
  * Testes de regressão para fluxos críticos.
  *
  * Reescrita: o ficheiro anterior tinha 30 testes, todos
- * `expect(true).toBe(true)` com `// TODO` — passavam sempre,
+ * `expect(true).toBe(true)` com `// TODO`, passavam sempre,
  * sem testar nada. Esta versão só afirma coisas que o código
  * realmente faz. Onde a funcionalidade descrita não existe (ou
  * foi propositadamente removida), fica um `test.todo(...)` com
- * o motivo — não um teste falso a fingir que passa.
+ * o motivo, não um teste falso a fingir que passa.
  *
  * Sem BD real disponível neste projeto para testes automatizados,
  * por isso os controllers são testados com os models mockados
@@ -20,7 +20,7 @@ jest.mock("../models", () => ({
   User: { findOne: jest.fn(), findAll: jest.fn().mockResolvedValue([]) },
   Mutuario: { findByPk: jest.fn() },
   // findByPk usado em createPedidoCredito para ler a taxaJurosMin da
-  // empresa (ver pedidoCredito.controller.js) — mock tinha ficado
+  // empresa (ver pedidoCredito.controller.js), mock tinha ficado
   // desatualizado desde que essa funcionalidade foi adicionada, o que
   // fazia os dois testes abaixo rebentar com "findByPk is not a function".
   Empresa: { update: jest.fn(), findByPk: jest.fn().mockResolvedValue({ taxaJurosMin: 18 }) },
@@ -92,7 +92,7 @@ describe("Authentication Flow", () => {
     expect(payload.token.length).toBeGreaterThan(10);
   });
 
-  test.todo("refresh de token expirado — não existe nenhum endpoint de refresh no backend");
+  test.todo("refresh de token expirado, não existe nenhum endpoint de refresh no backend");
 });
 
 describe("OTP", () => {
@@ -124,7 +124,7 @@ describe("OTP", () => {
   });
 
   // Coberto por __tests__/authIntegration.test.js (integração, BD real via
-  // sqlite em memória) — não era isolável aqui sem mockar o próprio
+  // sqlite em memória), não era isolável aqui sem mockar o próprio
   // comportamento a testar.
 });
 
@@ -206,13 +206,13 @@ describe("Pedido Creation Flow", () => {
 describe("Alert System (thresholds de performance)", () => {
   // middleware/performanceMetrics.middleware.js tem o comentário:
   // "ponytail: Removed alertManager integration - use logs only"
-  // — este subsistema foi removido de propósito. Não há limiares,
+  //, este subsistema foi removido de propósito. Não há limiares,
   // "acknowledge" nem configuração para testar.
-  test.todo("alerta crítico para pedidos lentos (>5s) — subsistema de alertas removido, só ficaram logs");
-  test.todo("alerta de aviso para memória alta (>70%) — subsistema de alertas removido");
-  test.todo("alerta crítico para CPU alta (>80%) — subsistema de alertas removido");
-  test.todo("marcar alerta como reconhecido — não existe conceito de alerta persistente");
-  test.todo("configurar limiares de alerta — não existe configuração de limiares no código");
+  test.todo("alerta crítico para pedidos lentos (>5s), subsistema de alertas removido, só ficaram logs");
+  test.todo("alerta de aviso para memória alta (>70%), subsistema de alertas removido");
+  test.todo("alerta crítico para CPU alta (>80%), subsistema de alertas removido");
+  test.todo("marcar alerta como reconhecido, não existe conceito de alerta persistente");
+  test.todo("configurar limiares de alerta, não existe configuração de limiares no código");
 });
 
 describe("Monitoring & Observability", () => {
@@ -251,8 +251,8 @@ describe("Monitoring & Observability", () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: "OK", requestId: "REQ-2" }));
   });
 
-  test.todo("logger de queries SQL — logging do Sequelize está desligado (config/db.js), não existe logger de queries à parte");
-  test.todo("taxa de acerto/falha de cache — não existe nenhuma camada de cache no projeto");
+  test.todo("logger de queries SQL, logging do Sequelize está desligado (config/db.js), não existe logger de queries à parte");
+  test.todo("taxa de acerto/falha de cache, não existe nenhuma camada de cache no projeto");
 });
 
 describe("Data Integrity", () => {
@@ -280,9 +280,9 @@ describe("Data Integrity", () => {
   // Coberto por __tests__/authIntegration.test.js (integração, BD real).
   // Achado ao escrever esse teste: a deteção de duplicado (email/nuit) é
   // feita por um `findOne` de aplicação, não por UNIQUE constraint na BD
-  // — só User.email tem `unique: true` global no modelo.
+  //, só User.email tem `unique: true` global no modelo.
   // Mutuario.codigoMutuario e PedidoCredito.numeroPedido têm um índice
-  // único composto (empresa_id, código) — único só dentro da mesma
+  // único composto (empresa_id, código), único só dentro da mesma
   // empresa, de propósito (multi-tenant). documentoNumero/nuit não têm
   // nenhuma constraint a nível de BD. Ver RECUPERACAO_BD.md.
 

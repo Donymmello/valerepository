@@ -4,7 +4,6 @@ const {
   ParcelaPagamento,
   PedidoCredito,
   Mutuario,
-  Empresa,
   User,
   sequelize,
 } = require("../models");
@@ -13,6 +12,7 @@ const { generateReferencia } = require("../utils/generateCode");
 const CreditoService = require("../services/credito.service");
 const { asyncHandler } = require("../middleware/errorHandler.middleware");
 const { gerarComprovativoPdf } = require("../services/pdfExport.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 const { podeRegistrarReembolso } = require("../utils/regrasCredito");
 
 // =========================================================================
@@ -225,7 +225,7 @@ const obterComprovativoReembolsoPdf = asyncHandler(async (req, res) => {
   }
 
   const empresa = req.user.empresaId
-    ? await Empresa.findByPk(req.user.empresaId, { attributes: ["nome"] })
+    ? await obterEmpresaCacheada(req.user.empresaId)
     : null;
 
   const buffer = await gerarComprovativoPdf({

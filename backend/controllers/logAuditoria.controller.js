@@ -19,6 +19,10 @@ async function getAllLogsAuditoria(req, res) {
         },
       ],
       order: [["created_at", "DESC"]],
+      // logs_auditoria só cresce (nunca é limpa), dos 4 endpoints sem
+      // limite encontrados na auditoria, este é o de maior risco a
+      // médio prazo. Trava de segurança, não paginação real.
+      limit: 500,
     });
 
     return res.status(200).json(logs);

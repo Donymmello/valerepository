@@ -75,7 +75,7 @@ export default function MeuMutuarioEditar() {
 
   // Uma vez que o backend só grava documento/NUIT/data de nascimento
   // enquanto estiverem vazios, aqui bloqueamos os campos assim que já
-  // vierem preenchidos do servidor — evita a falsa sensação de que dá
+  // vierem preenchidos do servidor, evita a falsa sensação de que dá
   // para editar um documento já declarado.
   const perfilKycCompleto = Boolean(
     mutuario?.documentoTipo && mutuario?.documentoNumero && mutuario?.nuit && mutuario?.dataNascimento
@@ -103,7 +103,7 @@ export default function MeuMutuarioEditar() {
 
     // Os campos de identificação só podem ser definidos uma vez (ver
     // backend). Se ainda estão editáveis (perfil incompleto) e o
-    // utilizador começou a preencher, exige os quatro juntos — evita
+    // utilizador começou a preencher, exige os quatro juntos, evita
     // gravar um documento sem NUIT, por exemplo.
     if (!perfilKycCompleto) {
       const algumPreenchido =

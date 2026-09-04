@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { forgotPasswordRequest } from "../../api/auth.api";
+import { NOME_PLATAFORMA } from "../../theme";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ export default function ForgotPassword() {
               sx={{ fontWeight: "bold", color: "#1a237e", cursor: "pointer" }}
               onClick={() => navigate("/")}
             >
-              Sistema de Gestão de Crédito
+              {NOME_PLATAFORMA}
             </Typography>
             <Button variant="outlined" color="primary" sx={{ borderRadius: 2 }} onClick={() => navigate("/login")}>
               Entrar
@@ -130,7 +131,7 @@ export default function ForgotPassword() {
       <Box sx={{ bgcolor: "#1a237e", color: "#ffffff", py: 3 }}>
         <Container maxWidth="lg">
           <Typography variant="body2" align="center">
-            &copy; {new Date().getFullYear()} Sistema de Gestão de Crédito. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
+            &copy; {new Date().getFullYear()} {NOME_PLATAFORMA}. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
           </Typography>
         </Container>
       </Box>

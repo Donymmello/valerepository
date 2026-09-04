@@ -39,13 +39,13 @@ const Notificacao = sequelize.define(
       allowNull: false,
     },
 
-    // PEDIDO_CRIADO e ALERTA_PAGAMENTO foram adicionados depois — o
+    // PEDIDO_CRIADO e ALERTA_PAGAMENTO foram adicionados depois, o
     // frontend (Notificacoes.jsx, MinhasNotificacoes.jsx) já tinha rótulo
     // e cor prontos para os dois, mas o ENUM nunca tinha sido atualizado
     // aqui. pedidoCredito.controller.js usava PEDIDO_CRIADO (falhava
     // silenciosamente, tem try/catch) e alertaPagamento.controller.js
     // usava ALERTA_PAGAMENTO (rebentava a chamada inteira, sem try/catch
-    // à volta do create — alertas de pagamento nunca chegaram a
+    // à volta do create, alertas de pagamento nunca chegaram a
     // funcionar). Ver migration 20260816120000-add-notificacao-tipos.js.
     tipo: {
       type: DataTypes.ENUM("ALERTA_PRAZO", "ALERTA_PAGAMENTO", "APROVACAO", "REJEICAO", "SISTEMA", "REQUISITO", "PEDIDO_CRIADO"),
@@ -65,6 +65,12 @@ const Notificacao = sequelize.define(
     tableName: "notificacoes",
     createdAt: "created_at",
     updatedAt: false,
+    indexes: [
+      // getMinhasNotificacoes (notificacao.controller.js) filtra por
+      // userId e ordena por created_at, composto cobre os dois.
+      { fields: ["user_id", "created_at"] },
+      { fields: ["pedido_id"] },
+    ],
   }
 );
 

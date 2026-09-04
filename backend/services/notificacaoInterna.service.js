@@ -7,7 +7,7 @@
   anexado pelo mutuário, comprovativo de pagamento enviado, etc).
 
   Usa Notificacao.bulkCreate numa única query. Cada Notificacao criada
-  já dispara, via hook em models/index.js, o fan-out para email/SMS —
+  já dispara, via hook em models/index.js, o fan-out para email/SMS,
   mas esse despacho externo está restrito a role USER/MUTUARIO (ver
   notificacaoExterna.service.js), por isso estas notificações de staff
   ficam só no sino/lista de notificações internas, sem custo de SMS.
@@ -61,7 +61,7 @@ async function notificarStaffDaEmpresa(
 
     await Notificacao.bulkCreate(notificacoes, { transaction });
   } catch (error) {
-    // Notificação é um efeito colateral — nunca deve impedir a ação
+    // Notificação é um efeito colateral, nunca deve impedir a ação
     // principal (criar pedido, anexar documento, enviar comprovativo).
     console.error("[NotificarStaff Error]: Falha ao gerar notificações internas:", error);
   }

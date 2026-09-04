@@ -1,12 +1,13 @@
-const { Simulacao, Empresa } = require("../models");
+const { Simulacao } = require("../models");
 const calcularPrestacao = require("../utils/calCredito");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 // =========================================================================
 // HELPERS / ENGINE MATEMÁTICO (Evita duplicar lógica na API)
 // =========================================================================
 // Taxa indicativa genérica, usada apenas quando não há empresa associada
 // ao pedido de simulação (ex: chamada anónima direta à API). Já não há
-// nenhum ecrã público na landing page a chamar isto sem contexto — a
+// nenhum ecrã público na landing page a chamar isto sem contexto, a
 // simulação "de verdade" hoje só acontece dentro do portal do mutuário
 // (CriarPedido.jsx), já autenticado, e nesse caso usamos a taxa mínima
 // real da empresa (ver simular() abaixo).
@@ -44,7 +45,7 @@ async function simular(req, res) {
     // submissão (ver pedidoCredito.controller.js).
     let taxa = TAXA_PADRAO;
     if (req.user?.empresaId) {
-      const empresa = await Empresa.findByPk(req.user.empresaId, { attributes: ["taxaJurosMin"] });
+      const empresa = await obterEmpresaCacheada(req.user.empresaId);
       if (empresa) taxa = Number(empresa.taxaJurosMin);
     }
 

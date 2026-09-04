@@ -321,7 +321,7 @@ async function importarPedidos(req, res) {
 /*
   ===========================================================
   * Controller responsável por importar créditos já existentes
-  * ("saldo de abertura") via Excel — migração
+  * ("saldo de abertura") via Excel, migração
   ===========================================================
 */
 async function importarCreditos(req, res) {

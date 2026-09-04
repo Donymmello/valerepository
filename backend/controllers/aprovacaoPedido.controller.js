@@ -1,7 +1,8 @@
-const { AprovacaoPedido, PedidoCredito, User, Mutuario, Empresa, Notificacao, PedidoRequisito, RequisitoCredito, sequelize } = require("../models");
+const { AprovacaoPedido, PedidoCredito, User, Mutuario, Notificacao, PedidoRequisito, RequisitoCredito, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { podeAprovarPedido, podeRejeitarPedido, podeTransitarStatus, STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 // =========================================================================
 // HELPERS / ENGINE DE FLUXO
@@ -106,7 +107,7 @@ async function decidirAprovacao(req, res) {
     // (normalmente o ANALISTA, mas a etapa 1 também permite GESTOR/ADMIN)
     // define a taxa de juros, dentro da faixa que a empresa pratica.
     // Os níveis 2 e 3 (GESTOR, DIRETOR/ADMIN) só confirmam ou rejeitam
-    // — não voltam a mexer na taxa, já definida aqui. Antes disto o
+    //, não voltam a mexer na taxa, já definida aqui. Antes disto o
     // pedido só tinha a taxa mínima como estimativa (ver
     // pedidoCredito.controller.js). É esta taxa que o crédito herda no
     // desembolso (credito.service.js lê pedido.taxa/prestacao/etc.).
@@ -118,9 +119,7 @@ async function decidirAprovacao(req, res) {
         return res.status(400).json({ message: "A taxa de juros é obrigatória para aprovar nesta etapa." });
       }
 
-      const empresa = await Empresa.findByPk(req.user.empresaId, {
-        attributes: ["taxaJurosMin", "taxaJurosMax"],
-      });
+      const empresa = await obterEmpresaCacheada(req.user.empresaId);
       const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
       const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
 

@@ -3,8 +3,8 @@
  * Suporta desenvolvimento (console) e produção (Resend)
  *
  * Estes dois emails (OTP de verificação e reset de password) são fluxos
- * de segurança/autenticação, não notificações de negócio — por isso saem
- * em nome da plataforma ("Vale do Zambeze"), não da empresa/financeira.
+ * de segurança/autenticação, não notificações de negócio, por isso saem
+ * em nome da plataforma (PLATFORM_NAME), não da empresa/financeira.
  * Password reset, por exemplo, também é usado por staff interno (ADMIN,
  * GESTOR...), que não tem uma "marca" própria para aparecer aqui. As
  * notificações que já saem em nome de cada empresa (aprovação, alertas
@@ -25,7 +25,7 @@ function getResendClient() {
   return resendClient;
 }
 
-const REMETENTE_PLATAFORMA = `Vale do Zambeze <${process.env.RESEND_FROM_EMAIL || "notificacoes@valedozambeze.com"}>`;
+const REMETENTE_PLATAFORMA = `${process.env.PLATFORM_NAME || "Tshemba"} <${process.env.RESEND_FROM_EMAIL || "notificacoes@exemplo.com"}>`;
 
 /**
  * Envia email de verificação de OTP
@@ -48,7 +48,7 @@ async function sendVerificationEmail(email, otp, nomeCompleto) {
 
   const client = getResendClient();
   if (!client) {
-    console.error('[EmailService] RESEND_API_KEY não configurada — email de verificação não enviado.');
+    console.error('[EmailService] RESEND_API_KEY não configurada, email de verificação não enviado.');
     return { success: false, error: 'RESEND_API_KEY em falta' };
   }
 
@@ -84,7 +84,7 @@ async function sendPasswordResetEmail(email, resetLink, nomeUtilizador) {
 
   const client = getResendClient();
   if (!client) {
-    console.error('[EmailService] RESEND_API_KEY não configurada — email de reset não enviado.');
+    console.error('[EmailService] RESEND_API_KEY não configurada, email de reset não enviado.');
     return { success: false, error: 'RESEND_API_KEY em falta' };
   }
 

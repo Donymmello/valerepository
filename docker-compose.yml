@@ -10,7 +10,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      # Só localhost: acesso de fora só via túnel SSH (ssh -L 5432:localhost:5432 ...),
+      # nunca exposto diretamente à internet.
+      - "127.0.0.1:5432:5432"
     volumes:
       - dados_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -18,13 +20,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # Limite de memória, ver nota geral sobre mem_limit no fim do ficheiro.
+    mem_limit: 512m
+    mem_reservation: 256m
 
   api_backend:
     build: ./backend
     container_name: meu_backend
     restart: on-failure
     ports:
-      - "5000:5000"
+      # Só localhost: em produção o tráfego externo entra pelo Caddy (ver
+      # serviço "caddy" abaixo), que fala com este serviço pela rede interna
+      # do Docker (api_backend:5000), não precisa de porta pública.
+      - "127.0.0.1:5000:5000"
     # Adiciona esta linha abaixo para o Docker injetar o teu .env no container!
     env_file:
       - ./backend/.env
@@ -36,9 +44,11 @@ services:
     depends_on:
       credito:
         condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 256m
 
   # Interface visual para a base de dados (Postgres). Acede em
-  # http://localhost:8080 — servidor "credito", utilizador/password/BD
+  # http://localhost:8080, servidor "credito", utilizador/password/BD
   # vêm do teu backend/.env (DB_USER/DB_PASS/DB_NAME).
   adminer:
     image: adminer:4
@@ -47,22 +57,67 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: credito
     ports:
-      - "8080:8080"
+      # Só localhost: acesso de fora só via túnel SSH, nunca exposto
+      # diretamente à internet (é uma interface de admin sem MFA).
+      - "127.0.0.1:8080:8080"
     depends_on:
       credito:
         condition: service_healthy
+    mem_limit: 128m
 
   # 3. FRONTEND (React + Vite)
+  # Build multi-stage (ver frontend/Dockerfile): compila para dist/ e serve
+  # com Nginx puro, sem Vite dev server em produção, sem bind mount do
+  # código fonte (isso é só útil com HMR, que já não existe aqui).
   web_frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api}
     container_name: frontend
+    restart: on-failure
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules    # <-- Repare no espaço obrigatório depois do hífen
+      # Só localhost: em produção o Caddy é que fala com este serviço pela
+      # rede interna (web_frontend:80). Em dev local sem Caddy, continua
+      # acessível em http://localhost:8081.
+      - "127.0.0.1:8081:80"
     depends_on:
       - api_backend
+    mem_limit: 128m
+
+  # 4. REVERSE PROXY + HTTPS (Caddy)
+  # Único serviço com porta pública (80/443). Fala com api_backend e
+  # web_frontend pela rede interna do Docker (nomes de serviço, não
+  # localhost). Emite e renova certificados Let's Encrypt sozinho, desde
+  # que o domínio em Caddyfile já aponte (DNS) para o IP desta VPS.
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    depends_on:
+      - api_backend
+      - web_frontend
+    mem_limit: 128m
 
 volumes:
   dados_postgres: # Garante que os dados do banco não sumam quando o container para
+  caddy_dados: # Certificados TLS emitidos pelo Let's Encrypt
+  caddy_config:
+
+# Nota sobre mem_limit: isto usa `docker compose up` "standalone" (não Swarm),
+# por isso o limite tem de ser `mem_limit`/`mem_reservation` no nível do
+# serviço, o bloco `deploy.resources.limits` do Compose Spec só é respeitado
+# em modo Swarm (`docker stack deploy`), `docker compose up` ignora-o
+# silenciosamente. Os valores acima (512m para Postgres e para o backend
+# Node, 128m para Nginx/Adminer) são pontos de partida conservadores para uma
+# única VM pequena, ajustar conforme a RAM real da máquina de produção
+# quando essa decisão for tomada. Sem limite nenhum (estado anterior), um
+# único container com fuga de memória ou pico de tráfego podia consumir toda
+# a RAM da máquina e derrubar os outros serviços, incluindo a própria BD.

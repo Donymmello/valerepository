@@ -15,7 +15,7 @@ const Mutuario = sequelize.define(
       primaryKey: true,
     },
 
-    // Nota: NÃO é `unique: true` aqui — o código só precisa de ser único
+    // Nota: NÃO é `unique: true` aqui, o código só precisa de ser único
     // dentro da mesma empresa (tenant), não em toda a plataforma. Ver o
     // índice composto abaixo, em `indexes`.
     codigoMutuario: {
@@ -31,7 +31,7 @@ const Mutuario = sequelize.define(
     },
 
     // Campos de identificação (KYC). Ficaram opcionais na BD porque o
-    // registo do mutuário (RegisterMutuario.jsx) já não os exige — pede
+    // registo do mutuário (RegisterMutuario.jsx) já não os exige, pede
     // só o essencial para reduzir fricção. São preenchidos depois em
     // "Completar Perfil" (ver portalMutuario.controller.js,
     // updateMeuMutuario), e continuam obrigatórios antes de submeter um

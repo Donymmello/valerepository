@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Divider,
   Grid,
@@ -15,12 +14,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { CalculateOutlined as CalculateOutlinedIcon, Close as CloseIcon } from "@mui/icons-material";
+import { CalculateOutlined as CalculateOutlinedIcon } from "@mui/icons-material";
 import { createMeuPedidoRequest } from "../../api/portal.api";
-import {
-  getMinhasSimulacoesRequest,
-  simularCreditoRequest,
-} from "../../api/public.api";
+import { simularCalculoCreditoRequest } from "../../api/public.api";
+
+// Tempo de espera depois da última tecla antes de recalcular, evita um
+// pedido à API a cada dígito escrito (ver nota no handleChange).
+const DEBOUNCE_MS = 450;
 
 export default function CriarPedido() {
   const navigate = useNavigate();
@@ -43,87 +43,43 @@ export default function CriarPedido() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Simulação mais recente do user, usada para pré-preencher o formulário
-  const [simulacao, setSimulacao] = useState(null);
-  const [loadingSimulacao, setLoadingSimulacao] = useState(true);
-  const [simulacaoDescartada, setSimulacaoDescartada] = useState(false);
+  // Estado do simulador: calcula-se em /simulacao/calcular (não persiste
+  // nada, ver simulacao.controller.js) enquanto o utilizador escreve.
+  // Antes disto chamava /simulacao/simular (que grava uma linha na BD) a
+  // cada tecla, o que enchia a tabela Simulacao de lixo sem necessidade.
+  const [calculando, setCalculando] = useState(false);
+  const [erroSimulacao, setErroSimulacao] = useState("");
+  const debounceRef = useRef(null);
 
   useEffect(() => {
-    const carregarUltimaSimulacao = async () => {
-      try {
-        const simulacoes = await getMinhasSimulacoesRequest();
-
-        if (Array.isArray(simulacoes) && simulacoes.length > 0) {
-          // a API já devolve ordenado por created_at DESC, mas garantimos aqui também
-          const maisRecente = simulacoes[0];
-          setSimulacao(maisRecente);
-
-          setForm((prev) => ({
-            ...prev,
-            valorSolicitado: String(maisRecente.valorSolicitado),
-            prazo: String(maisRecente.prazo),
-            taxa: Number(maisRecente.taxa).toFixed(2),
-            prestacao: Number(maisRecente.prestacao).toFixed(2),
-            jurosTotal: Number(maisRecente.jurosTotal).toFixed(2),
-            montanteTotal: Number(maisRecente.montanteTotal).toFixed(2),
-          }));
-        }
-      } catch (err) {
-        // Não é crítico: se falhar, o user simplesmente preenche manualmente
-        console.error("Erro ao carregar simulação recente:", err);
-      } finally {
-        setLoadingSimulacao(false);
-      }
-    };
-
-    carregarUltimaSimulacao();
+    // Limpa o timer pendente se o componente desmontar a meio da espera.
+    return () => clearTimeout(debounceRef.current);
   }, []);
 
-  const handleChange = async (event) => {
+  const handleChange = (event) => {
     const { name, value } = event.target;
-
-    const novoForm = {
-      ...form,
-      [name]: value,
-    };
-
+    const novoForm = { ...form, [name]: value };
     setForm(novoForm);
 
     if (name === "valorSolicitado" || name === "prazo") {
-      await atualizarSimulacao(
-        name === "valorSolicitado"
-          ? value
-          : novoForm.valorSolicitado,
-
-        name === "prazo"
-          ? value
-          : novoForm.prazo
-      );
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        atualizarSimulacao(novoForm.valorSolicitado, novoForm.prazo);
+      }, DEBOUNCE_MS);
     }
   };
 
-  const handleDescartarSimulacao = () => {
-  setSimulacao(null);
-  setSimulacaoDescartada(true);
-
-  setForm((prev) => ({
-    ...prev,
-    valorSolicitado: "",
-    prazo: "",
-    taxa: "",
-    prestacao: "",
-    jurosTotal: "",
-    montanteTotal: "",
-  }));
-};
-
   const atualizarSimulacao = async (valor, prazo) => {
-    if (!valor || !prazo) return;
+    setErroSimulacao("");
 
-    if (Number(valor) <= 0 || Number(prazo) <= 0) return;
+    if (!valor || !prazo || Number(valor) <= 0 || Number(prazo) <= 0) {
+      setForm((prev) => ({ ...prev, taxa: "", prestacao: "", jurosTotal: "", montanteTotal: "" }));
+      return;
+    }
 
+    setCalculando(true);
     try {
-      const resultado = await simularCreditoRequest({
+      const resultado = await simularCalculoCreditoRequest({
         valorSolicitado: Number(valor),
         prazo: Number(prazo),
       });
@@ -135,8 +91,11 @@ export default function CriarPedido() {
         jurosTotal: Number(resultado.jurosTotal).toFixed(2),
         montanteTotal: Number(resultado.montanteTotal).toFixed(2),
       }));
-    } catch (error) {
-      console.error("Erro ao recalcular simulação:", error);
+    } catch (err) {
+      console.error("Erro ao simular crédito:", err);
+      setErroSimulacao("Não foi possível calcular a simulação. Tenta novamente.");
+    } finally {
+      setCalculando(false);
     }
   };
 
@@ -178,9 +137,6 @@ export default function CriarPedido() {
     }
   };
 
-  const mostrarResumoSimulacao =
-    !loadingSimulacao && simulacao && !simulacaoDescartada;
-
   return (
     <Box sx={{ maxWidth: 820, mx: "auto" }}>
       <Box mb={4}>
@@ -195,98 +151,6 @@ export default function CriarPedido() {
       <Alert severity="info" sx={{ mb: 3 }}>
         A taxa de juros apresentada abaixo é uma estimativa. A taxa final do seu crédito é definida na aprovação, e pode variar consoante o seu histórico e a avaliação de risco.
       </Alert>
-
-      {loadingSimulacao && (
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
-          <CircularProgress size={18} />
-          <Typography variant="body2" color="text.secondary">
-            A verificar simulações recentes...
-          </Typography>
-        </Stack>
-      )}
-
-      {mostrarResumoSimulacao && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: 3,
-            borderColor: "success.light",
-            bgcolor: "success.50",
-            position: "relative",
-          }}
-        >
-          <Button
-            size="small"
-            onClick={handleDescartarSimulacao}
-            startIcon={<CloseIcon fontSize="small" />}
-            sx={{ position: "absolute", top: 8, right: 8 }}
-            color="inherit"
-          >
-            Ignorar
-          </Button>
-
-          <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-            <CalculateOutlinedIcon color="success" />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              Baseado na sua simulação
-            </Typography>
-            <Chip label="Pré-preenchido" size="small" color="success" variant="outlined" />
-          </Stack>
-
-          <Grid container spacing={2}>
-            <Grid item xs={6} sm={2.4}>
-              <Typography variant="caption" color="text.secondary">
-                Valor
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>
-                MZN {Number(simulacao.valorSolicitado).toLocaleString()}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={6} sm={2.4}>
-              <Typography variant="caption" color="text.secondary">
-                Prazo
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>
-                {simulacao.prazo} meses
-              </Typography>
-            </Grid>
-
-            <Grid item xs={6} sm={2.4}>
-              <Typography variant="caption" color="text.secondary">
-                Taxa Estimada
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>
-                {Number(simulacao.taxa).toFixed(2)}% a.a.
-              </Typography>
-            </Grid>
-
-            <Grid item xs={6} sm={2.4}>
-              <Typography variant="caption" color="text.secondary">
-                Prestação Mensal
-              </Typography>
-              <Typography sx={{ fontWeight: 700, color: "success.dark" }}>
-                MZN {Number(simulacao.prestacao).toFixed(2)}
-              </Typography>
-            </Grid>
-
-            <Grid item xs={6} sm={2.4}>
-              <Typography variant="caption" color="text.secondary">
-                Total a Pagar
-              </Typography>
-              <Typography sx={{ fontWeight: 700 }}>
-                MZN {Number(simulacao.montanteTotal).toFixed(2)}
-              </Typography>
-            </Grid>
-          </Grid>
-
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-            O valor solicitado abaixo foi preenchido automaticamente. Pode ajustá-lo se necessário. A taxa apresentada é uma estimativa — pode variar na aprovação final, consoante o histórico e a avaliação de risco (ver aviso abaixo).
-          </Typography>
-        </Paper>
-      )}
 
       <Paper sx={{ p: 4, borderRadius: 3 }}>
         {error && (
@@ -350,52 +214,71 @@ export default function CriarPedido() {
                 onChange={handleChange}
               />
             </Grid>
+          </Grid>
 
-            <Grid item xs={12}>
+          <Divider sx={{ my: 3 }} />
+
+          {/* Simulador: recalcula sozinho enquanto o valor/prazo acima
+              mudam (ver atualizarSimulacao). Rotulado explicitamente para
+              ficar claro que isto é o simulador, e não só campos soltos. */}
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+            <CalculateOutlinedIcon color="primary" fontSize="small" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Simulação
+            </Typography>
+            {calculando && <CircularProgress size={16} />}
+          </Stack>
+
+          {erroSimulacao && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {erroSimulacao}
+            </Alert>
+          )}
+
+          {!form.prestacao && !calculando && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Preenche o valor e o prazo acima para veres a estimativa da prestação.
+            </Typography>
+          )}
+
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 label="Taxa Estimada (% a.a.)"
                 name="taxa"
                 value={form.taxa}
-                InputProps={{
-                  readOnly: true,
-                }}
-                helperText="Estimativa — a taxa final é decidida na aprovação, dentro da faixa praticada pela financeira."
+                InputProps={{ readOnly: true }}
+                helperText="Definida na aprovação, dentro da faixa da financeira."
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 label="Prestação Mensal"
                 name="prestacao"
                 value={form.prestacao}
-                InputProps={{
-                  readOnly: true,
-                }}
+                InputProps={{ readOnly: true }}
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 label="Juros Totais"
                 value={form.jurosTotal}
-                InputProps={{
-                  readOnly: true,
-                }}
+                InputProps={{ readOnly: true }}
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
                 label="Montante Total"
                 name="montanteTotal"
                 value={form.montanteTotal}
-                InputProps={{
-                  readOnly: true,
-                }}
+                InputProps={{ readOnly: true }}
               />
             </Grid>
 

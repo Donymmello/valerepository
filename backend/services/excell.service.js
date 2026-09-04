@@ -1,11 +1,12 @@
 const XLSX = require("xlsx");
-const { Mutuario, PedidoCredito, Desembolso, Reembolso, Credito, Empresa, sequelize } = require("../models");
+const { Mutuario, PedidoCredito, Desembolso, Reembolso, Credito, sequelize } = require("../models");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 const calcularPrestacao = require("../utils/calCredito");
 const { generateReferencia } = require("../utils/generateCode");
 const creditoService = require("./credito.service");
 
 // Mesmo gerador usado em pedidoCredito.controller.js/portalMutuario.controller.js
-// (não está centralizado num util partilhado — replicado aqui de propósito,
+// (não está centralizado num util partilhado, replicado aqui de propósito,
 // como nos outros dois sítios, para não criar acoplamento novo por uma função
 // de 3 linhas).
 function generateNumeroPedido() {
@@ -520,7 +521,7 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
         association: "desembolsos",
       },
       {
-        // Reembolso não tem associação direta com PedidoCredito — só existe
+        // Reembolso não tem associação direta com PedidoCredito, só existe
         // via Credito (Reembolso -> Credito -> PedidoCredito). Um include
         // direto de "reembolsos" aqui dava SequelizeEagerLoadingError (mesmo
         // bug corrigido em relatorio.controller.js e portalExport.controller.js).
@@ -557,7 +558,7 @@ async function gerarExcellRelatorioFinanceiro(empresaId) {
     );
 
     /*
-      Montante total a pagar (capital + juros) — vem do Crédito, criado a
+      Montante total a pagar (capital + juros), vem do Crédito, criado a
       partir de pedido.montanteTotal no desembolso (ver credito.service.js).
     */
     const montanteTotal = creditos.reduce(
@@ -763,6 +764,26 @@ async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
   */
   const erros = [];
   const importados = [];
+  const paraCriar = [];
+
+  /*
+    Antes tínhamos um findOne por linha (2 queries × N linhas) só para
+    checar duplicados, para um ficheiro de 1000 linhas, 2000 round-trips
+    sequenciais à BD. Uma única query aqui carrega os códigos/documentos
+    já existentes desta empresa para memória (Set), e vamos atualizando
+    esse Set à medida que aceitamos linhas, para apanhar duplicados
+    dentro do próprio ficheiro também (o findOne por linha apanhava isso
+    de rebate, por correr sequencialmente depois de cada create).
+  */
+  const mutuariosExistentes = await Mutuario.findAll({
+    where: { empresaId },
+    attributes: ["codigoMutuario", "documentoNumero"],
+    raw: true,
+  });
+  const codigosVistos = new Set(mutuariosExistentes.map((m) => m.codigoMutuario));
+  const documentosVistos = new Set(
+    mutuariosExistentes.filter((m) => m.documentoNumero).map((m) => m.documentoNumero)
+  );
 
   /*
     Processa linha por linha
@@ -882,16 +903,13 @@ async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por código de mutuário — só dentro da mesma
+      Verifica duplicado por código de mutuário, só dentro da mesma
       empresa (tenant). O código só precisa de ser único por empresa,
       não em toda a plataforma (ver migration
-      20260824130000-tenant-scope-unique-codes.js).
+      20260824130000-tenant-scope-unique-codes.js). Contra o Set em
+      memória, não contra a BD.
     */
-    const mutuarioExistentePorCodigo = await Mutuario.findOne({
-      where: { codigoMutuario, empresaId }
-    });
-
-    if (mutuarioExistentePorCodigo) {
+    if (codigosVistos.has(codigoMutuario)) {
       erros.push({
         linha: numeroLinha,
         erro: `CodigoMutuario '${codigoMutuario}' já existe.`
@@ -900,53 +918,67 @@ async function importarExcellMutuarios({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por documento, quando existir — também
+      Verifica duplicado por documento, quando existir, também
       isolado por empresa. Um mesmo BI pode legitimamente ser cliente
       de duas empresas de crédito diferentes.
     */
-    if (documentoNumero) {
-      const mutuarioExistentePorDocumento = await Mutuario.findOne({
-        where: { documentoNumero, empresaId }
+    if (documentoNumero && documentosVistos.has(documentoNumero)) {
+      erros.push({
+        linha: numeroLinha,
+        erro: `DocumentoNumero '${documentoNumero}' já existe.`
       });
-
-      if (mutuarioExistentePorDocumento) {
-        erros.push({
-          linha: numeroLinha,
-          erro: `DocumentoNumero '${documentoNumero}' já existe.`
-        });
-        continue;
-      }
+      continue;
     }
+
+    /*
+      Marca como visto já aqui (não só depois do bulkCreate) para
+      apanhar duplicados entre linhas do mesmo ficheiro.
+    */
+    codigosVistos.add(codigoMutuario);
+    if (documentoNumero) documentosVistos.add(documentoNumero);
 
     /*
       Monta os dados para criação
       userId do mutuário é opcional no teu model,
       então por agora não vamos forçar esse campo
     */
-    const dadosMutuario = {
-      codigoMutuario,
-      empresaId,
-      nomeCompleto,
-      documentoTipo: documentoTipo || null,
-      documentoNumero: documentoNumero || null,
-      dataNascimento: dataNascimento || null,
-      provincia: provincia || null,
-      distrito: distrito || null,
-      localResidencia: localResidencia || null,
-      telefone: telefone || null,
-      email: email || null,
-      userId: null,
-    };
+    paraCriar.push({
+      linha: numeroLinha,
+      dados: {
+        codigoMutuario,
+        empresaId,
+        nomeCompleto,
+        documentoTipo: documentoTipo || null,
+        documentoNumero: documentoNumero || null,
+        dataNascimento: dataNascimento || null,
+        provincia: provincia || null,
+        distrito: distrito || null,
+        localResidencia: localResidencia || null,
+        telefone: telefone || null,
+        email: email || null,
+        userId: null,
+      },
+    });
+  }
 
-    /*
-      Cria o mutuário na base de dados
-    */
-    const novoMutuario = await Mutuario.create(dadosMutuario);
+  /*
+    Cria todos os mutuários válidos numa única query (bulkCreate) em vez
+    de um INSERT por linha, para 1000 linhas válidas, 1 round-trip em
+    vez de 1000. `returning: true` é necessário no Postgres para os IDs
+    gerados virem de volta nas instâncias.
+  */
+  if (paraCriar.length) {
+    const novosMutuarios = await Mutuario.bulkCreate(
+      paraCriar.map((item) => item.dados),
+      { returning: true }
+    );
 
-    importados.push({
-      id: novoMutuario.id,
-      codigoMutuario: novoMutuario.codigoMutuario,
-      nomeCompleto: novoMutuario.nomeCompleto,
+    novosMutuarios.forEach((novoMutuario) => {
+      importados.push({
+        id: novoMutuario.id,
+        codigoMutuario: novoMutuario.codigoMutuario,
+        nomeCompleto: novoMutuario.nomeCompleto,
+      });
     });
   }
 
@@ -1006,21 +1038,36 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
 
   const erros = [];
   const importados = [];
+  const paraCriar = [];
 
   /*
     A taxa é obrigatória no modelo (allowNull: false). Se a planilha não
     trouxer uma taxa explícita por linha (ex: importação de pedidos ainda
-    não aprovados), usamos a taxa mínima da empresa como estimativa —
+    não aprovados), usamos a taxa mínima da empresa como estimativa,
     o mesmo critério usado em pedidoCredito.controller.js e
     portalMutuario.controller.js. Buscamos a empresa uma única vez, fora
     do loop, para não repetir a query por linha.
   */
-  const empresa = await Empresa.findByPk(empresaId, {
-    attributes: ["taxaJurosMin", "taxaJurosMax"],
-  });
+  const empresa = await obterEmpresaCacheada(empresaId);
   const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
   const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
   const taxaEstimativaPadrao = Number(empresa?.taxaJurosMin ?? 18);
+
+  /*
+    Antes: 2 findOne por linha (numeroPedido duplicado + mutuário pelo
+    código), para 1000 linhas, 2000 round-trips sequenciais. Carrega os
+    dois conjuntos de uma vez, fora do loop.
+  */
+  const [pedidosExistentes, mutuariosDaEmpresa] = await Promise.all([
+    PedidoCredito.findAll({ where: { empresaId }, attributes: ["numeroPedido"], raw: true }),
+    Mutuario.findAll({
+      where: { empresaId },
+      attributes: ["id", "codigoMutuario", "nomeCompleto"],
+      raw: true,
+    }),
+  ]);
+  const numerosVistos = new Set(pedidosExistentes.map((p) => p.numeroPedido));
+  const mutuariosPorCodigo = new Map(mutuariosDaEmpresa.map((m) => [m.codigoMutuario, m]));
 
   /*
     Processa linha por linha
@@ -1189,7 +1236,7 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
 
     /*
       Converte/valida taxa. Se a linha não trouxer taxa (coluna vazia),
-      usa a estimativa mínima da empresa — mesmo critério das outras
+      usa a estimativa mínima da empresa, mesmo critério das outras
       formas de criar pedido. Se trouxer, valida contra a faixa da
       empresa (taxaJurosMin/taxaJurosMax), tal como na aprovação.
     */
@@ -1254,14 +1301,10 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Verifica duplicado por número do pedido — isolado por empresa,
-      mesmo motivo do codigoMutuario acima.
+      Verifica duplicado por número do pedido, isolado por empresa,
+      mesmo motivo do codigoMutuario acima. Contra o Set em memória.
     */
-    const pedidoExistente = await PedidoCredito.findOne({
-      where: { numeroPedido, empresaId }
-    });
-
-    if (pedidoExistente) {
+    if (numerosVistos.has(numeroPedido)) {
       erros.push({
         linha: numeroLinha,
         erro: `NumeroPedido '${numeroPedido}' já existe.`
@@ -1270,11 +1313,9 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Localiza o mutuário pelo código
+      Localiza o mutuário pelo código, no mapa carregado antes do loop.
     */
-    const mutuario = await Mutuario.findOne({
-      where: { codigoMutuario, empresaId }
-    });
+    const mutuario = mutuariosPorCodigo.get(codigoMutuario);
 
     if (!mutuario) {
       erros.push({
@@ -1285,39 +1326,59 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Monta os dados do pedido
+      Marca como visto já aqui, para apanhar duplicados entre linhas do
+      mesmo ficheiro.
     */
-    const dadosPedido = {
-      numeroPedido,
-      mutuarioId: mutuario.id,
-      empresaId,
-      valorSolicitado,
-      prazo,
-      taxa,
-      prestacao,
-      jurosTotal,
-      montanteTotal,
-      finalidade,
-      pacoteFinanciamento: pacoteFinanciamento || null,
-      status: status || "SUBMETIDO",
-      etapaAtual: etapaAtual || 1,
-      dataSubmissao: dataSubmissao || null,
-      prazoAvaliacao: prazoAvaliacao || null,
-      prazoValidacao: prazoValidacao || null,
-      observacoes: observacoes || null,
-      createdBy: userId,
-    };
+    numerosVistos.add(numeroPedido);
 
     /*
-      Cria o pedido
+      Monta os dados do pedido
     */
-    const novoPedido = await PedidoCredito.create(dadosPedido);
-
-    importados.push({
-      id: novoPedido.id,
-      numeroPedido: novoPedido.numeroPedido,
+    paraCriar.push({
+      dados: {
+        numeroPedido,
+        mutuarioId: mutuario.id,
+        empresaId,
+        valorSolicitado,
+        prazo,
+        taxa,
+        prestacao,
+        jurosTotal,
+        montanteTotal,
+        finalidade,
+        pacoteFinanciamento: pacoteFinanciamento || null,
+        status: status || "SUBMETIDO",
+        etapaAtual: etapaAtual || 1,
+        dataSubmissao: dataSubmissao || null,
+        prazoAvaliacao: prazoAvaliacao || null,
+        prazoValidacao: prazoValidacao || null,
+        observacoes: observacoes || null,
+        createdBy: userId,
+      },
       codigoMutuario: mutuario.codigoMutuario,
       nomeMutuario: mutuario.nomeCompleto,
+    });
+  }
+
+  /*
+    Cria todos os pedidos válidos numa única query. `returning: true`
+    preserva a ordem de entrada nas instâncias devolvidas (Postgres), o
+    que permite reassociar cada pedido criado ao mutuário da mesma linha
+    sem outra query.
+  */
+  if (paraCriar.length) {
+    const novosPedidos = await PedidoCredito.bulkCreate(
+      paraCriar.map((item) => item.dados),
+      { returning: true }
+    );
+
+    novosPedidos.forEach((novoPedido, i) => {
+      importados.push({
+        id: novoPedido.id,
+        numeroPedido: novoPedido.numeroPedido,
+        codigoMutuario: paraCriar[i].codigoMutuario,
+        nomeMutuario: paraCriar[i].nomeMutuario,
+      });
     });
   }
 
@@ -1333,16 +1394,16 @@ async function importarExcellPedidos({ fileBuffer, userId, empresaId }) {
 /*
   ===========================================================
   * Service responsável por importar créditos já existentes
-  * ("saldo de abertura") via Excel — migração de empréstimos
+  * ("saldo de abertura") via Excel, migração de empréstimos
   * que já estavam em curso antes deste sistema (caderno/Excel
   * do cliente), não novos pedidos.
   ===========================================================
 
   Ao contrário de importarExcellPedidos (que só cria um PedidoCredito
-  "em aberto"), esta função cria o crédito de facto — PedidoCredito
+  "em aberto"), esta função cria o crédito de facto, PedidoCredito
   (invólucro, já DESEMBOLSADO), Desembolso e Credito, com o saldo
   devedor de HOJE, não recalculado desde o início. As parcelas já
-  pagas antes da migração não são recriadas uma a uma — só as que
+  pagas antes da migração não são recriadas uma a uma, só as que
   ainda faltam pagar, ver credito.service.js (criarCreditoImportado).
 */
 async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
@@ -1370,12 +1431,27 @@ async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
   const importados = [];
 
   // Mesmo critério de fallback de taxa usado em importarExcellPedidos.
-  const empresa = await Empresa.findByPk(empresaId, {
-    attributes: ["taxaJurosMin", "taxaJurosMax"],
-  });
+  const empresa = await obterEmpresaCacheada(empresaId);
   const taxaMin = Number(empresa?.taxaJurosMin ?? 0);
   const taxaMax = Number(empresa?.taxaJurosMax ?? 100);
   const taxaEstimativaPadrao = Number(empresa?.taxaJurosMin ?? 18);
+
+  /*
+    Nota sobre este importador em particular: ao contrário dos outros
+    dois, cada linha aqui cria PedidoCredito + Desembolso + Credito (e
+    possivelmente parcelas) dentro de uma transação própria, é lógica
+    de negócio por linha, não um insert simples, por isso não convertido
+    para bulkCreate (misturar isso num único bulk quebraria a garantia
+    de atomicidade por contrato migrado). A parte que É um N+1 puro,
+    o findOne do mutuário por código, fica pré-carregada abaixo, igual
+    aos outros dois importadores.
+  */
+  const mutuariosDaEmpresa = await Mutuario.findAll({
+    where: { empresaId },
+    attributes: ["id", "codigoMutuario", "nomeCompleto"],
+    raw: true,
+  });
+  const mutuariosPorCodigo = new Map(mutuariosDaEmpresa.map((m) => [m.codigoMutuario, m]));
 
   for (let index = 0; index < linhas.length; index++) {
     const linha = linhas[index];
@@ -1484,7 +1560,7 @@ async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
 
     // Prestação: se a planilha não trouxer o valor real da prestação
     // (recomendado, para refletir o contrato real), calcula pela
-    // fórmula padrão — igual ao resto do sistema.
+    // fórmula padrão, igual ao resto do sistema.
     let prestacao;
     if (prestacaoBruta === "" || prestacaoBruta === null) {
       prestacao = calcularPrestacao(valorOriginal, taxa, prazo);
@@ -1509,9 +1585,9 @@ async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
     }
 
     /*
-      Localiza o mutuário pelo código, isolado por empresa
+      Localiza o mutuário pelo código, no mapa carregado antes do loop.
     */
-    const mutuario = await Mutuario.findOne({ where: { codigoMutuario, empresaId } });
+    const mutuario = mutuariosPorCodigo.get(codigoMutuario);
     if (!mutuario) {
       erros.push({ linha: numeroLinha, erro: `Mutuário com código '${codigoMutuario}' não encontrado.` });
       continue;
@@ -1519,7 +1595,7 @@ async function importarExcellCreditos({ fileBuffer, userId, empresaId }) {
 
     /*
       Cria PedidoCredito (invólucro) + Desembolso + Credito numa
-      transação — se algo falhar a meio, nada fica meio-criado.
+      transação, se algo falhar a meio, nada fica meio-criado.
     */
     try {
       const credito = await sequelize.transaction(async (t) => {

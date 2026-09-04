@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 // Config no formato que o sequelize-cli exige (separado do config/db.js,
-// que é a ligação programática usada pela app em runtime — mesmas envs).
+// que é a ligação programática usada pela app em runtime, mesmas envs).
 const base = {
   username: process.env.DB_USER,
   password: process.env.DB_PASS,

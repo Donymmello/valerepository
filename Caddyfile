@@ -1,0 +1,17 @@
+# Reverse proxy + HTTPS automático (Let's Encrypt) para o Tshemba.
+# Caddy renova o certificado sozinho, desde que:
+#   1. este domínio já aponte (DNS, registo A) para o IP desta VPS;
+#   2. as portas 80 e 443 estejam abertas no firewall da VPS.
+#
+# /api/* vai para o backend Node, o resto vai para o frontend (SPA) servido
+# pelo Nginx dentro do container web_frontend.
+
+tshemba.vektarmz.com {
+    handle /api/* {
+        reverse_proxy api_backend:5000
+    }
+
+    handle {
+        reverse_proxy web_frontend:80
+    }
+}

@@ -5,9 +5,9 @@
 
   A forma de verificar difere por dialeto:
   - MySQL: describeTable devolve o tipo como texto, ex: "enum('A','B')"
-    — basta procurar a substring.
+   , basta procurar a substring.
   - Postgres: ENUMs são um tipo à parte (catálogo pg_type/pg_enum), a
-    coluna em describeTable aparece só como "USER-DEFINED" — precisa de
+    coluna em describeTable aparece só como "USER-DEFINED", precisa de
     consultar o catálogo do sistema. Sequelize nomeia o tipo como
     enum_<tabela>_<coluna> por omissão.
 */

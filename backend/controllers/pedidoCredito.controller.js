@@ -1,9 +1,10 @@
-const { PedidoCredito, Mutuario, User, Empresa, AprovacaoPedido, Desembolso, Reembolso, Credito, sequelize } = require("../models");
+const { PedidoCredito, Mutuario, User, AprovacaoPedido, Desembolso, Reembolso, Credito, sequelize } = require("../models");
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { Op } = require("sequelize");
 const { podeCriarPedido, podeEditarPedido, podeTransitarStatus, STATUS_PEDIDO } = require("../utils/regrasPedido");
 const calcularPrestacao = require("../utils/calCredito");
 const { notificarStaffDaEmpresa } = require("../services/notificacaoInterna.service");
+const { obterEmpresaCacheada } = require("../utils/empresaCache");
 
 // =========================================================================
 // HELPERS / UTILS
@@ -75,9 +76,7 @@ async function createPedidoCredito(req, res) {
     // melhor cenário para o mutuário). A taxa final é decidida pelo
     // analista dentro da faixa da empresa na aprovação de nível 1
     // (ver aprovacaoPedido.controller.js).
-    const empresa = await Empresa.findByPk(req.user.empresaId, {
-      attributes: ["taxaJurosMin"],
-    });
+    const empresa = await obterEmpresaCacheada(req.user.empresaId);
     const taxa = Number(empresa?.taxaJurosMin ?? 18);
 
     const prestacao = calcularPrestacao(vSoli, taxa, pMeses);
@@ -137,6 +136,11 @@ async function getAllPedidosCredito(req, res) {
         { model: User, as: "criador", attributes: ["id", "nome", "email", "role"] },
       ],
       order: [["id", "DESC"]],
+      // Sem limite, esta lista crescia sem travão nenhum, tela de
+      // segurança generosa (bem acima do volume atual de qualquer
+      // empresa), não uma paginação real. Quando o volume justificar
+      // paginação de verdade na UI, isto muda para page/pageSize.
+      limit: 500,
     });
     return res.status(200).json(pedidos);
   } catch (error) {
@@ -217,7 +221,7 @@ async function getPedidosElegiveisDesembolso(req, res) {
  */
 async function getPedidosElegiveisReembolso(req, res) {
   try {
-    // Reembolso não tem associação direta com PedidoCredito — relaciona-se
+    // Reembolso não tem associação direta com PedidoCredito, relaciona-se
     // através de Credito (Reembolso -> Credito -> PedidoCredito), tal como
     // corrigido em relatorio.controller.js, extrato.controller.js e
     // portalExport.controller.js. Um include direto aqui rebentava sempre

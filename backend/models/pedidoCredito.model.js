@@ -14,7 +14,7 @@ const PedidoCredito = sequelize.define(
       primaryKey: true,
     },
 
-    // Nota: NÃO é `unique: true` aqui — igual ao codigoMutuario, só
+    // Nota: NÃO é `unique: true` aqui, igual ao codigoMutuario, só
     // precisa de ser único dentro da mesma empresa. Ver `indexes` abaixo.
     numeroPedido: {
       type: DataTypes.STRING(50),

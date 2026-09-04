@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Endpoints públicos de autenticação: um 401 aqui é "credenciais erradas",
-// não "sessão expirada" — a própria página trata o erro, sem redirecionar.
+// não "sessão expirada", a própria página trata o erro, sem redirecionar.
 const ENDPOINTS_AUTH_PUBLICOS = [
   "/auth/login",
   "/auth/register-mutuario",
@@ -32,7 +32,7 @@ const ENDPOINTS_AUTH_PUBLICOS = [
 /*
   Interceptor de resposta: se o backend devolver 401 fora de um endpoint
   público de auth, a sessão deixou de ser válida (token expirado, ou a
-  subscrição da empresa mudou de estado — o backend revalida isto em
+  subscrição da empresa mudou de estado, o backend revalida isto em
   cada pedido). Em vez de cada página mostrar um erro genérico, limpa a
   sessão e manda para o login com um aviso.
 */

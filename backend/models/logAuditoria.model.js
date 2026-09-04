@@ -48,6 +48,12 @@ const LogAuditoria = sequelize.define(
     tableName: "logs_auditoria",
     createdAt: "created_at",
     updatedAt: false,
+    indexes: [
+      // getAllLogsAuditoria (logAuditoria.controller.js) faz JOIN a users
+      // (scoping por empresa) e ordena por created_at.
+      { fields: ["user_id", "created_at"] },
+      { fields: ["entidade", "entidade_id"] },
+    ],
   }
 );
 

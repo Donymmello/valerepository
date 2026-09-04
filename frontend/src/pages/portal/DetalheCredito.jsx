@@ -228,7 +228,7 @@ export default function DetalheCredito() {
                 <TableBody>
                   {credito.parcelas.map((parcela) => {
                     // "Vencida" calculado pela data, não só pelo campo
-                    // `estado` — este só passa a ATRASADO quando há um
+                    // `estado`, este só passa a ATRASADO quando há um
                     // pagamento parcial registado contra a parcela; sem
                     // isso, uma parcela vencida fica presa em PENDENTE
                     // indefinidamente (mesma lógica já usada no Dashboard

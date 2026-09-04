@@ -3,13 +3,13 @@
 // Baseline: cria o esquema atual a partir dos models já existentes,
 // em vez de reescrever ~20 tabelas à mão (uma fonte de verdade só).
 // ponytail: FK checks desligados durante a criação para não ter de
-// ordenar as tabelas por dependência — religa no fim.
+// ordenar as tabelas por dependência, religa no fim.
 //
 // A instrução para desligar/religar os FK checks é diferente por
 // dialeto (MySQL: SET FOREIGN_KEY_CHECKS; Postgres: SET
-// session_replication_role) — ver desligarFkChecks/religarFkChecks.
+// session_replication_role), ver desligarFkChecks/religarFkChecks.
 // Nota: em Postgres, "SET session_replication_role" exige que o
-// utilizador da BD seja superuser — é o caso do utilizador criado pelo
+// utilizador da BD seja superuser, é o caso do utilizador criado pelo
 // docker-compose (POSTGRES_USER), mas pode não ser o caso em serviços
 // geridos (ex: RDS) sem privilégios elevados.
 const { sequelize } = require("../models");

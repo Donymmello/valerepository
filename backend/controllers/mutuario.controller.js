@@ -185,7 +185,7 @@ async function getAllMutuarios(req, res) {
         situacao.saldoEmDivida += Number(credito.saldoAtual || 0);
         // "Em atraso" calculado pela data de vencimento (não só pelo campo
         // `estado`, que só passa a ATRASADO quando alguém regista um
-        // pagamento parcial contra a parcela — ver atualizarParcelaAposReembolso
+        // pagamento parcial contra a parcela, ver atualizarParcelaAposReembolso
         // em credito.service.js). Uma parcela vencida sem nenhum pagamento
         // registado fica PENDENTE para sempre nesse campo, por isso usar só
         // `estado === "ATRASADO"` subcontava parcelas realmente vencidas.

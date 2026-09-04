@@ -207,6 +207,9 @@ async function getRelatorioPedidos(req, res) {
         },
       ],
       order: [["created_at", "DESC"]],
+      // RelatoriosList.jsx só mostra os 8 mais recentes (slice client-side)
+      //, trava de segurança, o total agregado vem de getResumoGeral.
+      limit: 500,
     });
 
     return res.status(200).json(pedidos);
@@ -239,6 +242,8 @@ async function getRelatorioFinanceiroPedidos(req, res) {
         },
       ],
       order: [["created_at", "DESC"]],
+      // Mesma trava de segurança de getRelatorioPedidos.
+      limit: 500,
     });
 
     const pedidoIds = pedidos.map((pedido) => pedido.id);
@@ -252,7 +257,7 @@ async function getRelatorioFinanceiroPedidos(req, res) {
         where: pedidoIds.length ? { pedidoId: { [Op.in]: pedidoIds } } : undefined,
         group: ["pedidoId"],
       }),
-      // Reembolso não tem coluna pedidoId — relaciona-se com o pedido através
+      // Reembolso não tem coluna pedidoId, relaciona-se com o pedido através
       // de Credito (Reembolso -> Credito -> PedidoCredito). Por isso soma-se
       // em JS em vez de um GROUP BY direto na BD.
       Reembolso.findAll({
@@ -345,6 +350,9 @@ async function getRelatorioDesembolsos(req, res) {
           },
         ],
         order: [["dataDesembolso", "DESC"]],
+        // quantidade/totalDesembolsado já vêm agregados abaixo (count/sum),
+        // independentes deste array, trava de segurança, não afeta os totais.
+        limit: 500,
       }),
       Desembolso.count({ where }),
       Desembolso.sum("valorDesembolsado", { where }),
@@ -369,7 +377,7 @@ async function getRelatorioReembolsos(req, res) {
     const where = { empresaId: req.user.empresaId, ...buildDateRangeFilter("dataReembolso", req.query) };
 
     const [reembolsos, quantidade, totalReembolsado] = await Promise.all([
-      // Reembolso não tem associação direta com PedidoCredito — passa por
+      // Reembolso não tem associação direta com PedidoCredito, passa por
       // Credito (Reembolso -> Credito -> PedidoCredito).
       Reembolso.findAll({
         where,
@@ -403,6 +411,8 @@ async function getRelatorioReembolsos(req, res) {
           },
         ],
         order: [["dataReembolso", "DESC"]],
+        // Mesma trava de getRelatorioDesembolsos, totais vêm do count/sum abaixo.
+        limit: 500,
       }),
       Reembolso.count({ where }),
       Reembolso.sum("valorReembolsado", { where }),

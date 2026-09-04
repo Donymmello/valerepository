@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { registerMutuarioWithOTPRequest } from "../../api/auth.api";
+import { NOME_PLATAFORMA } from "../../theme";
 
 export default function RegisterMutuario() {
   const navigate = useNavigate();
@@ -68,7 +69,7 @@ export default function RegisterMutuario() {
               sx={{ fontWeight: "bold", color: "#1a237e", cursor: "pointer" }}
               onClick={() => navigate("/")}
             >
-              Sistema de Gestão de Crédito
+              {NOME_PLATAFORMA}
             </Typography>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -114,7 +115,7 @@ export default function RegisterMutuario() {
                 Criar Conta
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Registo rápido — só o essencial. Receberá um código de verificação por email, e completa o
+                Registo rápido, só o essencial. Receberá um código de verificação por email, e completa o
                 resto do perfil (documento, NUIT, morada) depois, dentro do portal.
               </Typography>
             </Box>
@@ -156,7 +157,7 @@ export default function RegisterMutuario() {
 
               <Alert severity="info" sx={{ mb: 3 }}>
                 Documento de identificação, NUIT, data de nascimento e morada ficam para completar depois,
-                no portal — precisas deles só quando for submeter o teu primeiro pedido de crédito.
+                no portal, precisas deles só quando for submeter o teu primeiro pedido de crédito.
               </Alert>
 
               <Divider sx={{ mb: 3 }} />
@@ -189,7 +190,7 @@ export default function RegisterMutuario() {
       <Box sx={{ bgcolor: "#1a237e", color: "#ffffff", py: 3 }}>
         <Container maxWidth="lg">
           <Typography variant="body2" align="center">
-            &copy; {new Date().getFullYear()} Sistema de Gestão de Crédito. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
+            &copy; {new Date().getFullYear()} {NOME_PLATAFORMA}. Todos os direitos reservados. Desenvolvido por Sidonio Aly.
           </Typography>
         </Container>
       </Box>
