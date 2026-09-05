@@ -1,0 +1,16 @@
+# Só a landing page pública é para indexar. Portal do mutuário, backoffice,
+# painel superadmin e os fluxos de autenticação são áreas privadas/sem
+# conteúdo indexável, e não devem aparecer em resultados de busca.
+User-agent: *
+Allow: /$
+Allow: /landing-page
+Disallow: /portal/
+Disallow: /interno/
+Disallow: /superadmin/
+Disallow: /login
+Disallow: /register-mutuario
+Disallow: /verify-otp
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://tshemba.vektramz.com/sitemap.xml

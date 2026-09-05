@@ -16,6 +16,15 @@ const { iniciarAgendador } = require("./services/agendador.service");
 
 const app = express();
 
+// Em produção o backend só é alcançado através do Caddy (reverse proxy da
+// VPS), nunca diretamente da internet (ver docker-compose.yml, porta só em
+// 127.0.0.1). "1" = confiar apenas no primeiro hop (o próprio Caddy) para
+// os headers X-Forwarded-*, não em qualquer proxy encadeado depois dele.
+// Sem isto, o Express ignora X-Forwarded-For por omissão e o
+// express-rate-limit rejeita o pedido (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR),
+// derrubando toda a API atrás do rate limiter (login incluído).
+app.set("trust proxy", 1);
+
 // =========================================================================
 // MIDDLEWARES GLOBAIS
 // =========================================================================

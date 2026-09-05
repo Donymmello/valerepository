@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a237e"/>
+      <stop offset="100%" stop-color="#4c5fd5"/>
+    </linearGradient>
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e8eaff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- logomark -->
+  <rect x="120" y="205" width="220" height="220" rx="48" fill="url(#markGrad)"/>
+  <path d="M175 275h110M230 275v80" stroke="#1a237e" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- wordmark -->
+  <text x="400" y="330" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="800" fill="#ffffff">Tshemba</text>
+  <text x="402" y="390" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="400" fill="rgba(255,255,255,0.85)">Gestão de crédito para financeiras e microcrédito</text>
+</svg>
