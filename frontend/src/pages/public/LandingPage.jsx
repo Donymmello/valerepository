@@ -5,6 +5,7 @@ import Navbar from "./landing/Navbar";
 import Hero from "./landing/Hero";
 import HowItWorks from "./landing/HowItWorks";
 import Features from "./landing/Features";
+import Precos from "./landing/Precos";
 import TrialSection from "./landing/TrialSection";
 import Faq from "./landing/Faq";
 import Footer from "./landing/Footer";
@@ -39,6 +40,7 @@ export default function LandingPage() {
 
       <HowItWorks />
       <Features />
+      <Precos onNavTrial={irParaTrial} />
 
       {!isAuthenticated && <TrialSection />}
 

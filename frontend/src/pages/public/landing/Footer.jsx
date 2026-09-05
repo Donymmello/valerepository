@@ -8,6 +8,7 @@ const COLUNAS = [
     links: [
       { label: "Como Funciona", id: "como-funciona" },
       { label: "Funcionalidades", id: "funcionalidades" },
+      { label: "Preços", id: "precos" },
       { label: "FAQ", id: "faq" },
     ],
   },

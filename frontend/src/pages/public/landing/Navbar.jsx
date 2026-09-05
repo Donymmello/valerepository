@@ -6,6 +6,7 @@ import Logomark from "./Logomark";
 const LINKS = [
   { id: "como-funciona", label: "Como Funciona" },
   { id: "funcionalidades", label: "Funcionalidades" },
+  { id: "precos", label: "Preços" },
   { id: "faq", label: "FAQ" },
 ];
 
