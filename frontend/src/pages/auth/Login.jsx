@@ -7,6 +7,8 @@ import {
   Box,
   Button,
   Container,
+  IconButton,
+  InputAdornment,
   Link,
   Paper,
   TextField,
@@ -14,6 +16,7 @@ import {
   Stack,
   Divider,
 } from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useAuth } from "../../context/useAuth";
 import { NOME_PLATAFORMA } from "../../theme";
 
@@ -29,6 +32,7 @@ export default function Login() {
 
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const sessaoExpirada = searchParams.get("sessao") === "expirada";
 
   const handleChange = (event) => {
@@ -138,10 +142,24 @@ export default function Login() {
                   fullWidth
                   label="Password"
                   name="password"
-                  type="password"
+                  type={mostrarPassword ? "text" : "password"}
                   value={form.password}
                   onChange={handleChange}
                   autoComplete="current-password"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={mostrarPassword ? "Ocultar password" : "Mostrar password"}
+                          onClick={() => setMostrarPassword((prev) => !prev)}
+                          edge="end"
+                          tabIndex={-1}
+                        >
+                          {mostrarPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Stack>
 
