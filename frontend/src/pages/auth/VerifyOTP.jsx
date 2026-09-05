@@ -10,7 +10,7 @@ import {
   Typography,
   CircularProgress,
 } from "@mui/material";
-import { verifyOTPRequest } from "../../api/auth.api";
+import { verifyOTPRequest, registerMutuarioWithOTPRequest } from "../../api/auth.api";
 import { useAuth } from "../../context/useAuth";
 
 export default function VerifyOTP() {
@@ -19,11 +19,14 @@ export default function VerifyOTP() {
   const { setSession } = useAuth();
 
   const email = location.state?.email;
+  const conviteToken = location.state?.conviteToken;
+  const formData = location.state?.formData;
 
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
 
   if (!email) {
     return (
@@ -81,6 +84,32 @@ export default function VerifyOTP() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Reenvia o OTP chamando o mesmo endpoint de pedido inicial (gera um
+  // código novo com mais 10 minutos de validade). Só é possível quando
+  // formData/conviteToken vieram no state (registo feito nesta mesma
+  // sessão do browser) — sem isso, não há dados para repetir o pedido em
+  // segurança, e o utilizador tem de pedir um novo link de convite.
+  const handleReenviar = async () => {
+    if (!formData || !conviteToken) {
+      navigate("/register-mutuario");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setReenviando(true);
+
+    try {
+      await registerMutuarioWithOTPRequest({ ...formData, token: conviteToken });
+      setMessage("Novo código enviado para o seu email.");
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao reenviar o código.");
+    } finally {
+      setReenviando(false);
     }
   };
 
@@ -145,11 +174,8 @@ export default function VerifyOTP() {
 
           <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
             Não recebeu o código?{" "}
-            <Button
-              size="small"
-              onClick={() => navigate("/register-mutuario")}
-            >
-              Solicitar novo
+            <Button size="small" onClick={handleReenviar} disabled={reenviando}>
+              {reenviando ? "A reenviar..." : "Solicitar novo"}
             </Button>
           </Typography>
         </Paper>

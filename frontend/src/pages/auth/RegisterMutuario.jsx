@@ -48,7 +48,10 @@ export default function RegisterMutuario() {
 
     try {
       await registerMutuarioWithOTPRequest({ ...form, token: conviteToken });
-      navigate("/verify-otp", { state: { email: form.email } });
+      // Passa os dados do formulário e o token do convite, não só o email,
+      // para o "Solicitar novo" em VerifyOTP conseguir pedir outro OTP sem
+      // precisar de voltar a este ecrã (que exige o link de convite).
+      navigate("/verify-otp", { state: { email: form.email, conviteToken, formData: form } });
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || "Erro ao registar mutuário.");
