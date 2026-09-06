@@ -24,6 +24,8 @@ jest.mock("../utils/emailService", () => ({
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || "segredo-de-teste-nao-usar-em-producao";
 
+const bcrypt = require("bcryptjs");
+
 // O default do jest (5000ms) é apertado demais para sequelize.sync({force:true})
 // contra um sqlite em memória dentro de Docker, cria/recria todas as
 // tabelas e índices do sistema (incluindo os compostos novos), e varia
@@ -38,10 +40,18 @@ const {
   Mutuario,
   ConvitePortal,
   EmailVerificationToken,
+  RefreshToken,
+  PasswordResetToken,
 } = require("../models");
 const {
   registerMutuarioRequestOTP,
   verifyOTPAndRegister,
+  registerInterno,
+  login,
+  refreshAccessToken,
+  logout,
+  forgotPassword,
+  resetPassword,
 } = require("../controllers/auth.controller");
 
 function mockRes() {
@@ -55,11 +65,12 @@ function idUnico() {
   return `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
 
-async function criarEmpresaComAdmin() {
+async function criarEmpresaComAdmin(opcoes = {}) {
   const sufixo = idUnico();
   const empresa = await Empresa.create({
     nome: `Empresa Teste ${sufixo}`,
     slug: `empresa-teste-${sufixo}`,
+    ...(opcoes.plano ? { plano: opcoes.plano } : {}),
   });
   const admin = await User.create({
     empresaId: empresa.id,
@@ -69,6 +80,15 @@ async function criarEmpresaComAdmin() {
     role: "ADMIN",
   });
   return { empresa, admin };
+}
+
+// req.user aqui imita o payload já decodificado do JWT (ver generateToken
+// em auth.controller.js: id, nome, email, role, empresaId).
+function reqComoAdmin(admin, empresa, body) {
+  return {
+    user: { id: admin.id, role: "ADMIN", empresaId: empresa.id },
+    body,
+  };
 }
 
 async function criarConviteValido(empresaId, criadoPor) {
@@ -336,5 +356,201 @@ describe("Bloqueio de registos duplicados (integração, BD real)", () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(409);
+  });
+});
+
+describe("Limite de utilizadores internos por plano (registerInterno)", () => {
+  test("bloqueia com 403 o 4º utilizador interno no plano STARTER (limite de 3)", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin({ plano: "STARTER" });
+    const sufixo = idUnico();
+
+    // Admin já conta como 1. Mais 2 diretamente na BD para chegar a 3 (o
+    // limite do STARTER, ver backend/config/planos.js).
+    await User.create({
+      empresaId: empresa.id, nome: "Gestor Teste", email: `gestor-${sufixo}@teste.com`,
+      passwordHash: "hash-fake", role: "GESTOR", ativo: true,
+    });
+    await User.create({
+      empresaId: empresa.id, nome: "Analista Teste", email: `analista-${sufixo}@teste.com`,
+      passwordHash: "hash-fake", role: "ANALISTA", ativo: true,
+    });
+
+    const res = mockRes();
+    await registerInterno(
+      reqComoAdmin(admin, empresa, {
+        nome: "Diretor a mais", email: `diretor-${sufixo}@teste.com`, password: "senha1234", role: "DIRETOR",
+      }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json.mock.calls[0][0].motivo).toBe("LIMITE_UTILIZADORES_PLANO");
+    expect(res.json.mock.calls[0][0].message).toMatch(/3 utilizadores/);
+
+    const criado = await User.findOne({ where: { email: `diretor-${sufixo}@teste.com` } });
+    expect(criado).toBeNull();
+  });
+
+  test("permite o 4º utilizador interno no plano BUSINESS (limite de 10)", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin({ plano: "BUSINESS" });
+    const sufixo = idUnico();
+
+    await User.create({
+      empresaId: empresa.id, nome: "Gestor Teste", email: `gestor-${sufixo}@teste.com`,
+      passwordHash: "hash-fake", role: "GESTOR", ativo: true,
+    });
+    await User.create({
+      empresaId: empresa.id, nome: "Analista Teste", email: `analista-${sufixo}@teste.com`,
+      passwordHash: "hash-fake", role: "ANALISTA", ativo: true,
+    });
+
+    const res = mockRes();
+    await registerInterno(
+      reqComoAdmin(admin, empresa, {
+        nome: "Diretor Novo", email: `diretor-${sufixo}@teste.com`, password: "senha1234", role: "DIRETOR",
+      }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const criado = await User.findOne({ where: { email: `diretor-${sufixo}@teste.com` } });
+    expect(criado).not.toBeNull();
+  });
+
+  test("plano ENTERPRISE não tem limite de utilizadores internos", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin({ plano: "ENTERPRISE" });
+    const sufixo = idUnico();
+
+    for (let i = 0; i < 5; i += 1) {
+      await User.create({
+        empresaId: empresa.id, nome: `Interno ${i}`, email: `interno-${i}-${sufixo}@teste.com`,
+        passwordHash: "hash-fake", role: "GESTOR", ativo: true,
+      });
+    }
+
+    const res = mockRes();
+    await registerInterno(
+      reqComoAdmin(admin, empresa, {
+        nome: "Mais Um", email: `mais-um-${sufixo}@teste.com`, password: "senha1234", role: "ANALISTA",
+      }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test("utilizadores internos inativos não contam para o limite do plano", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin({ plano: "STARTER" });
+    const sufixo = idUnico();
+
+    // 3 inativos: se contassem, já estariam no limite do STARTER. Como
+    // não contam, ainda há espaço (admin ativo = 1 dos 3 permitidos).
+    for (let i = 0; i < 3; i += 1) {
+      await User.create({
+        empresaId: empresa.id, nome: `Inativo ${i}`, email: `inativo-${i}-${sufixo}@teste.com`,
+        passwordHash: "hash-fake", role: "GESTOR", ativo: false,
+      });
+    }
+
+    const res = mockRes();
+    await registerInterno(
+      reqComoAdmin(admin, empresa, {
+        nome: "Novo Ativo", email: `novo-ativo-${sufixo}@teste.com`, password: "senha1234", role: "GESTOR",
+      }),
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+});
+
+describe("Refresh token: renovar sessão sem password, logout e reset revogam (integração, BD real)", () => {
+  async function criarEmpresaComAdminELogin(senha = "senha1234") {
+    const sufixo = idUnico();
+    const passwordHash = await bcrypt.hash(senha, 10);
+    const empresa = await Empresa.create({
+      nome: `Empresa Refresh ${sufixo}`,
+      slug: `empresa-refresh-${sufixo}`,
+    });
+    const admin = await User.create({
+      empresaId: empresa.id,
+      nome: "Admin Refresh",
+      email: `admin-refresh-${sufixo}@teste.com`,
+      passwordHash,
+      role: "ADMIN",
+    });
+    return { empresa, admin, senha };
+  }
+
+  test("login emite um refreshToken persistido, trocável por um novo access token em /auth/refresh", async () => {
+    const { admin, senha } = await criarEmpresaComAdminELogin();
+
+    const resLogin = mockRes();
+    await login({ body: { email: admin.email, password: senha } }, resLogin);
+
+    expect(resLogin.status).toHaveBeenCalledWith(200);
+    const payloadLogin = resLogin.json.mock.calls[0][0];
+    expect(typeof payloadLogin.refreshToken).toBe("string");
+
+    const registoPersistido = await RefreshToken.findOne({ where: { token: payloadLogin.refreshToken } });
+    expect(registoPersistido).not.toBeNull();
+    expect(registoPersistido.userId).toBe(admin.id);
+
+    const resRefresh = mockRes();
+    await refreshAccessToken({ body: { refreshToken: payloadLogin.refreshToken } }, resRefresh);
+
+    expect(resRefresh.status).toHaveBeenCalledWith(200);
+    expect(typeof resRefresh.json.mock.calls[0][0].token).toBe("string");
+  });
+
+  test("refresh token inexistente é rejeitado com 401", async () => {
+    const res = mockRes();
+    await refreshAccessToken({ body: { refreshToken: "isto-nao-existe" } }, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  test("logout revoga o refresh token, uma tentativa de refresh a seguir falha com 401", async () => {
+    const { admin, senha } = await criarEmpresaComAdminELogin();
+
+    const resLogin = mockRes();
+    await login({ body: { email: admin.email, password: senha } }, resLogin);
+    const { refreshToken } = resLogin.json.mock.calls[0][0];
+
+    const resLogout = mockRes();
+    await logout({ body: { refreshToken } }, resLogout);
+    expect(resLogout.status).toHaveBeenCalledWith(200);
+
+    const registo = await RefreshToken.findOne({ where: { token: refreshToken } });
+    expect(registo.revoked).toBe(true);
+
+    const resRefreshDepois = mockRes();
+    await refreshAccessToken({ body: { refreshToken } }, resRefreshDepois);
+    expect(resRefreshDepois.status).toHaveBeenCalledWith(401);
+  });
+
+  test("resetPassword revoga todos os refresh tokens ativos do utilizador (sessões antigas forçadas a novo login)", async () => {
+    const { admin, senha } = await criarEmpresaComAdminELogin();
+
+    // Duas sessões (dois refresh tokens) para o mesmo utilizador.
+    const resLogin1 = mockRes();
+    await login({ body: { email: admin.email, password: senha } }, resLogin1);
+    const refreshToken1 = resLogin1.json.mock.calls[0][0].refreshToken;
+
+    const resLogin2 = mockRes();
+    await login({ body: { email: admin.email, password: senha } }, resLogin2);
+    const refreshToken2 = resLogin2.json.mock.calls[0][0].refreshToken;
+
+    await forgotPassword({ body: { email: admin.email } }, mockRes());
+    const resetTokenRow = await PasswordResetToken.findOne({ where: { userId: admin.id } });
+    expect(resetTokenRow).not.toBeNull();
+
+    const resReset = mockRes();
+    await resetPassword({ body: { token: resetTokenRow.token, password: "novaSenha1234" } }, resReset);
+    expect(resReset.status).toHaveBeenCalledWith(200);
+
+    const registo1 = await RefreshToken.findOne({ where: { token: refreshToken1 } });
+    const registo2 = await RefreshToken.findOne({ where: { token: refreshToken2 } });
+    expect(registo1.revoked).toBe(true);
+    expect(registo2.revoked).toBe(true);
   });
 });

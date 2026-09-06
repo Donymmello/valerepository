@@ -17,7 +17,7 @@ jest.mock("bcryptjs");
 jest.mock("../utils/logAuditoria");
 jest.mock("../models", () => ({
   sequelize: { transaction: jest.fn((cb) => cb({})) },
-  User: { findOne: jest.fn(), findAll: jest.fn().mockResolvedValue([]) },
+  User: { findOne: jest.fn(), findAll: jest.fn().mockResolvedValue([]), findByPk: jest.fn() },
   Mutuario: { findByPk: jest.fn() },
   // findByPk usado em createPedidoCredito para ler a taxaJurosMin da
   // empresa (ver pedidoCredito.controller.js), mock tinha ficado
@@ -29,13 +29,17 @@ jest.mock("../models", () => ({
   ConvitePortal: {},
   PasswordResetToken: {},
   EmailVerificationToken: {},
+  // login() agora também emite um refresh token (ver emitirRefreshToken
+  // em auth.controller.js), sem isto o mock ficava undefined e login
+  // rebentava com "Cannot read properties of undefined (reading 'create')".
+  RefreshToken: { create: jest.fn(), findOne: jest.fn(), update: jest.fn() },
 }));
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
 
 const bcrypt = require("bcryptjs");
-const { User, Mutuario, PedidoCredito, Notificacao } = require("../models");
-const { login } = require("../controllers/auth.controller");
+const { User, Mutuario, PedidoCredito, Notificacao, RefreshToken } = require("../models");
+const { login, refreshAccessToken } = require("../controllers/auth.controller");
 const { createPedidoCredito, updatePedidoCredito } = require("../controllers/pedidoCredito.controller");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const requestIdMiddleware = require("../middleware/requestId.middleware");
@@ -92,7 +96,51 @@ describe("Authentication Flow", () => {
     expect(payload.token.length).toBeGreaterThan(10);
   });
 
-  test.todo("refresh de token expirado, não existe nenhum endpoint de refresh no backend");
+  test("refresh com token válido devolve novo access token (200), sem pedir password", async () => {
+    RefreshToken.findOne.mockResolvedValue({
+      userId: 1, revoked: false, expiresAt: new Date(Date.now() + 60 * 1000),
+    });
+    User.findByPk.mockResolvedValue({
+      id: 1, nome: "Ana", email: "x@x.com", role: "ADMIN", empresaId: 5, ativo: true,
+      empresa: { id: 5, estado: "ATIVA", trialEndsAt: null },
+    });
+
+    const req = { body: { refreshToken: "refresh-valido" } };
+    const res = mockRes();
+
+    await refreshAccessToken(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(401);
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    const payload = res.json.mock.calls[0][0];
+    expect(typeof payload.token).toBe("string");
+    expect(payload.token.length).toBeGreaterThan(10);
+  });
+
+  test("refresh com token inexistente/revogado é rejeitado (401), obriga novo login", async () => {
+    RefreshToken.findOne.mockResolvedValue(null);
+
+    const req = { body: { refreshToken: "refresh-invalido-ou-revogado" } };
+    const res = mockRes();
+
+    await refreshAccessToken(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(User.findByPk).not.toHaveBeenCalled();
+  });
+
+  test("refresh com token expirado é rejeitado (401)", async () => {
+    RefreshToken.findOne.mockResolvedValue({
+      userId: 1, revoked: false, expiresAt: new Date(Date.now() - 1000),
+    });
+
+    const req = { body: { refreshToken: "refresh-expirado" } };
+    const res = mockRes();
+
+    await refreshAccessToken(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
 });
 
 describe("OTP", () => {

@@ -194,8 +194,15 @@ describe("credito.service.js, aplicação de pagamentos e liquidação (models m
 
       await CreditoService.atualizarParcelaAposReembolso(1, 1, 400);
 
+      // atualizarParcelaAposReembolso aceita um 5º parâmetro `options` (para
+      // propagar transação, ver credito.service.js) e passa-o sempre como
+      // 2º argumento a .update(), mesmo quando é só "{}" (nenhuma
+      // transação/chamador não passou nada). Por isso a asserção tem de
+      // listar os dois argumentos, senão toHaveBeenCalledWith falha por
+      // contar só 1.
       expect(parcela.update).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: "PENDENTE", valorPago: 400, saldoParcela: 600 })
+        expect.objectContaining({ estado: "PENDENTE", valorPago: 400, saldoParcela: 600 }),
+        {}
       );
     });
 
@@ -206,7 +213,8 @@ describe("credito.service.js, aplicação de pagamentos e liquidação (models m
       await CreditoService.atualizarParcelaAposReembolso(1, 1, 600);
 
       expect(parcela.update).toHaveBeenCalledWith(
-        expect.objectContaining({ estado: "PAGO", valorPago: 1000, saldoParcela: 0 })
+        expect.objectContaining({ estado: "PAGO", valorPago: 1000, saldoParcela: 0 }),
+        {}
       );
     });
 
@@ -216,7 +224,7 @@ describe("credito.service.js, aplicação de pagamentos e liquidação (models m
 
       await CreditoService.atualizarParcelaAposReembolso(1, 1, 300);
 
-      expect(parcela.update).toHaveBeenCalledWith(expect.objectContaining({ estado: "ATRASADO" }));
+      expect(parcela.update).toHaveBeenCalledWith(expect.objectContaining({ estado: "ATRASADO" }), {});
     });
 
     test("rejeita pagamento maior que o saldo em dívida da parcela", async () => {
