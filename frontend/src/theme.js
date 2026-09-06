@@ -23,7 +23,7 @@ export const NOME_PLATAFORMA = "Tshemba";
 // Nome da empresa-mãe, dona do domínio vektramz.com. Usado no rodapé
 // (copyright) e em qualquer sítio que precise da razão social, em vez
 // do nome do produto.
-export const NOME_EMPRESA = "Vektar Technologies MZ";
+export const NOME_EMPRESA = "Vektra Technologies MZ";
 
 export const CORES = {
   marca: "#1a237e",
