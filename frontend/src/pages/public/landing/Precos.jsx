@@ -1,44 +1,68 @@
-import { Box, Container, Typography, Stack, Button, Chip } from "@mui/material";
+import { useState } from "react";
+import { Box, Container, Typography, Stack, Button, Chip, ToggleButtonGroup, ToggleButton } from "@mui/material";
 import { Check } from "@mui/icons-material";
 import { CORES } from "../../../theme";
 
+// Preço anual = 10x o mensal (2 meses grátis, ~17% de desconto), prática
+// comum de mercado para incentivar o compromisso anual.
+//
+// Benefícios alinhados com o que o sistema realmente tem hoje (ver
+// backend/routes/excell.routes.js e controllers/excell.controller.js):
+// exportação (mutuários, pedidos, desembolsos, reembolsos, relatório
+// financeiro) existe para todos; importação em massa (mutuários, pedidos,
+// créditos via Excel) é a funcionalidade mais sensível, por isso fica
+// reservada ao Empresarial. O Empresarial é sempre um superconjunto dos
+// planos abaixo, nunca perde uma funcionalidade que os outros têm.
 const PLANOS = [
   {
     nome: "Starter",
-    preco: "1.500",
+    precoMensal: 1500,
     descricao: "Para financeiras pequenas a começar.",
-    beneficios: ["Até 3 utilizadores", "Notificações por email e SMS", "Exportação em PDF e Excel", "Suporte por email"],
+    beneficios: [
+      "Até 3 utilizadores",
+      "Aprovação em 1 nível",
+      "Notificações por email e SMS",
+      "Exportação em PDF e Excel",
+      "Suporte por email",
+    ],
     destaque: false,
   },
   {
     nome: "Profissional",
-    preco: "3.500",
+    precoMensal: 3500,
     descricao: "Para operações em crescimento.",
     beneficios: [
       "Até 10 utilizadores",
       "Aprovação por 3 níveis (analista, gestor, diretor)",
       "Notificações por email e SMS",
       "Exportação em PDF e Excel",
+      "Auditoria completa",
       "Suporte prioritário",
     ],
     destaque: true,
   },
   {
     nome: "Empresarial",
-    preco: "7.500",
+    precoMensal: 7500,
     descricao: "Para financeiras com equipas maiores.",
     beneficios: [
-      "Utilizadores alargados",
+      "Utilizadores ilimitados",
       "Aprovação por 3 níveis (analista, gestor, diretor)",
       "Notificações por email e SMS",
       "Exportação em PDF e Excel",
+      "Importação em massa (mutuários, pedidos e créditos)",
+      "Auditoria completa",
       "Suporte prioritário dedicado",
     ],
     destaque: false,
   },
 ];
 
-function PlanoCard({ nome, preco, descricao, beneficios, destaque, onNavTrial }) {
+const formatarMT = (valor) => Math.round(valor).toLocaleString("pt-PT");
+
+function PlanoCard({ nome, precoMensal, ciclo, descricao, beneficios, destaque, onNavTrial }) {
+  const precoExibido = ciclo === "anual" ? precoMensal * 10 : precoMensal;
+  const precoMensalEquivalente = ciclo === "anual" ? precoMensal * 10 / 12 : precoMensal;
   return (
     <Box
       sx={{
@@ -80,13 +104,20 @@ function PlanoCard({ nome, preco, descricao, beneficios, destaque, onNavTrial })
         {descricao}
       </Typography>
 
-      <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: destaque ? "#fff" : "text.primary" }}>
-          {preco}
-        </Typography>
-        <Typography variant="body2" sx={{ color: destaque ? "rgba(255,255,255,0.82)" : "text.secondary" }}>
-          MT / mês
-        </Typography>
+      <Stack spacing={0.25} sx={{ mb: 3 }}>
+        <Stack direction="row" alignItems="baseline" spacing={0.5}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: destaque ? "#fff" : "text.primary" }}>
+            {formatarMT(precoMensalEquivalente)}
+          </Typography>
+          <Typography variant="body2" sx={{ color: destaque ? "rgba(255,255,255,0.82)" : "text.secondary" }}>
+            MT / mês
+          </Typography>
+        </Stack>
+        {ciclo === "anual" && (
+          <Typography variant="caption" sx={{ color: destaque ? "rgba(255,255,255,0.7)" : "text.secondary" }}>
+            {formatarMT(precoExibido)} MT faturados uma vez por ano
+          </Typography>
+        )}
       </Stack>
 
       <Stack spacing={1.25} sx={{ mb: 4, flex: 1 }}>
@@ -121,10 +152,16 @@ function PlanoCard({ nome, preco, descricao, beneficios, destaque, onNavTrial })
 }
 
 export default function Precos({ onNavTrial }) {
+  const [ciclo, setCiclo] = useState("mensal");
+
+  const handleCiclo = (_event, novoCiclo) => {
+    if (novoCiclo) setCiclo(novoCiclo);
+  };
+
   return (
     <Box id="precos" sx={{ py: { xs: 8, md: 11 }, bgcolor: CORES.fundo }}>
       <Container maxWidth="lg">
-        <Stack sx={{ textAlign: "center", mb: { xs: 5, md: 7 } }} spacing={0.5} alignItems="center">
+        <Stack sx={{ textAlign: "center", mb: { xs: 4, md: 5 } }} spacing={0.5} alignItems="center">
           <Typography variant="overline" sx={{ color: CORES.marca, fontWeight: 700, letterSpacing: 1.2 }}>
             Preços
           </Typography>
@@ -136,6 +173,51 @@ export default function Precos({ onNavTrial }) {
           </Typography>
         </Stack>
 
+        <Stack direction="row" justifyContent="center" sx={{ mb: { xs: 5, md: 6 } }}>
+          <ToggleButtonGroup
+            value={ciclo}
+            exclusive
+            onChange={handleCiclo}
+            sx={{
+              bgcolor: "#fff",
+              border: "1px solid rgba(15,23,42,0.08)",
+              borderRadius: 999,
+              p: 0.5,
+              "& .MuiToggleButton-root": {
+                border: "none",
+                borderRadius: 999,
+                px: 2.5,
+                py: 0.75,
+                fontWeight: 700,
+                textTransform: "none",
+                color: "text.secondary",
+              },
+              "& .MuiToggleButton-root.Mui-selected": {
+                bgcolor: CORES.marca,
+                color: "#fff",
+                "&:hover": { bgcolor: CORES.marca },
+              },
+            }}
+          >
+            <ToggleButton value="mensal">Mensal</ToggleButton>
+            <ToggleButton value="anual">
+              Anual
+              <Chip
+                label="2 meses grátis"
+                size="small"
+                sx={{
+                  ml: 1,
+                  height: 20,
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  bgcolor: ciclo === "anual" ? "rgba(255,255,255,0.22)" : `${CORES.marca}14`,
+                  color: ciclo === "anual" ? "#fff" : CORES.marca,
+                }}
+              />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+
         <Box
           sx={{
             display: "grid",
@@ -145,7 +227,7 @@ export default function Precos({ onNavTrial }) {
           }}
         >
           {PLANOS.map((plano) => (
-            <PlanoCard key={plano.nome} {...plano} onNavTrial={onNavTrial} />
+            <PlanoCard key={plano.nome} {...plano} ciclo={ciclo} onNavTrial={onNavTrial} />
           ))}
         </Box>
       </Container>
