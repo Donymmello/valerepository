@@ -13,6 +13,8 @@ const {
   getMe,
   forgotPassword,
   resetPassword,
+  refreshAccessToken,
+  logout,
 } = require("../controllers/auth.controller");
 
 // Importa o middleware de autenticação
@@ -56,5 +58,12 @@ router.get("/me", authMiddleware, getMe);
 router.post("/forgot-password", authLimiter, forgotPassword);
 
 router.post("/reset-password", authLimiter, resetPassword);
+
+// Trocar refresh token por novo access token, sem password. Sem
+// authMiddleware de propósito: é chamado exatamente quando o access
+// token já expirou.
+router.post("/refresh", authLimiter, refreshAccessToken);
+
+router.post("/logout", authLimiter, logout);
 
 module.exports = router;

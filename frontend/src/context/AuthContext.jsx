@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getMeRequest, loginRequest, registerMutuarioRequest, registerUserRequest, } from "../api/auth.api";
+import { getMeRequest, loginRequest, logoutRequest, registerMutuarioRequest, registerUserRequest, } from "../api/auth.api";
 import { AuthContext } from "./useAuth";
 
 export function AuthProvider({ children }) {
@@ -40,13 +40,15 @@ export function AuthProvider({ children }) {
     const data = await loginRequest(payload);
 
     localStorage.setItem("token", data.token);
+    localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
 
     return data;
   };
 
-  const setSession = (token, userData) => {
+  const setSession = (token, userData, refreshToken) => {
     localStorage.setItem("token", token);
+    if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
     setUser(userData);
   };
 
@@ -57,6 +59,7 @@ export function AuthProvider({ children }) {
     const data = await registerMutuarioRequest(payload);
 
     localStorage.setItem("token", data.token);
+    localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
 
     return data;
@@ -69,6 +72,7 @@ export function AuthProvider({ children }) {
     const data = await registerUserRequest(payload);
 
     localStorage.setItem("token", data.token);
+    localStorage.setItem("refreshToken", data.refreshToken);
     setUser(data.user);
 
     return data;
@@ -77,9 +81,20 @@ export function AuthProvider({ children }) {
   /*
     Logout
   */
-  const logout = () => {
+  const logout = async () => {
+    const refreshToken = localStorage.getItem("refreshToken");
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     setUser(null);
+
+    // Best-effort: revoga no servidor para o refresh token não continuar
+    // válido depois do logout (ver auth.controller.js: logout). Se
+    // falhar (rede em baixo), a sessão local já está limpa na mesma.
+    try {
+      await logoutRequest(refreshToken);
+    } catch (error) {
+      console.error("Erro ao revogar sessão no servidor:", error);
+    }
   };
 
 

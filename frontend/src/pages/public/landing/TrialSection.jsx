@@ -30,7 +30,7 @@ export default function TrialSection() {
 
     try {
       const data = await bootstrapAdminRequest(trialForm);
-      setSession(data.token, data.user);
+      setSession(data.token, data.user, data.refreshToken);
       navigate("/interno");
     } catch (err) {
       console.error(err);

@@ -73,7 +73,7 @@ export default function VerifyOTP() {
       // Auto login após verificação bem-sucedida
       if (response.token) {
         setTimeout(() => {
-          setSession(response.token, response.user);
+          setSession(response.token, response.user, response.refreshToken);
           navigate("/portal");
         }, 1500);
       }

@@ -21,6 +21,7 @@ const ConvitePortal = require("./convitePortal.model");
 const SolicitacaoAcesso = require("./solicitacaoAcesso.model");
 const PasswordResetToken = require("./passwordResetToken")(sequelize);
 const EmailVerificationToken = require("./emailVerificationToken")(sequelize);
+const RefreshToken = require("./refreshToken")(sequelize);
 
 /*
   =========================
@@ -314,6 +315,43 @@ ConvitePortal.belongsTo(User, {
 });
 
 /*
+  Refresh tokens do fluxo de sessão (ver models/refreshToken.js). Ao
+  contrário de PasswordResetToken/EmailVerificationToken, a associação
+  fica aqui mesmo, não num .associate() que nunca é chamado.
+*/
+User.hasMany(RefreshToken, {
+  foreignKey: "userId",
+  as: "refreshTokens",
+});
+
+RefreshToken.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+/*
+  ACHADO ao construir o refresh token acima: PasswordResetToken tinha um
+  .associate() definido no próprio ficheiro do modelo, mas nada nunca o
+  chamava (nenhum sítio do projeto invoca model.associate em nenhum
+  modelo), por isso esta associação nunca existiu de verdade: a tabela
+  password_reset_tokens não tinha coluna user_id nenhuma, e
+  resetPassword() lia resetToken.userId sempre undefined. Isso faz
+  Sequelize rejeitar a query com "WHERE parameter has invalid undefined
+  value" (confirmado empiricamente), ou seja, redefinir password dava
+  sempre 500 em produção. Ver migrations/20260906121000-add-userid-to-password-reset-tokens.js
+  para a coluna em falta.
+*/
+User.hasMany(PasswordResetToken, {
+  foreignKey: "userId",
+  as: "passwordResetTokens",
+});
+
+PasswordResetToken.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+/*
   ==========================================================
   FAN-OUT AUTOMÁTICO PARA EMAIL/SMS
   ==========================================================
@@ -370,4 +408,5 @@ module.exports = {
   SolicitacaoAcesso,
   PasswordResetToken,
   EmailVerificationToken,
+  RefreshToken,
 };

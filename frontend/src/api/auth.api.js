@@ -50,3 +50,19 @@ export const verifyOTPRequest = async (payload) => {
   const response = await api.post("/auth/verify-otp", payload);
   return response.data;
 };
+
+// Troca o refreshToken guardado por um novo access token, sem pedir
+// password de novo. Ver interceptor de resposta em ./axios.js, que chama
+// isto automaticamente quando um pedido dá 401.
+export const refreshTokenRequest = async (refreshToken) => {
+  const response = await api.post("/auth/refresh", { refreshToken });
+  return response.data;
+};
+
+// Revoga o refreshToken no servidor (ver auth.controller.js: logout).
+// Best-effort: se falhar (rede em baixo, token já expirado), o logout no
+// frontend continua, só limpa a sessão local mesmo assim.
+export const logoutRequest = async (refreshToken) => {
+  if (!refreshToken) return;
+  await api.post("/auth/logout", { refreshToken });
+};

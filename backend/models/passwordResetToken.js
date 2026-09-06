@@ -25,12 +25,11 @@ module.exports = (sequelize) => {
         }
     );
 
-    PasswordResetToken.associate = (models) => {
-        PasswordResetToken.belongsTo(models.User, {
-            foreingkey: "userId",
-            as: "user",
-        });
-    };
+    // A associação real fica em models/index.js (o único sítio deste
+    // projeto que a invoca de verdade). Este .associate() aqui nunca era
+    // chamado por ninguém, ficava a fingir que existia relação com User
+    // enquanto a coluna user_id nem existia na tabela — ver o comentário
+    // em models/index.js junto da associação real.
 
     return PasswordResetToken;
 };
