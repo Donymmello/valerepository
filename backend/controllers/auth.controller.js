@@ -2,13 +2,19 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { User, Mutuario, Empresa, ConvitePortal, PasswordResetToken, EmailVerificationToken, Notificacao, sequelize } = require("../models"); // Importou a instância do sequelize para transações
+const { User, Mutuario, Empresa, ConvitePortal, PasswordResetToken, EmailVerificationToken, RefreshToken, Notificacao, sequelize } = require("../models"); // Importou a instância do sequelize para transações
 const registrarLogAuditoria = require("../utils/logAuditoria");
 const { generateCodigoMutuario } = require("../utils/generateCode");
 const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/emailService");
 const { avaliarAcessoEmpresa, MENSAGENS } = require("../utils/empresaAccess");
-const { invalidarCacheEmpresa } = require("../utils/empresaCache");
+const { obterEmpresaCacheada, invalidarCacheEmpresa } = require("../utils/empresaCache");
+const { obterLimitesPlano } = require("../config/planos");
+
+// Roles que contam para o limite de "utilizadores" de cada plano (ver
+// config/planos.js). MUTUARIO fica de fora de propósito: são os clientes
+// da financeira, não a equipa dela.
+const ROLES_INTERNOS = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
 
 // =========================================================================
 // HELPERS / UTILS (Padrão de Resposta Interno)
@@ -45,12 +51,37 @@ const obterConvitePortalValido = async (token, options = {}) => {
   return convite;
 };
 
+// Curto de propósito: o access token já não precisa de durar o dia
+// inteiro, quem precisar de continuar autenticado usa o refresh token
+// (ver emitirRefreshToken) para renovar em silêncio, sem pedir password
+// outra vez. Ver POST /auth/refresh.
+const ACCESS_TOKEN_EXPIRES_IN = "15m";
+const REFRESH_TOKEN_DURACAO_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, nome: user.nome, email: user.email, role: user.role, empresaId: user.empresaId, },
     process.env.JWT_SECRET,
-    { expiresIn: "1d" }
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
   );
+};
+
+/**
+ * Emite e persiste um refresh token para o utilizador (30 dias). Chamado
+ * em todo o sítio que já emite um access token no login/registo (ver
+ * bootstrapAdmin, registerMutuario, login, verifyOTPAndRegister), para o
+ * frontend poder trocar por um novo access token via POST /auth/refresh
+ * sem pedir password de novo quando o token de 15 min expirar.
+ *
+ * ponytail: sem rotação (o mesmo refreshToken serve até expirar ou ser
+ * revogado em /auth/logout ou num reset de password), ver comentário em
+ * models/refreshToken.js.
+ */
+const emitirRefreshToken = async (user, options = {}) => {
+  const token = crypto.randomBytes(40).toString("hex");
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DURACAO_MS);
+  await RefreshToken.create({ userId: user.id, token, expiresAt }, options);
+  return token;
 };
 
 /**
@@ -139,12 +170,15 @@ const bootstrapAdmin = async (req, res) => {
         descricao: `Empresa "${empresa.nome}" criada com administrador inicial ${user.email}.`,
       }, { transaction: t });
 
-      return { empresa, user };
+      const refreshToken = await emitirRefreshToken(user, { transaction: t });
+
+      return { empresa, user, refreshToken };
     });
 
     return res.status(201).json({
       message: "Empresa e administrador inicial criados com sucesso.",
       token: generateToken(result.user),
+      refreshToken: result.refreshToken,
       empresa: {
         id: result.empresa.id,
         nome: result.empresa.nome,
@@ -182,9 +216,26 @@ const registerInterno = async (req, res) => {
     const erroPassword = validarForcaPassword(password);
     if (erroPassword) return res.status(400).json({ message: erroPassword });
 
-    const rolesPermitidos = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
-    if (!rolesPermitidos.includes(role)) {
-      return res.status(400).json({ message: "Role inválido para registo interno.", rolesPermitidos });
+    if (!ROLES_INTERNOS.includes(role)) {
+      return res.status(400).json({ message: "Role inválido para registo interno.", rolesPermitidos: ROLES_INTERNOS });
+    }
+
+    // Limite de utilizadores internos do plano atual da empresa (ver
+    // config/planos.js). null = sem limite (plano Empresarial).
+    const empresa = await obterEmpresaCacheada(req.user.empresaId);
+    const { maxUtilizadoresInternos } = obterLimitesPlano(empresa?.plano);
+
+    if (maxUtilizadoresInternos !== null) {
+      const totalUtilizadoresInternos = await User.count({
+        where: { empresaId: req.user.empresaId, role: { [Op.in]: ROLES_INTERNOS }, ativo: true },
+      });
+
+      if (totalUtilizadoresInternos >= maxUtilizadoresInternos) {
+        return res.status(403).json({
+          message: `O teu plano atual permite até ${maxUtilizadoresInternos} utilizadores internos. Contacta o suporte para mudar de plano.`,
+          motivo: "LIMITE_UTILIZADORES_PLANO",
+        });
+      }
     }
 
     // Validação concorrente de Email e Documentos
@@ -372,12 +423,15 @@ const registerMutuario = async (req, res) => {
         descricao: `Mutuário autónomo registado com user ID ${user.id} e mutuário ID ${mutuario.id}, via convite ${convite.id}.`,
       }, { transaction: t });
 
-      return { user, mutuario };
+      const refreshToken = await emitirRefreshToken(user, { transaction: t });
+
+      return { user, mutuario, refreshToken };
     });
 
     return res.status(201).json({
       message: "Mutuário registado com sucesso.",
       token: generateToken(result.user),
+      refreshToken: result.refreshToken,
       user: mapUserResponse(result.user),
       mutuario: {
         id: result.mutuario.id,
@@ -449,6 +503,7 @@ const login = async (req, res) => {
     }
 
     const token = generateToken(user);
+    const refreshToken = await emitirRefreshToken(user);
 
     await registrarLogAuditoria({
       userId: user.id,
@@ -461,6 +516,7 @@ const login = async (req, res) => {
     return res.status(200).json({
       message: "Login realizado com sucesso.",
       token,
+      refreshToken,
       user: mapUserResponse(user),
     });
   } catch (error) {
@@ -529,16 +585,42 @@ const resetPassword = async (req, res) => {
 
     const resetToken = await PasswordResetToken.findOne({ where: { token, used: false } });
 
-    if (!resetToken || new Date() > resetToken.expiresAt) {
+    // resetToken.userId pode ser null para um token pedido antes da
+    // migration 20260906121000 adicionar a coluna (ver models/index.js
+    // para o histórico do bug), trata-se como inválido em vez de deixar
+    // rebentar mais à frente.
+    if (!resetToken || !resetToken.userId || new Date() > resetToken.expiresAt) {
       return res.status(400).json({ message: "Token inválido ou expirado." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await sequelize.transaction(async (t) => {
-      await User.update({ passwordHash: hashedPassword }, { where: { id: resetToken.userId }, transaction: t });
+      // Carrega a instância real (não User.update() em bloco): a
+      // validação `empresaObrigatoriaExcetoSuperadmin` do modelo corre
+      // sobre os valores passados a um update em bloco, não sobre a
+      // linha existente, por isso um update parcial que só mexe em
+      // passwordHash falhava sempre essa validação (role/empresaId
+      // "vistos" como undefined). Carregar e gravar a instância valida
+      // contra a linha completa, como esperado.
+      const user = await User.findByPk(resetToken.userId, { transaction: t });
+      if (!user) {
+        throw new Error("Utilizador do token de reset não encontrado.");
+      }
+      user.passwordHash = hashedPassword;
+      await user.save({ transaction: t });
+
       resetToken.used = true;
       await resetToken.save({ transaction: t });
+
+      // Password comprometida (motivo mais comum de um reset) não deve
+      // deixar sessões antigas vivas: revoga todos os refresh tokens
+      // ainda válidos deste utilizador, força novo login em todos os
+      // dispositivos.
+      await RefreshToken.update(
+        { revoked: true },
+        { where: { userId: resetToken.userId, revoked: false }, transaction: t }
+      );
     });
 
     return res.status(200).json({ message: "Password redefinida com sucesso." });
@@ -705,12 +787,15 @@ const verifyOTPAndRegister = async (req, res) => {
         }, { transaction: t });
       }
 
-      return { user, mutuario };
+      const refreshToken = await emitirRefreshToken(user, { transaction: t });
+
+      return { user, mutuario, refreshToken };
     });
 
     return res.status(201).json({
       message: "Registo completado com sucesso.",
       token: generateToken(result.user),
+      refreshToken: result.refreshToken,
       user: mapUserResponse(result.user),
       mutuario: {
         id: result.mutuario.id,
@@ -721,6 +806,67 @@ const verifyOTPAndRegister = async (req, res) => {
   } catch (error) {
     console.error("[VerifyOTP Error]:", error);
     return res.status(500).json({ message: "Erro interno ao verificar OTP." });
+  }
+};
+
+/**
+ * TROCAR REFRESH TOKEN POR NOVO ACCESS TOKEN
+ * Sem password: só um refresh token válido, ainda não revogado e dentro
+ * da validade de 30 dias (ver emitirRefreshToken). Reavalia o estado da
+ * empresa da mesma forma que o login, uma empresa suspensa depois do
+ * refresh token emitido não deve continuar a renovar acesso.
+ */
+const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ message: "refreshToken é obrigatório." });
+    }
+
+    const registo = await RefreshToken.findOne({ where: { token: refreshToken, revoked: false } });
+    if (!registo || new Date() > registo.expiresAt) {
+      return res.status(401).json({ message: "Sessão expirada. Inicia sessão novamente." });
+    }
+
+    const user = await User.findByPk(registo.userId, {
+      include: [{ model: Empresa, as: "empresa", attributes: ["id", "estado", "trialEndsAt"] }],
+    });
+
+    if (!user || !user.ativo) {
+      return res.status(401).json({ message: "Sessão expirada. Inicia sessão novamente." });
+    }
+
+    if (user.role !== "SUPERADMIN") {
+      const acesso = avaliarAcessoEmpresa(user.empresa);
+      if (!acesso.permitido) {
+        return res.status(403).json({ message: MENSAGENS[acesso.motivo], motivo: acesso.motivo });
+      }
+    }
+
+    return res.status(200).json({ token: generateToken(user) });
+  } catch (error) {
+    console.error("[RefreshAccessToken Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao renovar sessão." });
+  }
+};
+
+/**
+ * LOGOUT
+ * Revoga o refresh token indicado, para uma cópia roubada (ou um
+ * dispositivo partilhado) não continuar a servir depois de terminar
+ * sessão. De propósito sem authMiddleware: o access token pode já estar
+ * expirado no momento em que o utilizador faz logout.
+ */
+const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      await RefreshToken.update({ revoked: true }, { where: { token: refreshToken } });
+    }
+    return res.status(200).json({ message: "Sessão terminada." });
+  } catch (error) {
+    console.error("[Logout Error]:", error);
+    return res.status(500).json({ message: "Erro interno ao terminar sessão." });
   }
 };
 
@@ -735,4 +881,6 @@ module.exports = {
   getMe,
   forgotPassword,
   resetPassword,
+  refreshAccessToken,
+  logout,
 };

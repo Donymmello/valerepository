@@ -4,6 +4,10 @@ const multer = require("multer");
 
 const authMiddleware = require("../middleware/auth.middleware");
 const authorizeRoles = require("../middleware/role.middleware");
+const { exigirFuncionalidadePlano } = require("../middleware/planoLimite.middleware");
+
+const MENSAGEM_IMPORTACAO_FORA_DO_PLANO =
+  "A importação em massa está disponível apenas no plano Empresarial. Contacta o suporte para mudar de plano.";
 
 /*
   Configuração do multer em memória
@@ -74,6 +78,7 @@ router.post(
   "/import/mutuarios",
   authMiddleware,
   authorizeRoles("ADMIN", "GESTOR"),
+  exigirFuncionalidadePlano("permiteImportacaoExcel", MENSAGEM_IMPORTACAO_FORA_DO_PLANO),
   upload.single("file"),
   importarMutuarios
 );
@@ -82,6 +87,7 @@ router.post(
   "/import/pedidos",
   authMiddleware,
   authorizeRoles("ADMIN", "GESTOR"),
+  exigirFuncionalidadePlano("permiteImportacaoExcel", MENSAGEM_IMPORTACAO_FORA_DO_PLANO),
   upload.single("file"),
   importarPedidos
 );
@@ -96,6 +102,7 @@ router.post(
   "/import/creditos",
   authMiddleware,
   authorizeRoles("ADMIN", "GESTOR"),
+  exigirFuncionalidadePlano("permiteImportacaoExcel", MENSAGEM_IMPORTACAO_FORA_DO_PLANO),
   upload.single("file"),
   importarCreditos
 );
