@@ -44,6 +44,29 @@ const SolicitacaoAcesso = sequelize.define(
       allowNull: true,
     },
 
+    // Os 3 campos abaixo só ficam preenchidos quando o pedido vem da
+    // landing page já com um plano escolhido (ver TrialSection.jsx e
+    // controllers/solicitacaoAcesso.controller.js). Um pedido de
+    // "prefiro falar com alguém" antigo, sem plano, fica com os 3 a
+    // null. valorEstimado é sempre calculado no backend a partir de
+    // config/planos.js, nunca confiado no valor enviado pelo cliente.
+    plano: {
+      type: DataTypes.ENUM("STARTER", "BUSINESS", "ENTERPRISE"),
+      allowNull: true,
+    },
+
+    cicloFaturacao: {
+      type: DataTypes.ENUM("MENSAL", "ANUAL"),
+      allowNull: true,
+      field: "ciclo_faturacao",
+    },
+
+    valorEstimado: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      field: "valor_estimado",
+    },
+
     estado: {
       type: DataTypes.ENUM("PENDENTE", "CONTACTADO", "CONVERTIDO", "REJEITADO"),
       defaultValue: "PENDENTE",

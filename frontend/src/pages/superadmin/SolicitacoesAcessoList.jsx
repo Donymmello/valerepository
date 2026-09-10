@@ -30,6 +30,17 @@ const ESTADO_COR = {
   REJEITADO: "default",
 };
 
+// Nomes de marketing dos mesmos 3 valores do ENUM Empresa.plano (ver
+// backend/config/planos.js). Pedidos antigos, sem plano (formulário
+// "prefiro falar com alguém"), mostram "—" nesta coluna.
+const NOME_PLANO = {
+  STARTER: "Starter",
+  BUSINESS: "Profissional",
+  ENTERPRISE: "Empresarial",
+};
+
+const formatarMT = (valor) => Math.round(Number(valor)).toLocaleString("pt-PT");
+
 export default function SolicitacoesAcessoList() {
   const [solicitacoes, setSolicitacoes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +111,7 @@ export default function SolicitacoesAcessoList() {
               <TableRow>
                 <TableCell>Empresa</TableCell>
                 <TableCell>Contacto</TableCell>
+                <TableCell>Plano</TableCell>
                 <TableCell>Mensagem</TableCell>
                 <TableCell>Recebido em</TableCell>
                 <TableCell align="right">Estado</TableCell>
@@ -116,6 +128,20 @@ export default function SolicitacoesAcessoList() {
                     <Typography variant="body2" color="text.secondary">{s.email}</Typography>
                     {s.telefone && (
                       <Typography variant="caption" color="text.secondary">{s.telefone}</Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {s.plano ? (
+                      <>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {NOME_PLANO[s.plano] || s.plano}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatarMT(s.valorEstimado)} MT{s.cicloFaturacao === "ANUAL" ? "/ano" : "/mês"}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">—</Typography>
                     )}
                   </TableCell>
                   <TableCell sx={{ maxWidth: 280 }}>

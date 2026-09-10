@@ -48,8 +48,10 @@ export const getMinhasSimulacoesRequest = async () => {
 
 /**
  * Envia um pedido de acesso à plataforma (empresa interessada, via
- * formulário público da landing page). Não cria conta nem empresa,
- * fica registado para revisão manual.
+ * formulário público da landing page). Não cria conta nem empresa, fica
+ * registado para revisão manual. Quando o payload inclui `plano` (pedido
+ * de plano pago, ver TrialSection.jsx), o backend também dispara o email
+ * de instruções de pagamento para o cliente.
  */
 export const criarSolicitacaoAcessoRequest = async (payload) => {
   const response = await api.post("/solicitacoes-acesso", payload);

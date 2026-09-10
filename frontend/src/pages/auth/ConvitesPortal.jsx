@@ -9,6 +9,8 @@ import {
   Paper,
   Stack,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -19,6 +21,11 @@ import { formatDate } from "../../utils/formatters";
 // Página interna (backoffice), gera convites de registo para mutuários (controlo de KYC)
 export default function ConvitesPortal() {
   const [validadeDias, setValidadeDias] = useState(7);
+  // "individual": uso único (default, sempre foi assim). "grupo": um só
+  // link para várias pessoas (ex: partilhar num grupo de WhatsApp),
+  // opcionalmente com um limite de registos.
+  const [tipo, setTipo] = useState("individual");
+  const [limiteGrupo, setLimiteGrupo] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [convite, setConvite] = useState(null);
@@ -31,7 +38,12 @@ export default function ConvitesPortal() {
     setSubmitting(true);
 
     try {
-      const data = await createConvitePortalRequest({ validadeDias: Number(validadeDias) });
+      const payload = { validadeDias: Number(validadeDias) };
+      if (tipo === "grupo") {
+        payload.maxUsos = limiteGrupo ? Number(limiteGrupo) : null;
+      }
+
+      const data = await createConvitePortalRequest(payload);
       setConvite(data);
     } catch (err) {
       console.error(err);
@@ -70,6 +82,33 @@ export default function ConvitesPortal() {
 
         <Box component="form" onSubmit={handleGerar}>
           <Grid container spacing={2.5} alignItems="center">
+            <Grid item xs={12}>
+              <ToggleButtonGroup
+                fullWidth
+                exclusive
+                value={tipo}
+                onChange={(_e, novoTipo) => novoTipo && setTipo(novoTipo)}
+              >
+                <ToggleButton value="individual">Individual (uso único)</ToggleButton>
+                <ToggleButton value="grupo">Grupo (várias pessoas)</ToggleButton>
+              </ToggleButtonGroup>
+            </Grid>
+
+            {tipo === "grupo" && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Limite de registos (deixa vazio para sem limite)"
+                  name="limiteGrupo"
+                  type="number"
+                  inputProps={{ min: 2 }}
+                  value={limiteGrupo}
+                  onChange={(e) => setLimiteGrupo(e.target.value)}
+                  helperText="Ex: 30 pessoas registadas com o mesmo link, depois deixa de funcionar. Vazio = sem limite."
+                />
+              </Grid>
+            )}
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -120,7 +159,13 @@ export default function ConvitesPortal() {
             </Stack>
 
             <Typography variant="caption" color="text.secondary">
-              Válido até {formatDate(convite.expiresAt)} · uso único.
+              Válido até {formatDate(convite.expiresAt)} ·{" "}
+              {convite.maxUsos === 1
+                ? "uso único"
+                : convite.maxUsos === null
+                  ? `convite de grupo, sem limite (${convite.totalUsos} registo(s) até agora)`
+                  : `convite de grupo, até ${convite.maxUsos} registos (${convite.totalUsos} até agora)`}
+              .
             </Typography>
           </>
         )}

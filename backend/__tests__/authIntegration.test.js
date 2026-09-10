@@ -47,6 +47,8 @@ const {
   registerMutuarioRequestOTP,
   verifyOTPAndRegister,
   registerInterno,
+  criarConvitePortal,
+  bootstrapAdmin,
   login,
   refreshAccessToken,
   logout,
@@ -91,12 +93,13 @@ function reqComoAdmin(admin, empresa, body) {
   };
 }
 
-async function criarConviteValido(empresaId, criadoPor) {
+async function criarConviteValido(empresaId, criadoPor, opcoes = {}) {
   return ConvitePortal.create({
     token: `convite-${idUnico()}`,
     empresaId,
     criadoPor,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    ...(opcoes.maxUsos !== undefined ? { maxUsos: opcoes.maxUsos } : {}),
   });
 }
 
@@ -170,7 +173,7 @@ describe("Fluxo de registo por OTP (integração, BD real)", () => {
     expect(mutuarioCriado.empresaId).toBe(empresa.id);
 
     const conviteAtualizado = await ConvitePortal.findByPk(convite.id);
-    expect(conviteAtualizado.usado).toBe(true);
+    expect(conviteAtualizado.totalUsos).toBe(1);
     expect(conviteAtualizado.usadoPor).toBe(userCriado.id);
 
     const tokenAtualizado = await EmailVerificationToken.findByPk(tokenRow.id);
@@ -552,5 +555,174 @@ describe("Refresh token: renovar sessão sem password, logout e reset revogam (i
     const registo2 = await RefreshToken.findOne({ where: { token: refreshToken2 } });
     expect(registo1.revoked).toBe(true);
     expect(registo2.revoked).toBe(true);
+  });
+});
+
+describe("Convites de grupo: um link para várias pessoas (integração, BD real)", () => {
+  // Completa o fluxo de OTP inteiro (pedir + verificar) com um convite
+  // dado, devolve o res do passo de verificação (onde o registo de
+  // facto acontece e o convite é consumido).
+  async function completarRegistoComConvite(conviteToken, sufixo) {
+    const email = `grupo-${sufixo}@teste.com`;
+
+    await registerMutuarioRequestOTP(
+      {
+        body: {
+          token: conviteToken, nome: `user${sufixo}`, email, password: "senha1234",
+          nomeCompleto: `Pessoa ${sufixo}`, telefone: "840000000",
+        },
+      },
+      mockRes()
+    );
+
+    const tokenRow = await EmailVerificationToken.findOne({ where: { email } });
+    const res = mockRes();
+    await verifyOTPAndRegister({ body: { email, otp: tokenRow.otp } }, res);
+    return res;
+  }
+
+  test("convite de grupo com limite permite exatamente N registos e bloqueia o seguinte", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin();
+    const convite = await criarConviteValido(empresa.id, admin.id, { maxUsos: 2 });
+
+    const res1 = await completarRegistoComConvite(convite.token, idUnico());
+    expect(res1.status).toHaveBeenCalledWith(201);
+
+    const res2 = await completarRegistoComConvite(convite.token, idUnico());
+    expect(res2.status).toHaveBeenCalledWith(201);
+
+    const conviteAtualizado = await ConvitePortal.findByPk(convite.id);
+    expect(conviteAtualizado.totalUsos).toBe(2);
+
+    // 3º pedido de OTP com o convite já esgotado é recusado logo na
+    // etapa 1, nem chega a criar token de verificação.
+    const sufixo3 = idUnico();
+    const email3 = `grupo-${sufixo3}@teste.com`;
+    const resOtp3 = mockRes();
+    await registerMutuarioRequestOTP(
+      {
+        body: {
+          token: convite.token, nome: `user${sufixo3}`, email: email3, password: "senha1234",
+          nomeCompleto: `Pessoa ${sufixo3}`, telefone: "840000000",
+        },
+      },
+      resOtp3
+    );
+
+    expect(resOtp3.status).toHaveBeenCalledWith(400);
+    const tokenRow3 = await EmailVerificationToken.findOne({ where: { email: email3 } });
+    expect(tokenRow3).toBeNull();
+  });
+
+  test("convite de grupo sem limite (maxUsos null) permite vários registos seguidos", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin();
+    const convite = await criarConviteValido(empresa.id, admin.id, { maxUsos: null });
+
+    for (let i = 0; i < 4; i += 1) {
+      const res = await completarRegistoComConvite(convite.token, idUnico());
+      expect(res.status).toHaveBeenCalledWith(201);
+    }
+
+    const conviteAtualizado = await ConvitePortal.findByPk(convite.id);
+    expect(conviteAtualizado.totalUsos).toBe(4);
+    expect(conviteAtualizado.maxUsos).toBeNull();
+  });
+
+  test("convite individual (default, sem maxUsos explícito) continua a bloquear ao 2º registo", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin();
+    const convite = await criarConviteValido(empresa.id, admin.id); // sem opções -> default do modelo (1)
+
+    const res1 = await completarRegistoComConvite(convite.token, idUnico());
+    expect(res1.status).toHaveBeenCalledWith(201);
+
+    const sufixo2 = idUnico();
+    const email2 = `grupo-${sufixo2}@teste.com`;
+    const resOtp2 = mockRes();
+    await registerMutuarioRequestOTP(
+      {
+        body: {
+          token: convite.token, nome: `user${sufixo2}`, email: email2, password: "senha1234",
+          nomeCompleto: `Pessoa ${sufixo2}`, telefone: "840000000",
+        },
+      },
+      resOtp2
+    );
+
+    expect(resOtp2.status).toHaveBeenCalledWith(400);
+  });
+
+  test("criarConvitePortal aceita maxUsos no pedido (ADMIN gera convite de grupo)", async () => {
+    const { empresa, admin } = await criarEmpresaComAdmin();
+    const res = mockRes();
+
+    await criarConvitePortal(
+      { user: { id: admin.id, role: "ADMIN", empresaId: empresa.id }, body: { validadeDias: 7, maxUsos: 10 } },
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.maxUsos).toBe(10);
+    expect(payload.totalUsos).toBe(0);
+  });
+});
+
+describe("bootstrapAdmin: plano escolhido na landing page (integração, BD real)", () => {
+  test("cria a empresa já no plano pedido (ex: escolheu Empresarial/ENTERPRISE na página de preços)", async () => {
+    const sufixo = idUnico();
+    const res = mockRes();
+
+    await bootstrapAdmin(
+      {
+        body: {
+          nomeEmpresa: `Empresa Plano ${sufixo}`, nome: "Admin", email: `admin-plano-${sufixo}@teste.com`,
+          password: "senha1234", plano: "ENTERPRISE",
+        },
+      },
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.empresa.plano).toBe("ENTERPRISE");
+
+    const empresaCriada = await Empresa.findByPk(payload.empresa.id);
+    expect(empresaCriada.plano).toBe("ENTERPRISE");
+  });
+
+  test("plano inválido/arbitrário no pedido cai no STARTER, não é aceite às cegas", async () => {
+    const sufixo = idUnico();
+    const res = mockRes();
+
+    await bootstrapAdmin(
+      {
+        body: {
+          nomeEmpresa: `Empresa Plano Invalido ${sufixo}`, nome: "Admin", email: `admin-inv-${sufixo}@teste.com`,
+          password: "senha1234", plano: "GOD_MODE",
+        },
+      },
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json.mock.calls[0][0].empresa.plano).toBe("STARTER");
+  });
+
+  test("sem plano no pedido (ex: SUPERADMIN a criar empresa manualmente) continua a cair no STARTER", async () => {
+    const sufixo = idUnico();
+    const res = mockRes();
+
+    await bootstrapAdmin(
+      {
+        body: {
+          nomeEmpresa: `Empresa Sem Plano ${sufixo}`, nome: "Admin", email: `admin-semplano-${sufixo}@teste.com`,
+          password: "senha1234",
+        },
+      },
+      res
+    );
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json.mock.calls[0][0].empresa.plano).toBe("STARTER");
   });
 });

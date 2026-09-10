@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Box } from "@mui/material";
 import { useAuth } from "../../context/useAuth";
 import Navbar from "./landing/Navbar";
@@ -14,13 +15,22 @@ const scrollToSection = (id) => {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 };
 
+// Mesmos 3 valores do ENUM Empresa.plano (backend). Qualquer outra coisa
+// (ex: o evento de clique dos CTAs genéricos do Hero/Navbar/Footer, que
+// não escolhem plano nenhum) cai no STARTER por omissão.
+const PLANOS_VALIDOS = ["STARTER", "BUSINESS", "ENTERPRISE"];
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [planoEscolhido, setPlanoEscolhido] = useState("STARTER");
 
   const irParaLogin = () => navigate("/login");
   const irParaPortal = () => navigate("/portal");
-  const irParaTrial = () => scrollToSection("sou-financeira");
+  const irParaTrial = (plano) => {
+    setPlanoEscolhido(PLANOS_VALIDOS.includes(plano) ? plano : "STARTER");
+    scrollToSection("sou-financeira");
+  };
 
   return (
     <Box sx={{ bgcolor: "#fff", minHeight: "100vh" }}>
@@ -42,7 +52,7 @@ export default function LandingPage() {
       <Features />
       <Precos onNavTrial={irParaTrial} />
 
-      {!isAuthenticated && <TrialSection />}
+      {!isAuthenticated && <TrialSection planoEscolhido={planoEscolhido} />}
 
       <Faq />
 

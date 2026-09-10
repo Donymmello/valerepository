@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Container, Typography, Card, CardContent, Stack, Alert, TextField, Button } from "@mui/material";
+import {
+  Box, Container, Typography, Card, CardContent, Stack, Alert, TextField, Button,
+  ToggleButton, ToggleButtonGroup,
+} from "@mui/material";
 import { CheckCircleOutline } from "@mui/icons-material";
 import { criarSolicitacaoAcessoRequest } from "../../../api/public.api";
 import { bootstrapAdminRequest } from "../../../api/auth.api";
@@ -14,7 +17,21 @@ const RAZOES = [
   "Sem instalação, corre no browser",
 ];
 
-export default function TrialSection() {
+// Nomes de marketing dos mesmos 3 valores do ENUM Empresa.plano (ver
+// backend/models/empresa.model.js e a origem em ./Precos.jsx).
+const NOME_PLANO = {
+  STARTER: "Starter",
+  BUSINESS: "Profissional",
+  ENTERPRISE: "Empresarial",
+};
+
+// Mesmos preços de ./Precos.jsx, só para mostrar uma estimativa aqui. O
+// valor cobrado de facto é sempre recalculado no backend a partir de
+// config/planos.js (ver controllers/solicitacaoAcesso.controller.js).
+const PRECO_MENSAL = { STARTER: 1500, BUSINESS: 3500, ENTERPRISE: 7500 };
+const formatarMT = (valor) => Math.round(valor).toLocaleString("pt-PT");
+
+export default function TrialSection({ planoEscolhido = "STARTER" }) {
   const navigate = useNavigate();
   const { setSession } = useAuth();
 
@@ -29,7 +46,7 @@ export default function TrialSection() {
     setTrialEnviando(true);
 
     try {
-      const data = await bootstrapAdminRequest(trialForm);
+      const data = await bootstrapAdminRequest({ ...trialForm, plano: planoEscolhido });
       setSession(data.token, data.user, data.refreshToken);
       navigate("/interno");
     } catch (err) {
@@ -40,15 +57,19 @@ export default function TrialSection() {
     }
   };
 
-  // Formulário "Prefiro falar com alguém", não cria conta, só regista o
-  // interesse para contacto manual (alternativa ao trial self-service acima).
+  // Pedido de plano pago (pagamento manual): não cria conta na hora, só
+  // regista o pedido; o cliente recebe um email com o valor e os dados
+  // para pagamento, e nós recebemos a notificação para acompanhar
+  // manualmente (ver controllers/solicitacaoAcesso.controller.js).
+  // Substitui o antigo formulário genérico "prefiro falar com alguém".
   const [acessoForm, setAcessoForm] = useState({
     nomeEmpresa: "", nomeContacto: "", email: "", telefone: "", mensagem: "",
   });
+  const [acessoCiclo, setAcessoCiclo] = useState("MENSAL");
   const [acessoEnviando, setAcessoEnviando] = useState(false);
   const [acessoErro, setAcessoErro] = useState("");
   const [acessoSucesso, setAcessoSucesso] = useState(false);
-  const [mostrarFormContacto, setMostrarFormContacto] = useState(false);
+  const [mostrarFormPedido, setMostrarFormPedido] = useState(false);
 
   const handleEnviarSolicitacaoAcesso = async (event) => {
     event.preventDefault();
@@ -56,7 +77,11 @@ export default function TrialSection() {
     setAcessoEnviando(true);
 
     try {
-      await criarSolicitacaoAcessoRequest(acessoForm);
+      await criarSolicitacaoAcessoRequest({
+        ...acessoForm,
+        plano: planoEscolhido,
+        cicloFaturacao: acessoCiclo,
+      });
       setAcessoSucesso(true);
       setAcessoForm({ nomeEmpresa: "", nomeContacto: "", email: "", telefone: "", mensagem: "" });
     } catch (err) {
@@ -66,6 +91,9 @@ export default function TrialSection() {
       setAcessoEnviando(false);
     }
   };
+
+  const precoBase = PRECO_MENSAL[planoEscolhido] || PRECO_MENSAL.STARTER;
+  const precoPedido = acessoCiclo === "ANUAL" ? precoBase * 10 : precoBase;
 
   return (
     <Box id="sou-financeira" sx={{ py: { xs: 8, md: 11 }, bgcolor: "#fff" }}>
@@ -107,8 +135,11 @@ export default function TrialSection() {
               }}
             >
               <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
                   Começar trial grátis
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Plano selecionado: <strong>{NOME_PLANO[planoEscolhido] || NOME_PLANO.STARTER}</strong>
                 </Typography>
 
                 <Box component="form" onSubmit={handleIniciarTrial}>
@@ -160,14 +191,35 @@ export default function TrialSection() {
                 </Box>
 
                 <Box sx={{ textAlign: "center", mt: 3 }}>
-                  {mostrarFormContacto ? (
+                  {mostrarFormPedido ? (
                     acessoSucesso ? (
-                      <Alert severity="success">Pedido recebido com sucesso! Vamos entrar em contacto em breve.</Alert>
+                      <Alert severity="success">
+                        Pedido recebido! Vais receber um email com os dados para pagamento em breve.
+                      </Alert>
                     ) : (
                       <Box component="form" onSubmit={handleEnviarSolicitacaoAcesso} sx={{ textAlign: "left", mt: 1 }}>
-                        <Typography variant="body2" color="textSecondary" mb={2}>
-                          Prefere falar com alguém primeiro? Deixa os teus dados e entramos em contacto.
+                        <Typography variant="body2" color="textSecondary" mb={1}>
+                          Prefere pagamento manual (transferência/M-Pesa)? Pede o plano{" "}
+                          <strong>{NOME_PLANO[planoEscolhido] || NOME_PLANO.STARTER}</strong> e enviamos as
+                          instruções por email.
                         </Typography>
+
+                        <Stack direction="row" justifyContent="center" sx={{ mb: 2 }}>
+                          <ToggleButtonGroup
+                            value={acessoCiclo}
+                            exclusive
+                            size="small"
+                            onChange={(_e, valor) => valor && setAcessoCiclo(valor)}
+                          >
+                            <ToggleButton value="MENSAL">Mensal</ToggleButton>
+                            <ToggleButton value="ANUAL">Anual</ToggleButton>
+                          </ToggleButtonGroup>
+                        </Stack>
+
+                        <Typography variant="body2" sx={{ fontWeight: 700, textAlign: "center", mb: 2 }}>
+                          {formatarMT(precoPedido)} MT {acessoCiclo === "ANUAL" ? "por ano" : "por mês"}
+                        </Typography>
+
                         {acessoErro && <Alert severity="error" sx={{ mb: 2 }}>{acessoErro}</Alert>}
 
                         <Stack spacing={2}>
@@ -214,14 +266,14 @@ export default function TrialSection() {
                           />
 
                           <Button type="submit" variant="outlined" disabled={acessoEnviando} sx={{ borderRadius: 2 }}>
-                            {acessoEnviando ? "A enviar..." : "Pedir Contacto"}
+                            {acessoEnviando ? "A enviar..." : "Enviar pedido"}
                           </Button>
                         </Stack>
                       </Box>
                     )
                   ) : (
-                    <Button variant="text" size="small" onClick={() => setMostrarFormContacto(true)}>
-                      Prefiro falar com alguém primeiro
+                    <Button variant="text" size="small" onClick={() => setMostrarFormPedido(true)}>
+                      Pedir fatura deste plano
                     </Button>
                   )}
                 </Box>

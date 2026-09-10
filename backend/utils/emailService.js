@@ -102,7 +102,126 @@ async function sendPasswordResetEmail(email, resetLink, nomeUtilizador) {
   }
 }
 
+/**
+ * Formata um valor em MT (sem casas decimais, separador de milhar pt-PT),
+ * igual ao formatarMT do frontend (Precos.jsx), para os valores baterem
+ * certo entre o que o cliente viu na landing page e o que recebe aqui.
+ */
+function formatarMT(valor) {
+  return Math.round(Number(valor)).toLocaleString("pt-PT");
+}
+
+/**
+ * Email de instruções de pagamento, enviado ao cliente depois de escolher
+ * um plano pago na landing page (pagamento manual, ver
+ * controllers/solicitacaoAcesso.controller.js). Não é um PDF, é só um
+ * email com o valor, a referência do pedido e os dados bancários da
+ * plataforma (PAGAMENTO_*, ver .env.example), para o cliente transferir
+ * e responder com o comprovativo.
+ */
+async function sendInstrucoesPagamentoEmail(email, { nomeContacto, nomePlano, cicloFaturacao, valor, referencia }) {
+  const cicloTexto = cicloFaturacao === "ANUAL" ? "anual" : "mensal";
+  const dadosBancarios = [
+    process.env.PAGAMENTO_BANCO_NOME && `Banco: ${process.env.PAGAMENTO_BANCO_NOME}`,
+    process.env.PAGAMENTO_BANCO_NIB && `NIB: ${process.env.PAGAMENTO_BANCO_NIB}`,
+    process.env.PAGAMENTO_BANCO_TITULAR && `Titular: ${process.env.PAGAMENTO_BANCO_TITULAR}`,
+    process.env.PAGAMENTO_MPESA_NUMERO && `M-Pesa: ${process.env.PAGAMENTO_MPESA_NUMERO}`,
+  ].filter(Boolean).join("\n");
+
+  const corpo = `Olá ${nomeContacto},\n\n`
+    + `Recebemos o teu pedido do plano ${nomePlano} (faturação ${cicloTexto}).\n\n`
+    + `Valor a pagar: ${formatarMT(valor)} MT\n`
+    + `Referência do pedido: ${referencia}\n\n`
+    + (dadosBancarios ? `Dados para pagamento:\n${dadosBancarios}\n\n` : "")
+    + `Depois de efetuares o pagamento, responde a este email com o comprovativo `
+    + `(indicando a referência ${referencia}) para ativarmos a tua conta.\n\n`
+    + `Qualquer dúvida, é só responder a este email.`;
+
+  if (isDevelopment) {
+    console.log('\n' + '='.repeat(60));
+    console.log('📧 EMAIL DE INSTRUÇÕES DE PAGAMENTO (DEV MODE)');
+    console.log('='.repeat(60));
+    console.log(`Para: ${email}`);
+    console.log(corpo);
+    console.log('='.repeat(60) + '\n');
+    return { success: true, mode: 'development' };
+  }
+
+  const client = getResendClient();
+  if (!client) {
+    console.error('[EmailService] RESEND_API_KEY não configurada, email de pagamento não enviado.');
+    return { success: false, error: 'RESEND_API_KEY em falta' };
+  }
+
+  try {
+    await client.emails.send({
+      from: REMETENTE_PLATAFORMA,
+      to: email,
+      subject: `Instruções de pagamento — Plano ${nomePlano}`,
+      text: corpo,
+    });
+    return { success: true, mode: 'production' };
+  } catch (error) {
+    console.error('[Resend Error - Instruções de Pagamento]:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Notifica o dono da plataforma (PLATFORM_OWNER_EMAIL) de um novo pedido
+ * de plano pago, para acompanhar o pagamento manualmente. Sem
+ * PLATFORM_OWNER_EMAIL configurado, não faz nada (não é um fluxo crítico
+ * para o cliente, só uma conveniência interna).
+ */
+async function sendNotificacaoPedidoPlanoDono({ nomeEmpresa, nomeContacto, email, telefone, nomePlano, cicloFaturacao, valor, referencia }) {
+  const destinatario = process.env.PLATFORM_OWNER_EMAIL;
+  if (!destinatario) {
+    console.warn('[EmailService] PLATFORM_OWNER_EMAIL não configurado, notificação de pedido de plano não enviada.');
+    return { success: false, error: 'PLATFORM_OWNER_EMAIL em falta' };
+  }
+
+  const cicloTexto = cicloFaturacao === "ANUAL" ? "anual" : "mensal";
+  const corpo = `Novo pedido de plano pago:\n\n`
+    + `Empresa: ${nomeEmpresa}\n`
+    + `Contacto: ${nomeContacto} (${email}${telefone ? `, ${telefone}` : ""})\n`
+    + `Plano: ${nomePlano} (faturação ${cicloTexto})\n`
+    + `Valor: ${formatarMT(valor)} MT\n`
+    + `Referência: ${referencia}\n\n`
+    + `Revê em /superadmin/solicitacoes-acesso quando o pagamento for confirmado.`;
+
+  if (isDevelopment) {
+    console.log('\n' + '='.repeat(60));
+    console.log('📧 NOTIFICAÇÃO DE PEDIDO DE PLANO (DEV MODE)');
+    console.log('='.repeat(60));
+    console.log(`Para: ${destinatario}`);
+    console.log(corpo);
+    console.log('='.repeat(60) + '\n');
+    return { success: true, mode: 'development' };
+  }
+
+  const client = getResendClient();
+  if (!client) {
+    console.error('[EmailService] RESEND_API_KEY não configurada, notificação de pedido de plano não enviada.');
+    return { success: false, error: 'RESEND_API_KEY em falta' };
+  }
+
+  try {
+    await client.emails.send({
+      from: REMETENTE_PLATAFORMA,
+      to: destinatario,
+      subject: `Novo pedido de plano: ${nomeEmpresa} (${nomePlano})`,
+      text: corpo,
+    });
+    return { success: true, mode: 'production' };
+  } catch (error) {
+    console.error('[Resend Error - Notificação de Pedido de Plano]:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendInstrucoesPagamentoEmail,
+  sendNotificacaoPedidoPlanoDono,
 };

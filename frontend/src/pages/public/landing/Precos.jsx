@@ -13,9 +13,14 @@ import { CORES } from "../../../theme";
 // créditos via Excel) é a funcionalidade mais sensível, por isso fica
 // reservada ao Empresarial. O Empresarial é sempre um superconjunto dos
 // planos abaixo, nunca perde uma funcionalidade que os outros têm.
+// planoEnum: valor real de Empresa.plano no backend (ver
+// models/empresa.model.js), enviado no trial (ver TrialSection.jsx)
+// para a conta nascer já no plano escolhido aqui, em vez de cair sempre
+// no STARTER por omissão como acontecia antes.
 const PLANOS = [
   {
     nome: "Starter",
+    planoEnum: "STARTER",
     precoMensal: 1500,
     descricao: "Para financeiras pequenas a começar.",
     beneficios: [
@@ -29,6 +34,7 @@ const PLANOS = [
   },
   {
     nome: "Profissional",
+    planoEnum: "BUSINESS",
     precoMensal: 3500,
     descricao: "Para operações em crescimento.",
     beneficios: [
@@ -43,6 +49,7 @@ const PLANOS = [
   },
   {
     nome: "Empresarial",
+    planoEnum: "ENTERPRISE",
     precoMensal: 7500,
     descricao: "Para financeiras com equipas maiores.",
     beneficios: [
@@ -60,7 +67,7 @@ const PLANOS = [
 
 const formatarMT = (valor) => Math.round(valor).toLocaleString("pt-PT");
 
-function PlanoCard({ nome, precoMensal, ciclo, descricao, beneficios, destaque, onNavTrial }) {
+function PlanoCard({ nome, planoEnum, precoMensal, ciclo, descricao, beneficios, destaque, onNavTrial }) {
   const precoExibido = ciclo === "anual" ? precoMensal * 10 : precoMensal;
   const precoMensalEquivalente = ciclo === "anual" ? precoMensal * 10 / 12 : precoMensal;
   return (
@@ -135,7 +142,7 @@ function PlanoCard({ nome, precoMensal, ciclo, descricao, beneficios, destaque, 
         fullWidth
         variant={destaque ? "contained" : "outlined"}
         disableElevation
-        onClick={onNavTrial}
+        onClick={() => onNavTrial(planoEnum)}
         sx={{
           borderRadius: 2,
           py: 1.2,

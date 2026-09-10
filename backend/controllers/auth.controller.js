@@ -9,7 +9,7 @@ const { generateOTP, getExpirationTime } = require("../utils/otpGenerator");
 const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/emailService");
 const { avaliarAcessoEmpresa, MENSAGENS } = require("../utils/empresaAccess");
 const { obterEmpresaCacheada, invalidarCacheEmpresa } = require("../utils/empresaCache");
-const { obterLimitesPlano } = require("../config/planos");
+const { obterLimitesPlano, PLANOS_VALIDOS } = require("../config/planos");
 
 // Roles que contam para o limite de "utilizadores" de cada plano (ver
 // config/planos.js). MUTUARIO fica de fora de propósito: são os clientes
@@ -45,9 +45,11 @@ const gerarSlugEmpresa = async (nomeEmpresa) => {
  */
 const obterConvitePortalValido = async (token, options = {}) => {
   if (!token) return null;
-  const convite = await ConvitePortal.findOne({ where: { token, usado: false }, ...options });
+  const convite = await ConvitePortal.findOne({ where: { token }, ...options });
   if (!convite) return null;
   if (new Date() > convite.expiresAt) return null;
+  // maxUsos null = convite de grupo sem limite (ver models/convitePortal.model.js).
+  if (convite.maxUsos !== null && convite.totalUsos >= convite.maxUsos) return null;
   return convite;
 };
 
@@ -115,13 +117,27 @@ const mapUserResponse = (user) => ({
  * BOOTSTRAP DA EMPRESA + PRIMEIRO ADMIN (SaaS multi-tenant)
  * Cria uma nova Empresa (tenant) e o respetivo utilizador ADMIN inicial.
  */
+// PLANOS_VALIDOS vem de config/planos.js (valores reais do ENUM
+// Empresa.plano, ver models/empresa.model.js). Os nomes de marketing na
+// landing page são Starter/Profissional/Empresarial (ver
+// frontend/src/pages/public/landing/Precos.jsx), mapeados para estes
+// três antes de chegarem aqui.
+
 const bootstrapAdmin = async (req, res) => {
   try {
-    const { nomeEmpresa, nome, email, password } = req.body;
+    const { nomeEmpresa, nome, email, password, plano } = req.body;
 
     if (!nomeEmpresa || !nome || !email || !password) {
       return res.status(400).json({ message: "nomeEmpresa, nome, email e password são obrigatórios." });
     }
+
+    // Público, sem autenticação (é o próprio ponto de entrada do trial
+    // self-service na landing page) — só aceita os 3 valores reais do
+    // ENUM, qualquer outra coisa (ou nada) cai no mais restrito. O plano
+    // pedido só vale durante os 7 dias de TESTE (ver trialEndsAt); passado
+    // esse prazo o acesso fica bloqueado de qualquer forma
+    // (avaliarAcessoEmpresa), independentemente do plano escolhido aqui.
+    const planoFinal = PLANOS_VALIDOS.includes(plano) ? plano : "STARTER";
 
     const erroPassword = validarForcaPassword(password);
     if (erroPassword) return res.status(400).json({ message: erroPassword });
@@ -151,6 +167,7 @@ const bootstrapAdmin = async (req, res) => {
         slug,
         estado: "TESTE",
         trialEndsAt,
+        plano: planoFinal,
       }, { transaction: t });
 
       const user = await User.create({
@@ -184,6 +201,7 @@ const bootstrapAdmin = async (req, res) => {
         nome: result.empresa.nome,
         slug: result.empresa.slug,
         estado: result.empresa.estado,
+        plano: result.empresa.plano,
         trialEndsAt: result.empresa.trialEndsAt,
       },
       user: mapUserResponse(result.user),
@@ -315,8 +333,19 @@ const criarConvitePortal = async (req, res) => {
       return res.status(403).json({ message: "Apenas ADMIN ou GESTOR podem gerar convites de registo." });
     }
 
-    const { validadeDias } = req.body;
+    const { validadeDias, maxUsos } = req.body;
     const dias = Number(validadeDias) > 0 ? Number(validadeDias) : 7;
+
+    // maxUsos: omitido ou 1 -> convite individual, uso único (default,
+    // comportamento de sempre). null explícito -> convite de grupo sem
+    // limite (ex: link partilhado num grupo de WhatsApp). Um número > 1
+    // -> convite de grupo com limite de registos.
+    let maxUsosFinal = 1;
+    if (maxUsos === null) {
+      maxUsosFinal = null;
+    } else if (Number(maxUsos) > 1) {
+      maxUsosFinal = Math.floor(Number(maxUsos));
+    }
 
     const token = crypto.randomBytes(24).toString("hex");
     const expiresAt = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
@@ -326,6 +355,7 @@ const criarConvitePortal = async (req, res) => {
       empresaId: req.user.empresaId,
       criadoPor: req.user.id,
       expiresAt,
+      maxUsos: maxUsosFinal,
     });
 
     await registrarLogAuditoria({
@@ -333,7 +363,8 @@ const criarConvitePortal = async (req, res) => {
       acao: "CRIAR_CONVITE_PORTAL",
       entidade: "ConvitePortal",
       entidadeId: convite.id,
-      descricao: `Convite de registo de portal criado, válido até ${expiresAt.toISOString()}.`,
+      descricao: `Convite de registo de portal criado, válido até ${expiresAt.toISOString()}` +
+        (maxUsosFinal === null ? ", convite de grupo sem limite." : maxUsosFinal > 1 ? `, convite de grupo (até ${maxUsosFinal} registos).` : ", uso único."),
     });
 
     const link = `${process.env.FRONTEND_URL}/register-mutuario?convite=${token}`;
@@ -343,6 +374,8 @@ const criarConvitePortal = async (req, res) => {
       token,
       link,
       expiresAt,
+      maxUsos: convite.maxUsos,
+      totalUsos: convite.totalUsos,
     });
   } catch (error) {
     console.error("[CriarConvitePortal Error]:", error);
@@ -411,9 +444,12 @@ const registerMutuario = async (req, res) => {
         email, userId: user.id,
       }, { transaction: t });
 
-      convite.usado = true;
-      convite.usadoPor = user.id;
-      await convite.save({ transaction: t });
+      // increment() gera um UPDATE atómico (total_usos = total_usos + 1),
+      // evita a corrida óbvia de dois registos em paralelo lerem o mesmo
+      // valor antigo. usadoPor não precisa da mesma atomicidade (é só
+      // referência do último a usar), por isso fica num update à parte.
+      await convite.increment("totalUsos", { transaction: t });
+      await convite.update({ usadoPor: user.id }, { transaction: t });
 
       await registrarLogAuditoria({
         userId: user.id,
@@ -758,9 +794,12 @@ const verifyOTPAndRegister = async (req, res) => {
         telefone: data.telefone, email, userId: user.id,
       }, { transaction: t });
 
-      convite.usado = true;
-      convite.usadoPor = user.id;
-      await convite.save({ transaction: t });
+      // increment() gera um UPDATE atómico (total_usos = total_usos + 1),
+      // evita a corrida óbvia de dois registos em paralelo lerem o mesmo
+      // valor antigo. usadoPor não precisa da mesma atomicidade (é só
+      // referência do último a usar), por isso fica num update à parte.
+      await convite.increment("totalUsos", { transaction: t });
+      await convite.update({ usadoPor: user.id }, { transaction: t });
 
       verificationToken.verified = true;
       await verificationToken.save({ transaction: t });
