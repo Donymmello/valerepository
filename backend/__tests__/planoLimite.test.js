@@ -24,15 +24,15 @@ function mockRes() {
 
 describe("config/planos.js", () => {
   test("STARTER: 3 utilizadores, sem importação", () => {
-    expect(obterLimitesPlano("STARTER")).toEqual({ maxUtilizadoresInternos: 3, permiteImportacaoExcel: false, precoMensal: 1500 });
+    expect(obterLimitesPlano("STARTER")).toEqual({ maxUtilizadoresInternos: 3, permiteImportacaoExcel: false, precoMensal: 2500 });
   });
 
   test("BUSINESS: 10 utilizadores, sem importação", () => {
-    expect(obterLimitesPlano("BUSINESS")).toEqual({ maxUtilizadoresInternos: 10, permiteImportacaoExcel: false, precoMensal: 3500 });
+    expect(obterLimitesPlano("BUSINESS")).toEqual({ maxUtilizadoresInternos: 10, permiteImportacaoExcel: false, precoMensal: 4000 });
   });
 
   test("ENTERPRISE: sem limite de utilizadores, com importação", () => {
-    expect(obterLimitesPlano("ENTERPRISE")).toEqual({ maxUtilizadoresInternos: null, permiteImportacaoExcel: true, precoMensal: 7500 });
+    expect(obterLimitesPlano("ENTERPRISE")).toEqual({ maxUtilizadoresInternos: null, permiteImportacaoExcel: true, precoMensal: 8000 });
   });
 
   test("plano desconhecido/nulo cai no mais restrito (STARTER), nunca no mais permissivo", () => {

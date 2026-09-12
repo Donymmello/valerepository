@@ -60,6 +60,13 @@ export default function EmpresasList() {
   const [criandoSalvando, setCriandoSalvando] = useState(false);
   const [erroCriacao, setErroCriacao] = useState("");
 
+  // "Apagar" empresa: não remove nada da BD, só marca estado=CANCELADA
+  // (bloqueia o acesso, ver avaliarAcessoEmpresa), reversível a qualquer
+  // momento reabrindo "Editar" e escolhendo outro estado.
+  const [apagando, setApagando] = useState(null); // empresa selecionada para confirmar
+  const [apagandoSalvando, setApagandoSalvando] = useState(false);
+  const [erroApagar, setErroApagar] = useState("");
+
   const carregar = async () => {
     try {
       setLoading(true);
@@ -112,6 +119,23 @@ export default function EmpresasList() {
       setErroEdicao(err?.response?.data?.message || "Erro ao atualizar empresa.");
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const confirmarApagar = async () => {
+    setApagandoSalvando(true);
+    setErroApagar("");
+    try {
+      const data = await atualizarEmpresaSuperadminRequest(apagando.id, { estado: "CANCELADA" });
+      setEmpresas((prev) =>
+        prev.map((e) => (e.id === apagando.id ? { ...e, ...data.empresa } : e))
+      );
+      setApagando(null);
+    } catch (err) {
+      console.error(err);
+      setErroApagar(err?.response?.data?.message || "Erro ao apagar empresa.");
+    } finally {
+      setApagandoSalvando(false);
     }
   };
 
@@ -208,11 +232,22 @@ export default function EmpresasList() {
                       </Stack>
                     </TableCell>
                     <TableCell>{empresa.totalUtilizadores}</TableCell>
-                    <TableCell>{formatDate(empresa.created_at)}</TableCell>
+                    <TableCell>{formatDate(empresa.createdAt)}</TableCell>
                     <TableCell align="right">
-                      <Button size="small" variant="outlined" onClick={() => abrirEdicao(empresa)}>
-                        Editar
-                      </Button>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Button size="small" variant="outlined" onClick={() => abrirEdicao(empresa)}>
+                          Editar
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          disabled={empresa.estado === "CANCELADA"}
+                          onClick={() => { setApagando(empresa); setErroApagar(""); }}
+                        >
+                          Apagar
+                        </Button>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 );
@@ -263,6 +298,25 @@ export default function EmpresasList() {
           <Button onClick={fecharEdicao} disabled={salvando}>Cancelar</Button>
           <Button onClick={guardarEdicao} variant="contained" disabled={salvando}>
             {salvando ? "A guardar..." : "Guardar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!apagando} onClose={() => setApagando(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Apagar {apagando?.nome}?</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            {erroApagar && <Alert severity="error">{erroApagar}</Alert>}
+            <Typography variant="body2" color="text.secondary">
+              A empresa passa a estado <strong>CANCELADA</strong> e o acesso fica bloqueado. Nada é apagado
+              da base de dados, podes reverter a qualquer momento em "Editar".
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApagando(null)} disabled={apagandoSalvando}>Cancelar</Button>
+          <Button onClick={confirmarApagar} variant="contained" color="error" disabled={apagandoSalvando}>
+            {apagandoSalvando ? "A apagar..." : "Apagar"}
           </Button>
         </DialogActions>
       </Dialog>

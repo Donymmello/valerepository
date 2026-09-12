@@ -461,6 +461,17 @@ export const atualizarMinhaEmpresaRequest = async (payload) => {
   return response.data;
 };
 
+// Upload do logo da empresa (PNG/JPG/WEBP/SVG, até 2 MB, ver
+// backend/middleware/uploadLogo.middleware.js). Sem Content-Type manual:
+// o browser gera o boundary sozinho a partir do FormData.
+export const uploadLogoEmpresaRequest = async (file) => {
+  const formData = new FormData();
+  formData.append("logo", file);
+
+  const response = await api.post("/empresas/me/logo", formData);
+  return response.data;
+};
+
 export const listarUtilizadoresEmpresaRequest = async () => {
   const response = await api.get("/empresas/users");
   return response.data;

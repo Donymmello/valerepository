@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -17,6 +18,7 @@ import {
 import {
   getMinhaEmpresaRequest,
   atualizarMinhaEmpresaRequest,
+  uploadLogoEmpresaRequest,
   listarUtilizadoresEmpresaRequest,
   atualizarEstadoUtilizadorRequest,
 } from "../../../api/admin.api";
@@ -42,6 +44,10 @@ export default function EmpresaConfiguracoes() {
   });
   const [savingEmpresa, setSavingEmpresa] = useState(false);
   const [empresaMsg, setEmpresaMsg] = useState("");
+
+  const inputLogoRef = useRef(null);
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
+  const [erroLogo, setErroLogo] = useState("");
 
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosError, setUsuariosError] = useState("");
@@ -103,6 +109,26 @@ export default function EmpresaConfiguracoes() {
     }
   };
 
+  const handleEscolherLogo = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // permite escolher o mesmo ficheiro outra vez, se preciso
+    if (!file) return;
+
+    setErroLogo("");
+    setEnviandoLogo(true);
+
+    uploadLogoEmpresaRequest(file)
+      .then((data) => {
+        setEmpresa(data.empresa);
+        setEmpresaMsg("Logo atualizado com sucesso.");
+      })
+      .catch((err) => {
+        console.error(err);
+        setErroLogo(err?.response?.data?.message || "Erro ao enviar o logo. Tenta novamente.");
+      })
+      .finally(() => setEnviandoLogo(false));
+  };
+
   const handleToggleAtivo = async (usuario) => {
     setUsuariosError("");
     setTogglingId(usuario.id);
@@ -157,6 +183,42 @@ export default function EmpresaConfiguracoes() {
         </Stack>
 
         {empresaMsg && <Alert severity="success" sx={{ mb: 3 }}>{empresaMsg}</Alert>}
+        {erroLogo && <Alert severity="error" sx={{ mb: 3 }}>{erroLogo}</Alert>}
+
+        <Stack direction="row" spacing={2.5} alignItems="center" sx={{ mb: 3 }}>
+          <Avatar src={empresa?.logo || undefined} variant="rounded" sx={{ width: 64, height: 64 }}>
+            {(empresa?.nome || "?").charAt(0).toUpperCase()}
+          </Avatar>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Logo da empresa
+            </Typography>
+            {podeEditar ? (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={enviandoLogo}
+                  onClick={() => inputLogoRef.current?.click()}
+                >
+                  {enviandoLogo ? "A enviar..." : "Alterar logo"}
+                </Button>
+                <input
+                  ref={inputLogoRef}
+                  type="file"
+                  hidden
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  onChange={handleEscolherLogo}
+                />
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                  PNG, JPG, WEBP ou SVG, até 2 MB.
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="caption" color="text.secondary">Só o ADMIN pode alterar o logo.</Typography>
+            )}
+          </Box>
+        </Stack>
 
         <Box component="form" onSubmit={handleSalvarEmpresa}>
           <Grid container spacing={2.5}>

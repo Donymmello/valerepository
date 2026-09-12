@@ -28,7 +28,7 @@ const NOME_PLANO = {
 // Mesmos preços de ./Precos.jsx, só para mostrar uma estimativa aqui. O
 // valor cobrado de facto é sempre recalculado no backend a partir de
 // config/planos.js (ver controllers/solicitacaoAcesso.controller.js).
-const PRECO_MENSAL = { STARTER: 1500, BUSINESS: 3500, ENTERPRISE: 7500 };
+const PRECO_MENSAL = { STARTER: 2500, BUSINESS: 4000, ENTERPRISE: 8000 };
 const formatarMT = (valor) => Math.round(valor).toLocaleString("pt-PT");
 
 export default function TrialSection({ planoEscolhido = "STARTER" }) {

@@ -21,9 +21,9 @@
 */
 
 const LIMITES_PLANO = {
-  STARTER: { maxUtilizadoresInternos: 3, permiteImportacaoExcel: false, precoMensal: 1500 },
-  BUSINESS: { maxUtilizadoresInternos: 10, permiteImportacaoExcel: false, precoMensal: 3500 },
-  ENTERPRISE: { maxUtilizadoresInternos: null, permiteImportacaoExcel: true, precoMensal: 7500 },
+  STARTER: { maxUtilizadoresInternos: 3, permiteImportacaoExcel: false, precoMensal: 2500 },
+  BUSINESS: { maxUtilizadoresInternos: 10, permiteImportacaoExcel: false, precoMensal: 4000 },
+  ENTERPRISE: { maxUtilizadoresInternos: null, permiteImportacaoExcel: true, precoMensal: 8000 },
 };
 
 // Nomes de marketing dos mesmos 3 valores do ENUM (ver models/empresa.model.js).

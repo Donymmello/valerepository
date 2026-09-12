@@ -21,7 +21,7 @@ const PLANOS = [
   {
     nome: "Starter",
     planoEnum: "STARTER",
-    precoMensal: 1500,
+    precoMensal: 2500,
     descricao: "Para financeiras pequenas a começar.",
     beneficios: [
       "Até 3 utilizadores",
@@ -35,7 +35,7 @@ const PLANOS = [
   {
     nome: "Profissional",
     planoEnum: "BUSINESS",
-    precoMensal: 3500,
+    precoMensal: 4000,
     descricao: "Para operações em crescimento.",
     beneficios: [
       "Até 10 utilizadores",
@@ -50,7 +50,7 @@ const PLANOS = [
   {
     nome: "Empresarial",
     planoEnum: "ENTERPRISE",
-    precoMensal: 7500,
+    precoMensal: 8000,
     descricao: "Para financeiras com equipas maiores.",
     beneficios: [
       "Utilizadores ilimitados",

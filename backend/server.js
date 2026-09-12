@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const cors = require("cors");
 const helmet = require("helmet");
 const { sequelize } = require("./models");
@@ -53,6 +54,16 @@ app.use(
 app.use(performanceMetricsMiddleware);
 // Limite de pedidos por IP em toda a API, ver middleware/rateLimit.middleware.js.
 app.use("/api", apiLimiter);
+
+// Logos de empresa (ver middleware/uploadLogo.middleware.js), servidos
+// publicamente porque aparecem em <img> no frontend. Só esta subpasta,
+// nunca a "upload" inteira: comprovativos/anexos são documentos privados
+// e continuam só acessíveis via download autenticado nos controllers.
+// Fica sob /api porque em produção o Caddy partilhado da VPS só
+// encaminha /api/* para este backend, o resto vai para o frontend
+// (ver Caddyfile); sem o prefixo /api, os pedidos a esta pasta nunca
+// chegariam a este servidor.
+app.use("/api/uploads/logos", express.static(path.join(__dirname, "upload/logos")));
 
 // =========================================================================
 // CENTRAL DE ROTAS

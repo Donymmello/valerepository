@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const { Empresa, User } = require("../models");
 const { Op } = require("sequelize");
 const registrarLogAuditoria = require("../utils/logAuditoria");
@@ -124,6 +126,63 @@ async function atualizarMinhaEmpresa(req, res) {
 
 /*
   ==========================================================
+  UPLOAD DO LOGO DA PRÓPRIA EMPRESA
+  ==========================================================
+  Apenas ADMIN (ver routes/empresa.routes.js e
+  middleware/uploadLogo.middleware.js para tipo/tamanho aceites).
+  O ficheiro fica em upload/logos, servido publicamente em
+  /api/uploads/logos/<ficheiro> (ver server.js). "logo" na Empresa
+  guarda sempre a URL absoluta (mesmo formato que já aceitava quando
+  era colado à mão via PUT /empresas/me), para o frontend nunca
+  precisar de saber montar o caminho, só usar <img src={empresa.logo}>.
+*/
+async function uploadLogoEmpresa(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Nenhum ficheiro enviado." });
+    }
+
+    const empresa = await Empresa.findByPk(req.user.empresaId);
+
+    if (!empresa) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+
+    const logoAnterior = empresa.logo;
+    const novoLogo = `${req.protocol}://${req.get("host")}/api/uploads/logos/${req.file.filename}`;
+
+    await empresa.update({ logo: novoLogo });
+    invalidarCacheEmpresa(empresa.id);
+
+    // Best-effort: só apaga o ficheiro antigo se for mesmo um upload
+    // nosso (não uma URL externa que o utilizador tenha posto antes via
+    // PUT /empresas/me), para nunca tentar apagar algo fora desta pasta.
+    if (logoAnterior && logoAnterior.includes("/api/uploads/logos/")) {
+      const caminhoAntigo = path.join("upload/logos", path.basename(logoAnterior));
+      fs.unlink(caminhoAntigo, () => {});
+    }
+
+    await registrarLogAuditoria({
+      userId: req.user.id,
+      acao: "ATUALIZAR_LOGO_EMPRESA",
+      entidade: "Empresa",
+      entidadeId: empresa.id,
+      descricao: `Logo da empresa "${empresa.nome}" atualizado.`,
+    });
+
+    return res.status(200).json({ message: "Logo atualizado com sucesso.", empresa });
+  } catch (error) {
+    console.error("Erro ao atualizar logo da empresa:", error);
+    return res.status(500).json({
+      message: "Erro interno ao atualizar logo da empresa.",
+      error: error.message,
+    });
+  }
+}
+
+/*
+  ==========================================================
   LISTAR UTILIZADORES INTERNOS DA EMPRESA
   ==========================================================
   ADMIN/GESTOR. Só devolve roles internas (backoffice), os
@@ -235,6 +294,7 @@ async function atualizarEstadoUtilizador(req, res) {
 module.exports = {
   getMinhaEmpresa,
   atualizarMinhaEmpresa,
+  uploadLogoEmpresa,
   listarUtilizadoresEmpresa,
   atualizarEstadoUtilizador,
 };

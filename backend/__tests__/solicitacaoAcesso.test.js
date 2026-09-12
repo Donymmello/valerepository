@@ -65,7 +65,7 @@ describe("criarSolicitacaoAcesso", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  test("com plano STARTER mensal: calcula 1500 MT e envia os 2 emails com a referência SOL-000042", async () => {
+  test("com plano STARTER mensal: calcula 2500 MT e envia os 2 emails com a referência SOL-000042", async () => {
     SolicitacaoAcesso.create.mockResolvedValue({ id: 42 });
     const req = {
       body: {
@@ -78,14 +78,14 @@ describe("criarSolicitacaoAcesso", () => {
     await criarSolicitacaoAcesso(req, res);
 
     expect(SolicitacaoAcesso.create).toHaveBeenCalledWith(
-      expect.objectContaining({ plano: "STARTER", cicloFaturacao: "MENSAL", valorEstimado: 1500 })
+      expect.objectContaining({ plano: "STARTER", cicloFaturacao: "MENSAL", valorEstimado: 2500 })
     );
     expect(sendInstrucoesPagamentoEmail).toHaveBeenCalledWith(
       "ana@x.com",
-      expect.objectContaining({ nomePlano: "Starter", valor: 1500, referencia: "SOL-000042" })
+      expect.objectContaining({ nomePlano: "Starter", valor: 2500, referencia: "SOL-000042" })
     );
     expect(sendNotificacaoPedidoPlanoDono).toHaveBeenCalledWith(
-      expect.objectContaining({ nomePlano: "Starter", valor: 1500, referencia: "SOL-000042" })
+      expect.objectContaining({ nomePlano: "Starter", valor: 2500, referencia: "SOL-000042" })
     );
     expect(res.status).toHaveBeenCalledWith(201);
   });
@@ -103,7 +103,7 @@ describe("criarSolicitacaoAcesso", () => {
     await criarSolicitacaoAcesso(req, res);
 
     expect(SolicitacaoAcesso.create).toHaveBeenCalledWith(
-      expect.objectContaining({ valorEstimado: 35000 })
+      expect.objectContaining({ valorEstimado: 40000 })
     );
   });
 
@@ -117,7 +117,7 @@ describe("criarSolicitacaoAcesso", () => {
     await criarSolicitacaoAcesso(req, res);
 
     expect(SolicitacaoAcesso.create).toHaveBeenCalledWith(
-      expect.objectContaining({ cicloFaturacao: "MENSAL", valorEstimado: 7500 })
+      expect.objectContaining({ cicloFaturacao: "MENSAL", valorEstimado: 8000 })
     );
   });
 
