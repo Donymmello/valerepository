@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const {
   ParcelaPagamento,
+  Credito,
   PedidoCredito,
   Mutuario,
   Notificacao,
@@ -26,15 +27,21 @@ async function executarVerificacaoPagamento(empresaId) {
         [Op.lte]: emTresDias,
       },
     },
+    /*
+      Uma parcela nao conhece o pedido diretamente: pertence a um Credito,
+      e e o Credito que aponta para o PedidoCredito e para o Mutuario (ver
+      models/index.js). O include antigo pedia as: "pedido" na propria
+      parcela, associacao que nunca existiu, e por isso esta verificacao
+      rebentava inteira todos os dias no agendador com
+      "PedidoCredito is not associated to ParcelaPagamento!".
+    */
     include: [
       {
-        model: PedidoCredito,
-        as: "pedido",
+        model: Credito,
+        as: "credito",
         include: [
-          {
-            model: Mutuario,
-            as: "mutuario",
-          },
+          { model: PedidoCredito, as: "pedido" },
+          { model: Mutuario, as: "mutuario" },
         ],
       },
     ],
@@ -52,10 +59,11 @@ async function executarVerificacaoPagamento(empresaId) {
   const idsVencidas = [];
 
   for (const parcela of parcelas) {
-    const pedido = parcela.pedido;
-    const mutuario = pedido?.mutuario;
+    const pedido = parcela.credito?.pedido;
+    const mutuario = parcela.credito?.mutuario;
 
-    if (!mutuario?.userId) continue;
+    // Sem pedido (credito orfao) nao ha numeroPedido para a mensagem.
+    if (!pedido || !mutuario?.userId) continue;
 
     const vencimento = new Date(parcela.dataVencimento);
     const vencido = vencimento < hoje;
