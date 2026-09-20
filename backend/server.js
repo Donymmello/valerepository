@@ -10,6 +10,7 @@ require("dotenv").config();
 const requestIdMiddleware = require("./middleware/requestId.middleware");
 const { errorHandlerMiddleware } = require("./middleware/errorHandler.middleware");
 const { performanceMetricsMiddleware } = require("./middleware/performanceMetrics.middleware");
+const { limparUploadOrfaoMiddleware } = require("./middleware/limparUploadOrfao.middleware");
 const { apiLimiter } = require("./middleware/rateLimit.middleware");
 const apiRoutes = require("./routes/index");
 const logger = require("./utils/logger");
@@ -51,6 +52,7 @@ app.use(
     credentials: true,
   })
 );
+app.use(limparUploadOrfaoMiddleware);
 app.use(performanceMetricsMiddleware);
 // Limite de pedidos por IP em toda a API, ver middleware/rateLimit.middleware.js.
 app.use("/api", apiLimiter);
