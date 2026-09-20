@@ -63,7 +63,21 @@ app.use("/api", apiLimiter);
 // encaminha /api/* para este backend, o resto vai para o frontend
 // (ver Caddyfile); sem o prefixo /api, os pedidos a esta pasta nunca
 // chegariam a este servidor.
-app.use("/api/uploads/logos", express.static(path.join(__dirname, "upload/logos")));
+// Content-Disposition: attachment para o caso de alguém conseguir na
+// mesma gravar aqui um ficheiro com conteúdo ativo: navegar diretamente
+// para o URL passa a descarregar em vez de renderizar, e a CSP local
+// impede que o que lá esteja carregue seja o que for. As <img> do
+// frontend continuam a funcionar, o cabeçalho só afeta navegação.
+app.use(
+  "/api/uploads/logos",
+  express.static(path.join(__dirname, "upload/logos"), {
+    setHeaders: (res) => {
+      res.setHeader("Content-Disposition", "attachment");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    },
+  })
+);
 
 // =========================================================================
 // CENTRAL DE ROTAS

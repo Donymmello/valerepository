@@ -50,6 +50,37 @@ async function obterMeuMutuario(userId) {
 
 /*
   ==========================================================
+  FUNÇÃO AUXILIAR PARA RESOLVER UM REQUISITO DO MEU PEDIDO
+  ==========================================================
+  anexarReqPedido e getMeuReqAnexos usavam req.params.id tal e qual, sem
+  verificação nenhuma: bastava passar o id de um requisito de OUTRA
+  empresa para lhe anexar um ficheiro (e o aviso em
+  notificarStaffDaEmpresa seguia para o staff dessa empresa, que abria o
+  ficheiro na fila de validação) ou para listar os anexos alheios. Os ids
+  são inteiros sequenciais, portanto não era preciso adivinhar nada.
+  anexo.controller.js já resolvia isto pela empresa; aqui, sendo o portal,
+  restringimos ao próprio mutuário.
+*/
+async function obterMeuPedidoRequisito(pedidoRequisitoId, user) {
+  const mutuario = await obterMeuMutuario(user.id);
+  if (!mutuario) return null;
+
+  return PedidoRequisito.findOne({
+    where: { id: pedidoRequisitoId },
+    include: [
+      {
+        model: PedidoCredito,
+        as: "pedido",
+        where: { empresaId: user.empresaId, mutuarioId: mutuario.id },
+        required: true,
+      },
+      { model: RequisitoCredito, as: "requisito" },
+    ],
+  });
+}
+
+/*
+  ==========================================================
   FUNÇÃO AUXILIAR PARA GERAR NÚMERO DO PEDIDO
   ==========================================================
 */
@@ -592,6 +623,13 @@ async function getMeuExtratoPedido(req, res) {
 
 async function anexarReqPedido(req, res) {
   try {
+    if (!garantirPerfilUser(req, res)) return;
+
+    const pedidoRequisito = await obterMeuPedidoRequisito(req.params.id, req.user);
+    if (!pedidoRequisito) {
+      return res.status(404).json({ message: "Requisito de pedido não encontrado." });
+    }
+
     const anexo = await Anexo.create({
       pedidoRequisitoId: req.params.id,
       nome: req.file.originalname,
@@ -610,12 +648,6 @@ async function anexarReqPedido(req, res) {
     });
 
     // Avisa o staff interno para validar o documento acabado de chegar.
-    const pedidoRequisito = await PedidoRequisito.findByPk(req.params.id, {
-      include: [
-        { model: PedidoCredito, as: "pedido" },
-        { model: RequisitoCredito, as: "requisito" },
-      ],
-    });
     if (pedidoRequisito?.pedido) {
       await notificarStaffDaEmpresa({
         empresaId: pedidoRequisito.pedido.empresaId,
@@ -638,6 +670,13 @@ async function anexarReqPedido(req, res) {
 
 async function getMeuReqAnexos(req, res) {
   try {
+    if (!garantirPerfilUser(req, res)) return;
+
+    const pedidoRequisito = await obterMeuPedidoRequisito(req.params.id, req.user);
+    if (!pedidoRequisito) {
+      return res.status(404).json({ message: "Requisito de pedido não encontrado." });
+    }
+
     const anexos = await Anexo.findAll({
       where: {
         pedidoRequisitoId: req.params.id,

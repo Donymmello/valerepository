@@ -20,6 +20,7 @@ router.post(
 router.get(
   "/pedido/:pedidoId",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   getRequisitosByPedido
 );
 

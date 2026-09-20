@@ -21,6 +21,7 @@ const {
 router.get(
   "/pedido/:pedidoId",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   getAprovacoesByPedido
 );
 

@@ -26,11 +26,26 @@ router.post(
   createMutuario
 );
 
-// Listar todos
-router.get("/", authMiddleware, getAllMutuarios);
+/*
+  Leituras com a mesma guarda de perfil dos writes abaixo: sem isto, um
+  mutuario do portal (role USER, criado por convite) recebia a lista
+  completa de mutuarios da empresa, com documentoNumero, nuit, morada e
+  saldo em divida de toda a gente. O portal tem /portal/meu-mutuario
+  para o mutuario ver o seu proprio registo.
+*/
+router.get(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  getAllMutuarios
+);
 
-// Buscar por id
-router.get("/:id", authMiddleware, getMutuarioById);
+router.get(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
+  getMutuarioById
+);
 
 // Atualizar
 router.put(

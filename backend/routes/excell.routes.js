@@ -29,9 +29,15 @@ const {
 
 } = require("../controllers/excell.controller");
 
+/*
+  Mesma matriz de perfis que EXPORTAR_EXCEL em utils/regrasPedido.js.
+  Sem isto, qualquer utilizador autenticado (incluindo um mutuario do
+  portal) descarregava a carteira inteira da empresa em Excel.
+*/
 router.get(
   "/export/mutuarios",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   exportarMutuarios
 );
 
@@ -42,6 +48,7 @@ router.get(
 router.get(
   "/export/pedidos",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   exportarPedidos
 );
 
@@ -51,12 +58,14 @@ router.get(
 router.get(
   "/export/desembolsos",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   exportarDesembolsos
 );
 
 router.get(
   "/export/reembolsos",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   exportarReembolsos
 );
 
@@ -66,6 +75,7 @@ router.get(
 router.get(
   "/export/relatorio-financeiro",
   authMiddleware,
+  authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"),
   exportarRelatorioFinanceiro
 )
 

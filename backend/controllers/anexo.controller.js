@@ -4,19 +4,45 @@ const {
     Anexo,
     PedidoRequisito,
     PedidoCredito,
+    Mutuario,
 } = require("../models");
 
-// Confirma que o pedidoRequisito pertence a um pedido da empresa autenticada
-async function obterPedidoRequisitoDaEmpresa(pedidoRequisitoId, empresaId) {
-    return PedidoRequisito.findOne({
+const PERFIS_BACKOFFICE = ["ADMIN", "GESTOR", "ANALISTA", "DIRETOR"];
+
+function ehStaff(user) {
+    return PERFIS_BACKOFFICE.includes(user.role);
+}
+
+/*
+  Confirma que o pedidoRequisito pertence a um pedido da empresa autenticada
+  E que este utilizador tem direito a vê-lo.
+
+  Antes só verificava a empresa. Como os mutuários do portal são
+  utilizadores normais da mesma empresa (role USER, ver auth.controller.js),
+  pertencer à empresa chegava para qualquer um deles ler e escrever nos
+  anexos de KYC de todos os outros clientes (bilhete, recibo de
+  vencimento, comprovativo de morada) só a adivinhar ids sequenciais.
+  Mesmo critério já usado em comprovativo.controller.js: staff da empresa,
+  ou o próprio mutuário do pedido.
+*/
+async function obterPedidoRequisitoAcessivel(pedidoRequisitoId, user) {
+    const pedidoRequisito = await PedidoRequisito.findOne({
         where: { id: pedidoRequisitoId },
-        include: [{ model: PedidoCredito, as: "pedido", where: { empresaId }, required: true }],
+        include: [{ model: PedidoCredito, as: "pedido", where: { empresaId: user.empresaId }, required: true }],
     });
+
+    if (!pedidoRequisito) return null;
+    if (ehStaff(user)) return pedidoRequisito;
+
+    const mutuario = await Mutuario.findOne({ where: { userId: user.id }, attributes: ["id"] });
+    if (!mutuario || pedidoRequisito.pedido.mutuarioId !== mutuario.id) return null;
+
+    return pedidoRequisito;
 }
 
 async function anexar (req, res) {
     try {
-        const pedidoRequisito = await obterPedidoRequisitoDaEmpresa(req.params.id, req.user.empresaId);
+        const pedidoRequisito = await obterPedidoRequisitoAcessivel(req.params.id, req.user);
         if (!pedidoRequisito) {
             return res.status(404).json({ message: "Requisito de pedido não encontrado." });
         }
@@ -42,7 +68,7 @@ async function anexar (req, res) {
 
 async function listar (req, res) {
     try {
-        const pedidoRequisito = await obterPedidoRequisitoDaEmpresa(req.params.id, req.user.empresaId);
+        const pedidoRequisito = await obterPedidoRequisitoAcessivel(req.params.id, req.user);
         if (!pedidoRequisito) {
             return res.status(404).json({ message: "Requisito de pedido não encontrado." });
         }
@@ -81,10 +107,12 @@ async function download (req, res) {
         }
 
         const pedido = anexo.pedidoRequisito?.pedido;
-        const ehDaMesmaEmpresa = pedido?.empresaId === req.user.empresaId;
+        // Pertencer à empresa não chega: tem de ser staff dessa empresa,
+        // ou quem enviou o próprio documento.
+        const ehStaffDaMesmaEmpresa = pedido?.empresaId === req.user.empresaId && ehStaff(req.user);
         const ehDono = anexo.userId === req.user.id;
 
-        if (!ehDaMesmaEmpresa && !ehDono) {
+        if (!ehStaffDaMesmaEmpresa && !ehDono) {
             return res.status(404).json({
                 message: "Documento nao encontrado",
             });

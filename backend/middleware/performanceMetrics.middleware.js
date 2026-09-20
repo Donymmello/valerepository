@@ -48,7 +48,14 @@ function getMemoryUsage() {
  * Middleware que rastreia performance
  */
 function performanceMetricsMiddleware(req, res, next) {
-  const endpoint = `${req.method} ${req.path}`;
+  /*
+    Colapsa os segmentos numéricos (/api/pedidos-credito/4821 fica
+    /api/pedidos-credito/:id) antes de a chave entrar no store. Com o
+    caminho cru, o dashboard de monitorização acabava a guardar ids reais
+    de pedidos, anexos e créditos de todas as empresas, e qualquer pedido
+    a um caminho inventado criava uma chave nova sem limite.
+  */
+  const endpoint = `${req.method} ${req.path.replace(/\/\d+(?=\/|$)/g, "/:id")}`;
   const startTime = Date.now();
   const startMem = process.memoryUsage().heapUsed;
   const startCpu = process.cpuUsage();
