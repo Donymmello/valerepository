@@ -93,6 +93,35 @@ export const deleteMutuarioRequest = async (id) => {
 };
 
 /*
+  ASSOCIACAO MUTUARIO <-> UTILIZADOR
+
+  Os quatro endpoints existem desde sempre em
+  controllers/vincularMutuario.controller.js e estao montados
+  (routes/index.js), mas nenhum ecra os chamava: o auto-registo pelo
+  portal ja cria o par User+Mutuario de uma vez, por isso a associacao
+  manual ficou sem caso de uso e o ecra nunca foi feito.
+
+  Voltou a fazer falta quando o backoffice passou a criar mutuarios
+  (createMutuarioRequest acima): esses nascem com userId nulo e, sem
+  isto, nunca teriam acesso ao portal. Restrito a ADMIN/GESTOR, que e o
+  que o controller exige.
+*/
+export const getUsersDisponiveisRequest = async () => {
+  const response = await api.get("/mutuarios/users-disponiveis");
+  return response.data;
+};
+
+export const associarUserMutuarioRequest = async (payload) => {
+  const response = await api.post("/mutuarios/associar-user", payload);
+  return response.data;
+};
+
+export const removerAssociacaoUserRequest = async (mutuarioId) => {
+  const response = await api.delete(`/mutuarios/${mutuarioId}/remover-user`);
+  return response.data;
+};
+
+/*
   ==========================================================
   DESEMBOLSOS
   ==========================================================

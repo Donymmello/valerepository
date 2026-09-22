@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   Divider,
+  MenuItem,
   Paper,
   Snackbar,
   Stack,
@@ -16,7 +17,11 @@ import {
   getMutuarioByIdRequest,
   updateMutuarioRequest,
   deleteMutuarioRequest,
+  getUsersDisponiveisRequest,
+  associarUserMutuarioRequest,
+  removerAssociacaoUserRequest,
 } from "../../../api/admin.api";
+import { useAuth } from "../../../context/useAuth";
 import { formatCurrency, formatDate } from "../../../utils/formatters";
 import PageHeader from "../../../components/common/PageHeader";
 import LoadingState from "../../../components/common/LoadingState";
@@ -25,6 +30,18 @@ import StatusChip from "../../../components/common/StatusChip";
 export default function MutuarioDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  /*
+    Associar um utilizador ao mutuário. Perfis iguais aos que
+    vincularMutuario.controller.js exige — o controller devolve 403 a
+    ANALISTA e DIRETOR, por isso nem mostramos a secção a esses.
+  */
+  const podeAssociar = ["ADMIN", "GESTOR"].includes(user?.role);
+  const [usersDisponiveis, setUsersDisponiveis] = useState([]);
+  const [userEscolhido, setUserEscolhido] = useState("");
+  const [associando, setAssociando] = useState(false);
+  const [carregandoUsers, setCarregandoUsers] = useState(false);
 
   const [mutuario, setMutuario] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -141,6 +158,79 @@ export default function MutuarioDetalhe() {
       setError(err?.response?.data?.message || "Erro ao atualizar mutuário.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  /*
+    Só carrega a lista quando faz falta: o endpoint devolve todos os
+    utilizadores USER da empresa ainda sem mutuário, e a maioria das
+    visitas a esta página não vai associar nada.
+  */
+  const carregarUsersDisponiveis = async () => {
+    try {
+      setCarregandoUsers(true);
+      setError("");
+
+      const data = await getUsersDisponiveisRequest();
+      setUsersDisponiveis(Array.isArray(data?.users) ? data.users : []);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data?.message || "Erro ao carregar utilizadores disponíveis."
+      );
+    } finally {
+      setCarregandoUsers(false);
+    }
+  };
+
+  const handleAssociar = async () => {
+    if (!userEscolhido) {
+      setError("Escolhe o utilizador a associar.");
+      return;
+    }
+
+    try {
+      setAssociando(true);
+      setError("");
+
+      await associarUserMutuarioRequest({
+        userId: Number(userEscolhido),
+        mutuarioId: Number(id),
+      });
+
+      setUserEscolhido("");
+      setUsersDisponiveis([]);
+      setSuccessOpen(true);
+      await carregarMutuario();
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao associar utilizador.");
+    } finally {
+      setAssociando(false);
+    }
+  };
+
+  const handleRemoverAssociacao = async () => {
+    const confirmar = window.confirm(
+      "Remover a associação? O mutuário deixa de conseguir entrar no portal, mas o registo e os créditos mantêm-se."
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setAssociando(true);
+      setError("");
+
+      await removerAssociacaoUserRequest(id);
+
+      setUsersDisponiveis([]);
+      setSuccessOpen(true);
+      await carregarMutuario();
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || "Erro ao remover associação.");
+    } finally {
+      setAssociando(false);
     }
   };
 
@@ -373,11 +463,84 @@ export default function MutuarioDetalhe() {
                 <Typography>
                   <strong>Estado:</strong> {mutuario.user.ativo ? "Ativo" : "Inativo"}
                 </Typography>
+
+                {podeAssociar && (
+                  <Box pt={1}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={handleRemoverAssociacao}
+                      disabled={associando}
+                    >
+                      {associando ? "A remover..." : "Remover associação"}
+                    </Button>
+                  </Box>
+                )}
               </Stack>
             ) : (
-              <Typography color="text.secondary">
-                Este mutuário não tem utilizador associado.
-              </Typography>
+              <Stack spacing={2}>
+                <Typography color="text.secondary">
+                  Este mutuário não tem utilizador associado, por isso não
+                  consegue entrar no portal. Os mutuários criados pelo
+                  backoffice nascem assim; quem se regista pelo convite já
+                  nasce com conta própria.
+                </Typography>
+
+                {podeAssociar && (
+                  <>
+                    {usersDisponiveis.length === 0 ? (
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          onClick={carregarUsersDisponiveis}
+                          disabled={carregandoUsers}
+                        >
+                          {carregandoUsers
+                            ? "A procurar..."
+                            : "Procurar utilizadores disponíveis"}
+                        </Button>
+                      </Box>
+                    ) : (
+                      <Stack spacing={2}>
+                        <TextField
+                          select
+                          fullWidth
+                          label="Utilizador"
+                          value={userEscolhido}
+                          onChange={(e) => setUserEscolhido(e.target.value)}
+                        >
+                          {usersDisponiveis.map((disponivel) => (
+                            <MenuItem key={disponivel.id} value={disponivel.id}>
+                              {disponivel.nome} ({disponivel.email})
+                              {disponivel.ativo ? "" : " — inativo"}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+
+                        <Box>
+                          <Button
+                            variant="contained"
+                            onClick={handleAssociar}
+                            disabled={associando}
+                          >
+                            {associando ? "A associar..." : "Associar Utilizador"}
+                          </Button>
+                        </Box>
+                      </Stack>
+                    )}
+
+                    {!carregandoUsers &&
+                      usersDisponiveis.length === 0 &&
+                      userEscolhido === "" && (
+                        <Typography variant="body2" color="text.secondary">
+                          Só aparecem aqui utilizadores com perfil USER desta
+                          empresa que ainda não estejam ligados a nenhum
+                          mutuário.
+                        </Typography>
+                      )}
+                  </>
+                )}
+              </Stack>
             )}
           </Paper>
 
