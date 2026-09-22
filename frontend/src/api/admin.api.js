@@ -68,6 +68,20 @@ export const getMutuarioByIdRequest = async (id) => {
   return response.data;
 };
 
+/*
+  O backend sempre aceitou POST /mutuarios (ADMIN/GESTOR/ANALISTA, ver
+  controllers/mutuario.controller.js), mas o frontend nunca o expunha: dava
+  para listar, editar e apagar, nunca para criar. As unicas entradas de
+  dados eram o auto-registo do mutuario pelo portal (com convite e OTP) e a
+  importacao por Excel, que so o plano Empresarial tem. Resultado: uma
+  financeira no Starter ou no Profissional nao conseguia pôr um unico
+  mutuario no sistema pela interface.
+*/
+export const createMutuarioRequest = async (payload) => {
+  const response = await api.post("/mutuarios", payload);
+  return response.data;
+};
+
 export const updateMutuarioRequest = async (id, payload) => {
   const response = await api.put(`/mutuarios/${id}`, payload);
   return response.data;
@@ -83,6 +97,21 @@ export const deleteMutuarioRequest = async (id) => {
   DESEMBOLSOS
   ==========================================================
 */
+
+/*
+  Mesma lacuna dos mutuarios: POST /pedidos-credito existe no backend
+  (ADMIN/GESTOR/ANALISTA/USER, ver utils/regrasPedido.js CRIAR_PEDIDO) mas
+  so o portal do mutuario o chamava. Sem isto, o staff nao conseguia abrir
+  um pedido em nome de um mutuario que atendeu ao balcao.
+
+  So mutuarioId, valorSolicitado, prazo e finalidade sao obrigatorios: o
+  numero do pedido, a taxa (minima da empresa), a prestacao e o montante
+  total sao calculados no servidor.
+*/
+export const createPedidoRequest = async (payload) => {
+  const response = await api.post("/pedidos-credito", payload);
+  return response.data;
+};
 
 export const getAllDesembolsosRequest = async () => {
   const response = await api.get("/desembolsos");
