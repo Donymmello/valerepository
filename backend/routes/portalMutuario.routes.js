@@ -3,6 +3,7 @@ const router = express.Router();
 
 const upload = require("../middleware/upload.middleware");
 const authMiddleware = require("../middleware/auth.middleware");
+const { validarAssinatura } = require("../utils/uploadSeguro");
 const {
   getMeuMutuario,
   getMeusPedidos,
@@ -56,6 +57,7 @@ router.post(
   "/portal/meus-pedidos/upload/:id/requisitos",
   authMiddleware,
   upload.single("arquivo"),
+  validarAssinatura,
   anexarReqPedido
 );
 

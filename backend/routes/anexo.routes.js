@@ -3,6 +3,7 @@ const router = express.Router();
 
 const upload = require("../middleware/upload.middleware");
 const authMiddleware = require("../middleware/auth.middleware");
+const { validarAssinatura } = require("../utils/uploadSeguro");
 
 const {
   listar,
@@ -14,6 +15,7 @@ router.post(
   "/anexar/:id",
   authMiddleware,
   upload.single("arquivo"),
+  validarAssinatura,
   anexar
 );
 

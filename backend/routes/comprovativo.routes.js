@@ -4,8 +4,17 @@ const authMiddleware = require("../middleware/auth.middleware");
 const authorizeRoles = require("../middleware/role.middleware");
 const uploadComprovativo = require("../middleware/uploadComprovativo.middleware");
 const controller = require("../controllers/comprovativo.controller");
+const { validarAssinatura } = require("../utils/uploadSeguro");
 
-router.post("/portal/credito/:creditoId/parcela/:parcelaId/enviar", authMiddleware, uploadComprovativo.single("comprovativo"), controller.enviarComprovativo);
+// validarAssinatura corre a seguir ao multer: confirma que os bytes do
+// ficheiro gravado correspondem mesmo ao tipo declarado.
+router.post(
+  "/portal/credito/:creditoId/parcela/:parcelaId/enviar",
+  authMiddleware,
+  uploadComprovativo.single("comprovativo"),
+  validarAssinatura,
+  controller.enviarComprovativo
+);
 router.get("/portal/credito/:creditoId", authMiddleware, controller.getMeusComprovativos);
 
 router.get("/", authMiddleware, authorizeRoles("ADMIN", "GESTOR", "ANALISTA", "DIRETOR"), controller.getComprovativos);

@@ -1,47 +1,22 @@
 const multer = require("multer");
-const path = require("path");
-const crypto = require("crypto");
-const fs = require("fs"); // 1. IMPORTANTE: Importar o módulo de sistema de arquivos
 
-const storage = multer.diskStorage({
-    destination(req, file, cb) {
-        const dir = "upload/anexos";
+const { DOCUMENTOS, criarStorage, criarFileFilter } = require("../utils/uploadSeguro");
 
-        // 2. CORREÇÃO: Se a pasta não existir, o Node cria ela automaticamente
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
+/*
+  Upload de anexos de requisitos (documentos de KYC do mutuário).
 
-        cb(null, dir);
-    },
+  Tinha o mesmo par de defeitos do upload de comprovativos — extensão
+  tirada do nome enviado pelo cliente e tipo validado só pelo cabeçalho
+  multipart. Ambos fechados em utils/uploadSeguro.js.
 
-    filename(req, file, cb) {
-        const nome =
-          crypto.randomBytes(16).toString("hex") +
-          path.extname(file.originalname);
+  Tal como nos comprovativos, a rota tem de encadear validarAssinatura a
+  seguir a este middleware.
+*/
 
-        cb(null, nome);
-    },
-});
-
-const fileFilter = (req, file, cb) => {
-    const permitidos = [
-        "application/pdf",
-        "image/jpg",
-        "image/png",
-    ];
-
-    if (permitidos.includes(file.mimetype)) {
-        return cb(null, true);
-    }
-
-    cb(new Error("Tipo de ficheiro não suportado"));
-};
+const UPLOAD_DIR = "upload/anexos";
 
 module.exports = multer({
-    storage,
-    fileFilter,
-    limits: {
-        fileSize: 10 * 1024 * 1024, // Limite de 10MB
-    },
+  storage: criarStorage(multer, UPLOAD_DIR, DOCUMENTOS),
+  fileFilter: criarFileFilter(DOCUMENTOS, "Tipo de ficheiro não suportado. Use PDF, JPG ou PNG."),
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
