@@ -1,2 +1,8 @@
 pytest>=8.0
 requests>=2.31
+
+# Só para os testes gerados a partir do contrato (pytest -m contrato).
+# Ver test_contrato.py — escrevem na API, não os apontes a produção.
+schemathesis>=4.0
+pyyaml>=6.0
+openapi-spec-validator>=0.7

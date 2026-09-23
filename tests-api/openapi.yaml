@@ -1,0 +1,552 @@
+openapi: 3.0.3
+
+# ============================================================================
+# Tshemba — contrato do núcleo da API
+#
+# ÂMBITO: autenticação, mutuários, pedidos de crédito e aprovações. A API
+# tem 27 grupos de rotas montados; isto cobre quatro. É deliberado — uma
+# especificação parcial e verdadeira vale mais que uma completa e
+# desatualizada, e documentação escrita à parte do código diverge dele em
+# semanas.
+#
+# O que NÃO está aqui: desembolsos, reembolsos, créditos, extratos,
+# relatórios, requisitos, comprovativos, anexos, importação/exportação
+# Excel, notificações, auditoria, empresas, superadmin, portal do mutuário,
+# solicitações de acesso, simulação, alertas, monitorização.
+#
+# Escrito a partir do código em 2026-09-23, campo a campo. Cada caminho
+# indica em comentário o ficheiro de onde saiu, para se poder confirmar em
+# vez de acreditar.
+# ============================================================================
+
+info:
+  title: Tshemba — API de gestão de crédito
+  version: "1.0.0"
+  description: |
+    Plataforma multi-tenant de gestão de crédito para financeiras e
+    microcrédito. Cada empresa só vê os seus próprios dados; o isolamento é
+    aplicado no servidor a partir do `empresaId` que vem no token, nunca de
+    um parâmetro enviado pelo cliente.
+
+    **Autenticação.** Bearer JWT com validade de 15 minutos, renovável por
+    refresh token. O payload traz `id`, `nome`, `email`, `role` e
+    `empresaId` — é base64, legível por qualquer pessoa, e o que impede a
+    adulteração é a assinatura, não o segredo do conteúdo.
+
+    **Perfis.** `SUPERADMIN` (dono da plataforma, sem empresa), `ADMIN`,
+    `GESTOR`, `ANALISTA`, `DIRETOR` (backoffice de uma financeira) e
+    `USER`/`MUTUARIO` (portal do cliente final).
+
+    **Códigos de recusa.** 401 quando o token falta, expirou ou foi
+    adulterado. 403 quando o perfil não chega para a rota. 404 quando o
+    recurso pertence a outra pessoa — nunca 403, para não confirmar que
+    existe.
+
+servers:
+  - url: https://tshemba.vektramz.com/api
+    description: Produção
+  - url: http://localhost:5000/api
+    description: Local (docker compose)
+
+tags:
+  - name: Autenticação
+  - name: Mutuários
+  - name: Pedidos de crédito
+  - name: Aprovações
+
+security:
+  - bearerAuth: []
+
+paths:
+  # --------------------------------------------------- controllers/auth.controller.js
+  /auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Iniciar sessão
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Sessão iniciada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  token:
+                    type: string
+                    description: Access token JWT, válido 15 minutos
+                  refreshToken: { type: string }
+                  user: { $ref: "#/components/schemas/Utilizador" }
+        "401":
+          description: |
+            Email ou password inválidos. A mensagem não distingue entre os
+            dois casos, para não revelar que endereços existem.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "403":
+          description: |
+            Credenciais certas, mas a empresa está suspensa, cancelada ou
+            com o período de teste expirado.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Erro"
+                  - type: object
+                    properties:
+                      motivo: { type: string }
+
+  /auth/refresh:
+    post:
+      tags: [Autenticação]
+      summary: Renovar o access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: Token renovado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  refreshToken: { type: string }
+        "401":
+          description: Refresh token inválido, expirado ou já revogado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  /auth/logout:
+    post:
+      tags: [Autenticação]
+      summary: Terminar sessão e revogar o refresh token
+      responses:
+        "200":
+          description: Sessão terminada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+
+  # --------------------------------------------------- controllers/mutuario.controller.js
+  /mutuarios:
+    get:
+      tags: [Mutuários]
+      summary: Listar mutuários da empresa autenticada
+      description: |
+        Só backoffice. Um perfil `USER` recebe 403 — até 2026-09-20 recebia
+        a lista completa, ver commit 8cf9d74.
+
+        O resultado é sempre filtrado pelo `empresaId` do token. Não há
+        parâmetro para escolher a empresa, por desenho.
+      responses:
+        "200":
+          description: Lista de mutuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Mutuario" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+    post:
+      tags: [Mutuários]
+      summary: Criar mutuário
+      description: |
+        Perfis ADMIN, GESTOR ou ANALISTA. Só `nomeCompleto` é obrigatório;
+        o `codigoMutuario` é gerado pelo servidor.
+
+        O mutuário criado por esta via **não tem conta de utilizador** e
+        portanto não entra no portal. Para lhe dar acesso é preciso um
+        convite de registo e depois associar as duas pontas em
+        `POST /mutuarios/associar-user`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MutuarioInput" }
+      responses:
+        "201":
+          description: Mutuário criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Mutuario" }
+        "400":
+          description: Falta o nome completo, ou o número de documento já existe na empresa
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+
+  /mutuarios/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdNoCaminho"
+    get:
+      tags: [Mutuários]
+      summary: Obter um mutuário
+      responses:
+        "200":
+          description: Mutuário
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Mutuario" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+    put:
+      tags: [Mutuários]
+      summary: Atualizar um mutuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MutuarioInput" }
+      responses:
+        "200":
+          description: Mutuário atualizado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Mutuario" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+    delete:
+      tags: [Mutuários]
+      summary: Apagar um mutuário
+      description: Só ADMIN e GESTOR.
+      responses:
+        "200":
+          description: Mutuário apagado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+
+  # --------------------------------------------------- controllers/pedidoCredito.controller.js
+  /pedidos-credito:
+    get:
+      tags: [Pedidos de crédito]
+      summary: Listar pedidos da empresa autenticada
+      responses:
+        "200":
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PedidoCredito" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+    post:
+      tags: [Pedidos de crédito]
+      summary: Abrir um pedido de crédito
+      description: |
+        Perfis ADMIN, GESTOR, ANALISTA ou USER (o próprio mutuário pelo
+        portal).
+
+        A taxa, a prestação e o montante total **não** são enviados pelo
+        cliente: o servidor calcula-os com a taxa mínima da empresa. A taxa
+        final é decidida pelo analista na aprovação de nível 1, dentro da
+        faixa `taxaJurosMin`–`taxaJurosMax` da empresa.
+
+        O pedido nasce em `SUBMETIDO`, etapa 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mutuarioId, valorSolicitado, prazo, finalidade]
+              properties:
+                mutuarioId:
+                  type: integer
+                  description: Tem de pertencer à empresa do token, senão 404
+                valorSolicitado:
+                  type: number
+                  # Em OAS 3.0 exclusiveMinimum e booleano e modifica o
+                  # minimum. A forma numerica so existe no 3.1.
+                  minimum: 0
+                  exclusiveMinimum: true
+                prazo:
+                  type: integer
+                  minimum: 0
+                  exclusiveMinimum: true
+                  description: Meses
+                finalidade: { type: string }
+                pacoteFinanciamento: { type: string, nullable: true }
+                observacoes: { type: string, nullable: true }
+      responses:
+        "201":
+          description: Pedido criado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PedidoCredito" }
+        "400":
+          description: Campo obrigatório em falta, ou valor/prazo não positivos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Mutuário não encontrado, ou de outra empresa
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+
+  # --------------------------------------------------- controllers/aprovacaoPedido.controller.js
+  /aprovacoes/pedido/{pedidoId}:
+    parameters:
+      - name: pedidoId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Aprovações]
+      summary: Histórico de aprovações de um pedido
+      description: Só backoffice.
+      responses:
+        "200":
+          description: Decisões já tomadas, por ordem de etapa
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Aprovacao" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+
+  /aprovacoes/pedido/{pedidoId}/decidir:
+    parameters:
+      - name: pedidoId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      tags: [Aprovações]
+      summary: Aprovar ou rejeitar numa etapa
+      description: |
+        Quem pode decidir depende da **etapa**, não do montante — não
+        existe limite de alçada por valor neste sistema:
+
+        | Etapa | Estado de entrada | Quem decide | Aprovado passa a |
+        |---|---|---|---|
+        | 1 | SUBMETIDO | ADMIN, GESTOR, ANALISTA | EM_ANALISE, etapa 2 |
+        | 2 | EM_ANALISE | ADMIN, GESTOR | EM_VALIDACAO, etapa 3 |
+        | 3 | EM_VALIDACAO | ADMIN, DIRETOR | APROVADO |
+
+        Uma rejeição em qualquer etapa leva a `REJEITADO` e **mantém** a
+        etapa onde estava.
+
+        Requisitos obrigatórios por validar bloqueiam a aprovação.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nivel, decisao]
+              properties:
+                nivel:
+                  type: integer
+                  enum: [1, 2, 3]
+                  description: Tem de ser igual à etapa atual do pedido, senão 400
+                decisao:
+                  type: string
+                  enum: [APROVADO, REJEITADO]
+                comentario: { type: string, nullable: true }
+                taxaFinal:
+                  type: number
+                  nullable: true
+                  description: |
+                    Decidida pelo analista no nível 1, dentro da faixa da
+                    empresa. Fora dela, a decisão é recusada.
+      responses:
+        "200":
+          description: Decisão registada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  pedido: { $ref: "#/components/schemas/PedidoCredito" }
+        "400":
+          description: |
+            Decisão inválida, nível diferente da etapa atual, requisito
+            obrigatório pendente, ou taxa fora da faixa da empresa.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Erro" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404": { $ref: "#/components/responses/NaoEncontrado" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdNoCaminho:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    NaoAutenticado:
+      description: |
+        Token em falta, expirado ou adulterado. A mensagem é a mesma nos
+        três casos, de propósito: distinguir ajudaria um atacante a saber
+        se está perto.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+    SemPermissao:
+      description: Autenticado, mas o perfil não chega para esta rota.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+    NaoEncontrado:
+      description: |
+        Não existe, **ou** pertence a outra empresa/mutuário. As duas
+        situações respondem igual por desenho: um 403 confirmaria a
+        existência do recurso e permitiria enumerar ids.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Erro" }
+
+  schemas:
+    Erro:
+      type: object
+      properties:
+        message: { type: string }
+
+    Utilizador:
+      type: object
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [SUPERADMIN, ADMIN, GESTOR, ANALISTA, DIRETOR, USER, MUTUARIO]
+        empresaId:
+          type: integer
+          nullable: true
+          description: Nulo para SUPERADMIN, que não pertence a nenhuma empresa
+        ativo: { type: boolean }
+
+    MutuarioInput:
+      type: object
+      required: [nomeCompleto]
+      properties:
+        nomeCompleto: { type: string, maxLength: 200 }
+        documentoTipo: { type: string, nullable: true }
+        documentoNumero:
+          type: string
+          nullable: true
+          description: Único dentro da empresa, não globalmente
+        dataNascimento: { type: string, format: date, nullable: true }
+        provincia: { type: string, nullable: true }
+        distrito: { type: string, nullable: true }
+        localResidencia: { type: string, nullable: true }
+        telefone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+
+    Mutuario:
+      allOf:
+        - $ref: "#/components/schemas/MutuarioInput"
+        - type: object
+          properties:
+            id: { type: integer }
+            codigoMutuario:
+              type: string
+              description: Gerado pelo servidor
+            empresaId: { type: integer }
+            userId:
+              type: integer
+              nullable: true
+              description: |
+                Nulo quando o mutuário foi criado pelo backoffice. Sem
+                utilizador associado não há acesso ao portal.
+            createdAt: { type: string, format: date-time }
+            situacao:
+              type: object
+              description: Bloco calculado, não guardado
+              properties:
+                pedidosAtivos: { type: integer }
+                creditosAtivos: { type: integer }
+                creditosIncumprimento: { type: integer }
+                parcelasEmAtraso: { type: integer }
+                saldoEmDivida: { type: number }
+
+    PedidoCredito:
+      type: object
+      properties:
+        id: { type: integer }
+        numeroPedido:
+          type: string
+          description: Gerado pelo servidor, formato PED-AAAAMMDD-NNNNNN
+        mutuarioId: { type: integer }
+        empresaId: { type: integer }
+        valorSolicitado: { type: number }
+        finalidade: { type: string }
+        status:
+          type: string
+          enum: [RASCUNHO, SUBMETIDO, EM_ANALISE, EM_VALIDACAO, APROVADO, REJEITADO]
+        etapaAtual:
+          type: integer
+          enum: [1, 2, 3]
+        prazo: { type: integer, description: Meses }
+        taxa: { type: number, description: Percentagem mensal }
+        prestacao: { type: number }
+        jurosTotal: { type: number }
+        montanteTotal: { type: number }
+        dataSubmissao: { type: string, format: date-time }
+        prazoAvaliacao: { type: string, format: date-time }
+        observacoes: { type: string, nullable: true }
+
+    Aprovacao:
+      type: object
+      properties:
+        id: { type: integer }
+        pedidoId: { type: integer }
+        nivel: { type: integer, enum: [1, 2, 3] }
+        decisao: { type: string, enum: [APROVADO, REJEITADO] }
+        comentario: { type: string, nullable: true }
+        aprovadoPor: { type: integer }
+        createdAt: { type: string, format: date-time }
