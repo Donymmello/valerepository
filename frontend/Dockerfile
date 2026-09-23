@@ -26,6 +26,10 @@ RUN npm run build
 FROM nginx:1.27-alpine AS production
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Fora de conf.d/ de proposito: tudo o que esta em conf.d/*.conf e carregado
+# automaticamente como configuracao propria, e isto e um snippet para ser
+# incluido, nao um server.
+COPY security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
