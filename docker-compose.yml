@@ -89,8 +89,16 @@ services:
     depends_on:
       - api_backend
     networks:
-      - default
-      - web
+      default:
+      # Alias unico na rede partilhada. O container chama-se "frontend", e
+      # esse nome colide com o servico "frontend" do LMS: o Caddy esta
+      # ligado as duas redes, pergunta por "frontend" ao DNS do Docker e
+      # recebe o do outro projeto, que atende noutra porta. Resultado, 502.
+      # O backend nunca sofreu disto porque "meu_backend" e um nome que
+      # mais nenhum projeto usa.
+      web:
+        aliases:
+          - tshemba_frontend
     mem_limit: 128m
 
 volumes:
