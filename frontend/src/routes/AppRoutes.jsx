@@ -9,6 +9,7 @@ import BackofficeLayout from "../components/layout/BackofficeLayout";
 // seu próprio chunk quando é visitada, em vez de tudo entrar no bundle
 // inicial (portal + backoffice + superadmin de uma vez).
 const Login = lazy(() => import("../pages/auth/Login"));
+const PoliticaPrivacidade = lazy(() => import("../pages/public/PoliticaPrivacidade"));
 const RegisterMutuario = lazy(() => import("../pages/auth/RegisterMutuario"));
 const VerifyOTP = lazy(() => import("../pages/auth/VerifyOTP"));
 const ForgotPassword = lazy(() => import("../pages/auth/ForgotPassword"));
@@ -79,6 +80,7 @@ export default function AppRoutes() {
 
           <Route path="/landing-page" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/privacidade" element={<PoliticaPrivacidade />} />
           <Route path="/register-mutuario" element={<RegisterMutuario />} />
           <Route path="/verify-otp" element={<VerifyOTP />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
