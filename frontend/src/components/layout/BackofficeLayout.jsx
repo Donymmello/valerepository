@@ -15,6 +15,7 @@ import {
 import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
+import { LinhaSuporte } from "../common/ContactosSuporte";
 
 const DEFAULT_LINKS = [
   { label: "Dashboard", to: "/interno" },
@@ -69,7 +70,7 @@ export default function BackofficeLayout({
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#f8fafc" }}>
       <AppBar position="sticky" elevation={1} sx={{ backgroundColor: "#111827" }}>
         <Toolbar
           sx={{
@@ -203,9 +204,23 @@ export default function BackofficeLayout({
         </Container>
       </Box>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, flex: 1 }}>
         {children}
       </Container>
+
+      <Box
+        component="footer"
+        sx={{
+          borderTop: "1px solid #e5e7eb",
+          backgroundColor: "#fff",
+          py: 2.5,
+          mt: "auto",
+        }}
+      >
+        <Container maxWidth="xl">
+          <LinhaSuporte texto="Suporte:" />
+        </Container>
+      </Box>
     </Box>
   );
 }

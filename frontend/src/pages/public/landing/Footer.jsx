@@ -1,5 +1,6 @@
 import { Box, Container, Typography, Stack, Link } from "@mui/material";
 import Logomark from "./Logomark";
+import ContactosSuporte from "../../../components/common/ContactosSuporte";
 import { NOME_PLATAFORMA, NOME_EMPRESA } from "../../../theme";
 
 const COLUNAS = [
@@ -86,6 +87,19 @@ export default function Footer({ onScrollTo, onNavLogin, onNavTrial, isAuthentic
                 </>
               )}
             </Stack>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ color: "#fff", fontWeight: 700, mb: 1.5 }}>
+              Contactos
+            </Typography>
+            <ContactosSuporte variante="escuro" />
+            <Typography
+              variant="caption"
+              sx={{ display: "block", mt: 1.5, color: "rgba(255,255,255,0.45)" }}
+            >
+              Resposta em dias úteis.
+            </Typography>
           </Box>
         </Stack>
 

@@ -15,6 +15,7 @@ import {
 import { Notifications as NotificationsIcon } from "@mui/icons-material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/useAuth";
+import { LinhaSuporte } from "../common/ContactosSuporte";
 
 export default function PortalLayout({ children }) {
   const { user, logout } = useAuth();
@@ -42,7 +43,7 @@ export default function PortalLayout({ children }) {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
+    <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#f8fafc" }}>
       <AppBar position="sticky" elevation={1} sx={{ backgroundColor: "#0f172a" }}>
         <Toolbar
           sx={{
@@ -167,9 +168,23 @@ export default function PortalLayout({ children }) {
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 4, flex: 1 }}>
         {children}
       </Container>
+
+      <Box
+        component="footer"
+        sx={{
+          borderTop: "1px solid #e5e7eb",
+          backgroundColor: "#fff",
+          py: 2.5,
+          mt: "auto",
+        }}
+      >
+        <Container maxWidth="lg">
+          <LinhaSuporte texto="Suporte:" />
+        </Container>
+      </Box>
     </Box>
   );
 }

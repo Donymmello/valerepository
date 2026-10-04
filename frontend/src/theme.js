@@ -25,6 +25,22 @@ export const NOME_PLATAFORMA = "Tshemba";
 // do nome do produto.
 export const NOME_EMPRESA = "Vektra Technologies MZ";
 
+/*
+  Contactos públicos, única fonte de verdade. Aparecem no rodapé da
+  landing page, no fim das FAQ, no rodapé de quem está autenticado e na
+  política de privacidade.
+
+  Os campos vazios simplesmente não são mostrados: para publicar o
+  telefone ou o WhatsApp basta preenchê-los aqui, sem tocar em JSX
+  nenhum. O WhatsApp vai em formato internacional sem espaços nem "+",
+  que é o que o wa.me aceita (ex: "258841234567").
+*/
+export const CONTACTOS = {
+  email: "contacto@vektramz.com",
+  telefone: "",
+  whatsapp: "",
+};
+
 export const CORES = {
   marca: "#1a237e",
   sucesso: "#15803d",

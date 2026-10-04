@@ -1,6 +1,6 @@
 import { Box, Container, Divider, Link, Stack, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { NOME_PLATAFORMA, NOME_EMPRESA } from "../../theme";
+import { NOME_PLATAFORMA, NOME_EMPRESA, CONTACTOS } from "../../theme";
 
 /*
   ==========================================================
@@ -22,7 +22,10 @@ const PUBLICADA = false;
 const DADOS_EMPRESA = {
   morada: "[PREENCHER: morada da sede]",
   nuit: "[PREENCHER: NUIT]",
-  emailPrivacidade: "[PREENCHER: ex. privacidade@vektramz.com]",
+  // O endereço geral serve até existir um dedicado à privacidade; não
+  // vale a pena anunciar uma caixa que ninguém lê. Ver CONTACTOS em
+  // theme.js, que é onde isto se muda.
+  emailPrivacidade: CONTACTOS.email,
   prazoResposta: "30 dias",
   ultimaAtualizacao: "[PREENCHER: data de publicação]",
   retencao: "[PREENCHER: prazos de conservação — ver secção 5 do rascunho]",

@@ -1,5 +1,6 @@
 import { Box, Container, Typography, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
+import { LinhaSuporte } from "../../../components/common/ContactosSuporte";
 import { CORES } from "../../../theme";
 
 const PERGUNTAS = [
@@ -68,6 +69,10 @@ export default function Faq() {
               </AccordionDetails>
             </Accordion>
           ))}
+        </Box>
+
+        <Box sx={{ mt: 4, textAlign: "center" }}>
+          <LinhaSuporte texto="Não encontraste a tua pergunta? Escreve para" />
         </Box>
       </Container>
     </Box>
