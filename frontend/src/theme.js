@@ -30,15 +30,22 @@ export const NOME_EMPRESA = "Vektra Technologies MZ";
   landing page, no fim das FAQ, no rodapé de quem está autenticado e na
   política de privacidade.
 
-  Os campos vazios simplesmente não são mostrados: para publicar o
-  telefone ou o WhatsApp basta preenchê-los aqui, sem tocar em JSX
-  nenhum. O WhatsApp vai em formato internacional sem espaços nem "+",
-  que é o que o wa.me aceita (ex: "258841234567").
+  Dois endereços de propósito: `email` é o institucional (assuntos
+  comerciais, imprensa, dados pessoais) e `emailSuporte` é o de quem já
+  usa o sistema e tem um problema. Separados para o suporte não ficar
+  enterrado debaixo de pedidos de orçamento.
+
+  Campos vazios não são mostrados, por isso tirar um contacto de
+  circulação é apagá-lo aqui, sem tocar em JSX nenhum. O número do
+  WhatsApp vai em formato internacional sem espaços nem "+", que é o que
+  o wa.me aceita; o `telefone` é o texto legível e a ligação tel: é
+  derivada dele.
 */
 export const CONTACTOS = {
   email: "contacto@vektramz.com",
-  telefone: "",
-  whatsapp: "",
+  emailSuporte: "suporte@vektramz.com",
+  telefone: "+258 86 916 4456",
+  whatsapp: "258869164456",
 };
 
 export const CORES = {
