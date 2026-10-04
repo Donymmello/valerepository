@@ -98,8 +98,14 @@ describe("Authentication Flow", () => {
 
   test("refresh com token válido devolve novo access token (200), sem pedir password", async () => {
     RefreshToken.findOne.mockResolvedValue({
-      userId: 1, revoked: false, expiresAt: new Date(Date.now() + 60 * 1000),
+      id: 7, userId: 1, familiaId: "fam-1", revoked: false,
+      expiresAt: new Date(Date.now() + 60 * 1000),
     });
+    // A rotação reivindica o token com um UPDATE condicional e só segue
+    // se tiver ganho a linha; uma linha afetada é o caminho normal.
+    // Ver refreshAccessToken e __tests__/rotacaoRefreshToken.test.js,
+    // onde o resto dos caminhos corre contra a base de dados real.
+    RefreshToken.update.mockResolvedValue([1]);
     User.findByPk.mockResolvedValue({
       id: 1, nome: "Ana", email: "x@x.com", role: "ADMIN", empresaId: 5, ativo: true,
       empresa: { id: 5, estado: "ATIVA", trialEndsAt: null },
@@ -115,6 +121,7 @@ describe("Authentication Flow", () => {
     const payload = res.json.mock.calls[0][0];
     expect(typeof payload.token).toBe("string");
     expect(payload.token.length).toBeGreaterThan(10);
+    expect(typeof payload.refreshToken).toBe("string");
   });
 
   test("refresh com token inexistente/revogado é rejeitado (401), obriga novo login", async () => {

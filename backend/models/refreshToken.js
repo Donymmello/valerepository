@@ -14,10 +14,11 @@ const { DataTypes } = require("sequelize");
   diretamente em index.js, o único sítio que realmente funciona neste
   projeto.
 
-  ponytail: sem rotação a cada refresh (o mesmo refreshToken serve até
-  expirar ou ser revogado), mais simples e menos superfície de corrida
-  entre pedidos concorrentes. Se um dia precisares de detetar reutilização
-  de um token roubado, rotação com revogação em cascata é o próximo passo.
+  Rotação: cada troca em POST /auth/refresh revoga o token usado e emite
+  um novo. Todos os tokens que descendem do mesmo login partilham o
+  familiaId, o que permite a deteção de reutilização: se um token já
+  gasto reaparecer, foi copiado, e a família inteira cai de uma vez.
+  Ver refreshAccessToken em controllers/auth.controller.js.
 */
 module.exports = (sequelize) => {
   const RefreshToken = sequelize.define(
@@ -27,6 +28,14 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
         unique: true,
+      },
+
+      // Todos os tokens nascidos do mesmo login (o do login e os que a
+      // rotação emite a seguir) partilham este valor. É o que se revoga
+      // em bloco quando se deteta reutilização.
+      familiaId: {
+        type: DataTypes.STRING(64),
+        allowNull: false,
       },
 
       expiresAt: {
@@ -42,6 +51,7 @@ module.exports = (sequelize) => {
     {
       tableName: "refresh_tokens",
       underscored: true,
+      indexes: [{ fields: ["familia_id"] }],
     }
   );
 

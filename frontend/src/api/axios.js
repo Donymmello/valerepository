@@ -42,10 +42,11 @@ function limparSessaoEIrParaLogin() {
 // Dedup do refresh: se N pedidos batem 401 ao mesmo tempo (ex: o
 // dashboard a carregar vários recursos de uma vez com o access token já
 // expirado), todos esperam pela MESMA chamada a /auth/refresh, só uma
-// acontece de verdade. Sem isto, N chamadas em paralelo desperdiçavam
-// pedidos e complicavam sem necessidade (o refresh token nem roda, ver
-// emitirRefreshToken no backend, mas mesmo assim não há razão para
-// disparar mais que uma).
+// acontece de verdade. Com a rotação do refresh token isto deixou de ser
+// só poupança de pedidos: duas chamadas em paralelo gastariam o mesmo
+// token duas vezes, e a segunda cairia na janela de graça do backend.
+// Entre separadores diferentes isso ainda pode acontecer, e é para isso
+// que a janela existe (ver GRACA_ROTACAO_MS em auth.controller.js).
 let refreshEmCurso = null;
 
 function tentarRenovarToken() {
@@ -56,6 +57,12 @@ function tentarRenovarToken() {
       refreshToken
         ? api.post("/auth/refresh", { refreshToken }).then((response) => {
             localStorage.setItem("token", response.data.token);
+            // O backend roda o refresh token a cada troca: o que foi
+            // enviado acabou de ser revogado. Guardar o novo não é
+            // opcional, sem isto a sessão morre no refresh seguinte.
+            if (response.data.refreshToken) {
+              localStorage.setItem("refreshToken", response.data.refreshToken);
+            }
             return response.data.token;
           })
         : Promise.reject(new Error("Sem refresh token guardado."))

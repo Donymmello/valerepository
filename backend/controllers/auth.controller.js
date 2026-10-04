@@ -10,6 +10,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require("../utils/emai
 const { avaliarAcessoEmpresa, MENSAGENS } = require("../utils/empresaAccess");
 const { obterEmpresaCacheada, invalidarCacheEmpresa } = require("../utils/empresaCache");
 const { obterLimitesPlano, PLANOS_VALIDOS } = require("../config/planos");
+const logger = require("../utils/logger");
 
 // Roles que contam para o limite de "utilizadores" de cada plano (ver
 // config/planos.js). MUTUARIO fica de fora de propósito: são os clientes
@@ -75,16 +76,44 @@ const generateToken = (user) => {
  * frontend poder trocar por um novo access token via POST /auth/refresh
  * sem pedir password de novo quando o token de 15 min expirar.
  *
- * ponytail: sem rotação (o mesmo refreshToken serve até expirar ou ser
- * revogado em /auth/logout ou num reset de password), ver comentário em
- * models/refreshToken.js.
+ * familiaId: sem valor, nasce uma família nova (é o caso do login e dos
+ * registos). A rotação em refreshAccessToken passa a família do token
+ * que está a substituir, para a cadeia toda continuar ligada.
  */
-const emitirRefreshToken = async (user, options = {}) => {
+const emitirRefreshToken = async (user, options = {}, familiaId = null) => {
   const token = crypto.randomBytes(40).toString("hex");
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DURACAO_MS);
-  await RefreshToken.create({ userId: user.id, token, expiresAt }, options);
+  await RefreshToken.create(
+    {
+      userId: user.id,
+      token,
+      expiresAt,
+      familiaId: familiaId || crypto.randomUUID(),
+    },
+    options
+  );
   return token;
 };
+
+/**
+ * Janela em que um refresh token já revogado pela rotação ainda é aceite
+ * sem levantar suspeita.
+ *
+ * Existe por causa de uma corrida real, não teórica: dois separadores do
+ * mesmo utilizador com o access token expirado batem em /auth/refresh ao
+ * mesmo tempo. O primeiro roda o token, o segundo chega com um token que
+ * já foi gasto há meio segundo. Sem esta janela, isso era indistinguível
+ * de um token roubado e deitava a sessão abaixo a meio do trabalho.
+ *
+ * Dentro da janela devolve-se o sucessor da família, e os dois separadores
+ * convergem para o mesmo token. Fora dela, um token gasto só reaparece se
+ * alguém guardou uma cópia.
+ *
+ * Teto conhecido: quem roube um token e o replique nestes 30 segundos
+ * passa sem ser detetado. É o preço de não expulsar utilizadores
+ * legítimos, e é o compromisso que a RFC 9700 (secção 4.14.2) descreve.
+ */
+const GRACA_ROTACAO_MS = 30 * 1000;
 
 /**
  * Valida a força mínima de uma password. Devolve uma mensagem de erro
@@ -862,7 +891,9 @@ const refreshAccessToken = async (req, res) => {
       return res.status(400).json({ message: "refreshToken é obrigatório." });
     }
 
-    const registo = await RefreshToken.findOne({ where: { token: refreshToken, revoked: false } });
+    // Procura o token em qualquer estado, revogado incluído: um token
+    // revogado que volta a aparecer é exatamente o sinal que interessa.
+    const registo = await RefreshToken.findOne({ where: { token: refreshToken } });
     if (!registo || new Date() > registo.expiresAt) {
       return res.status(401).json({ message: "Sessão expirada. Inicia sessão novamente." });
     }
@@ -882,7 +913,53 @@ const refreshAccessToken = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ token: generateToken(user) });
+    // Reivindica a rotação. O UPDATE condicional é o que serializa dois
+    // pedidos simultâneos: a base de dados só deixa um passar o revoked
+    // de false para true, e o perdedor recebe 0 linhas.
+    const [reivindicado] = await RefreshToken.update(
+      { revoked: true },
+      { where: { id: registo.id, revoked: false } }
+    );
+
+    if (reivindicado === 1) {
+      const novoRefreshToken = await emitirRefreshToken(user, {}, registo.familiaId);
+      return res.status(200).json({ token: generateToken(user), refreshToken: novoRefreshToken });
+    }
+
+    // Chegou aqui com um token que já estava revogado. Ou é a corrida
+    // entre separadores (ver GRACA_ROTACAO_MS), ou é uma cópia a ser
+    // usada depois do original. Reler para ter o updated_at da revogação
+    // e não o que estava em memória antes dela.
+    await registo.reload();
+    const msDesdeRevogacao = Date.now() - new Date(registo.updatedAt).getTime();
+
+    const sucessor =
+      msDesdeRevogacao <= GRACA_ROTACAO_MS
+        ? await RefreshToken.findOne({
+            where: { familiaId: registo.familiaId, revoked: false },
+            order: [["id", "DESC"]],
+          })
+        : null;
+
+    if (sucessor) {
+      return res.status(200).json({ token: generateToken(user), refreshToken: sucessor.token });
+    }
+
+    // Reutilização. Não há como saber qual das duas cópias é a legítima,
+    // por isso caem as duas: a família inteira é revogada e o utilizador
+    // volta a autenticar-se com password.
+    await RefreshToken.update(
+      { revoked: true },
+      { where: { familiaId: registo.familiaId, revoked: false } }
+    );
+
+    logger.warn("Reutilização de refresh token detetada, família revogada", {
+      userId: registo.userId,
+      familiaId: registo.familiaId,
+      msDesdeRevogacao,
+    });
+
+    return res.status(401).json({ message: "Sessão expirada. Inicia sessão novamente." });
   } catch (error) {
     console.error("[RefreshAccessToken Error]:", error);
     return res.status(500).json({ message: "Erro interno ao renovar sessão." });
