@@ -51,7 +51,7 @@ ver a carteira da outra, ou a base de dados desaparecer.
 |----|----------|------|----------|
 | C-21 | `LogAuditoria`: quem, o quê, sobre que registo, quando | `models/logAuditoria.model.js`, 16 controladores | Média |
 | C-22 | Logs de aplicação para ficheiro e consola | `utils/logger.js` | **Baixa — ninguém os lê** |
-| C-23 | `/api/monitoring/dashboard` e `/health` | `controllers/monitoring.controller.js` | Baixa (pull, não push) |
+| C-23 | `/api/monitoring/dashboard` e `/api/health/ping` | `controllers/monitoring.controller.js` | Baixa (pull, não push) |
 
 ### Corretivos
 
@@ -113,8 +113,9 @@ Consequência prática: um atacante que entre tem tempo ilimitado. E uma falha
 de disponibilidade só se descobre quando um cliente telefona.
 
 O mais barato que resolve a parte mais importante: um monitor externo de
-disponibilidade (UptimeRobot ou equivalente, gratuito) a bater em `/health` de
-cinco em cinco minutos. Depois, alerta por email quando as falhas de
+disponibilidade (UptimeRobot ou equivalente, gratuito) a bater em
+`/api/health/ping` de cinco em cinco minutos (a rota `/api/health` so aceita
+POST, nao serve para um monitor). Depois, alerta por email quando as falhas de
 autenticação de um IP passarem de N em 15 minutos — o `logger` já tem os
 dados, falta quem os leia.
 
@@ -231,7 +232,7 @@ Ordenado por (impacto ÷ esforço), não por gravidade pura.
 **Primeiro — dias, não semanas**
 
 1. G-02: `rclone` para armazenamento externo no fim do `backup-db.sh`. Decidir o destino.
-2. G-01, parte 1: monitor externo a bater em `/health`.
+2. G-01, parte 1: monitor externo a bater em `/api/health/ping`.
 3. ~~G-06: rotação do refresh token com deteção de reutilização.~~ Feito.
 4. G-03: exceções explícitas na auditoria, tirar o `continue-on-error`.
 5. G-04, parte 1: permissões no `.env`, procedimento de rotação escrito.
