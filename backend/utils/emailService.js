@@ -27,6 +27,27 @@ function getResendClient() {
 
 const REMETENTE_PLATAFORMA = `${process.env.PLATFORM_NAME || "Tshemba"} <${process.env.RESEND_FROM_EMAIL || "notificacoes@exemplo.com"}>`;
 
+/*
+  Assinatura dos emails da PLATAFORMA. Estes saem de notificacoes@, um
+  endereco que ninguem le, por isso sem isto quem recebe um codigo ou
+  instrucoes de pagamento nao tem a quem responder.
+
+  Nao se aplica a services/notificacaoExterna.service.js: esses emails
+  saem em nome da financeira, e o interlocutor do mutuario e ela, nao
+  nos (ver a politica de privacidade, seccao 1).
+
+  Os valores vivem em variaveis de ambiente, a par do PLATFORM_NAME.
+  O equivalente no frontend e o CONTACTOS em src/theme.js; sao dois
+  sitios de proposito, porque o backend nao importa codigo do frontend.
+*/
+const EMAIL_SUPORTE = process.env.SUPPORT_EMAIL || "suporte@vektramz.com";
+const TELEFONE_SUPORTE = process.env.SUPPORT_PHONE || "+258 86 916 4456";
+
+const ASSINATURA =
+  `\n\n--\nPrecisa de ajuda? ${EMAIL_SUPORTE}` +
+  (TELEFONE_SUPORTE ? ` ou ${TELEFONE_SUPORTE}` : "") +
+  `\n${process.env.PLATFORM_NAME || "Tshemba"}`;
+
 /**
  * Envia email de verificação de OTP
  * Em desenvolvimento, mostra no console
@@ -57,7 +78,7 @@ async function sendVerificationEmail(email, otp, nomeCompleto) {
       from: REMETENTE_PLATAFORMA,
       to: email,
       subject: 'O seu código de verificação',
-      text: `Olá ${nomeCompleto},\n\nO seu código de verificação é: ${otp}\n\nVálido por 10 minutos.`,
+      text: `Olá ${nomeCompleto},\n\nO seu código de verificação é: ${otp}\n\nVálido por 10 minutos.${ASSINATURA}`,
     });
     return { success: true, mode: 'production' };
   } catch (error) {
@@ -93,7 +114,7 @@ async function sendPasswordResetEmail(email, resetLink, nomeUtilizador) {
       from: REMETENTE_PLATAFORMA,
       to: email,
       subject: 'Repor a sua password',
-      text: `Olá ${nomeUtilizador},\n\nUse este link para repor a sua password: ${resetLink}\n\nVálido por 15 minutos. Se não pediu isto, ignore este email.`,
+      text: `Olá ${nomeUtilizador},\n\nUse este link para repor a sua password: ${resetLink}\n\nVálido por 15 minutos. Se não pediu isto, ignore este email.${ASSINATURA}`,
     });
     return { success: true, mode: 'production' };
   } catch (error) {
@@ -158,7 +179,7 @@ async function sendInstrucoesPagamentoEmail(email, { nomeContacto, nomePlano, ci
       from: REMETENTE_PLATAFORMA,
       to: email,
       subject: `Instruções de pagamento — Plano ${nomePlano}`,
-      text: corpo,
+      text: corpo + ASSINATURA,
     });
     return { success: true, mode: 'production' };
   } catch (error) {
@@ -210,7 +231,7 @@ async function sendNotificacaoPedidoPlanoDono({ nomeEmpresa, nomeContacto, email
       from: REMETENTE_PLATAFORMA,
       to: destinatario,
       subject: `Novo pedido de plano: ${nomeEmpresa} (${nomePlano})`,
-      text: corpo,
+      text: corpo + ASSINATURA,
     });
     return { success: true, mode: 'production' };
   } catch (error) {
